@@ -1,0 +1,246 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 500;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px 12px;
+  overflow-y: auto;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 640px;
+  margin-bottom: 20px;
+  animation: inschuiven 0.2s ease;
+}
+
+@keyframes inschuiven {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.header {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.titel {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+.headerRechts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.aiKnop {
+  padding: 7px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #1e2029;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s;
+}
+
+.aiKnop:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sluitKnop {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--muted);
+  padding: 0 4px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sluitKnop:hover { color: var(--text); }
+
+.body {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.fg {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fg label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.vol {
+  grid-column: 1 / -1;
+}
+
+/* Kleuren grid */
+.kleurenGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.kleurItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: #1e2029;
+  cursor: pointer;
+  min-width: 50px;
+  transition: all 0.15s;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.kleurItem:hover {
+  border-color: rgba(146, 25, 57, 0.4);
+}
+
+.kleurItem.kleurActief {
+  border-color: var(--accent);
+  background: rgba(146, 25, 57, 0.12);
+}
+
+.kleurItem.kleurActief span {
+  color: #e87090;
+}
+
+.kleurSwatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Pill knoppen (opties, brandstof) */
+.pillGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  padding: 6px 13px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: #1e2029;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.pill:hover {
+  border-color: rgba(146, 25, 57, 0.4);
+}
+
+.pill.pillActief {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.08);
+  color: var(--green);
+}
+
+/* Voortgang grid */
+.progGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.progItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #1e2029;
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.15s;
+}
+
+.progItem:hover {
+  border-color: rgba(146, 25, 57, 0.3);
+}
+
+.progItem.progActief {
+  border-color: rgba(74, 222, 128, 0.35);
+}
+
+.progDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.progDot.progDotActief {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+/* Footer */
+.footer {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.verwijderKnop {
+  margin-right: auto;
+  padding: 8px 15px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: transparent;
+  color: var(--red);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.verwijderKnop:hover {
+  background: rgba(248, 113, 113, 0.1);
+}

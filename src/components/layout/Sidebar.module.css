@@ -1,0 +1,163 @@
+.sidebar {
+  width: 228px;
+  min-width: 228px;
+  flex-shrink: 0;
+  background: #1e2029;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.logoArea {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shield {
+  width: 24px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.logoText {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+
+.logoText span {
+  color: #921939;
+}
+
+.nav {
+  flex: 1;
+  padding: 8px 0;
+}
+
+.section {
+  padding: 12px 16px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.25);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  margin: 1px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  transition: all 0.12s;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.item.active {
+  background: rgba(146, 25, 57, 0.15);
+  color: #fff;
+  font-weight: 600;
+}
+
+.item.active .icon {
+  opacity: 1;
+}
+
+.icon {
+  width: 20px;
+  text-align: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.footer {
+  padding: 8px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.syncRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.syncDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 5px rgba(74, 222, 128, 0.5);
+  flex-shrink: 0;
+}
+
+.syncLabel {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.userBadge {
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7a1430, #921939);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.userName {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logoutBtn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 5px;
+  transition: all 0.12s;
+}
+
+.logoutBtn:hover {
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.07);
+}

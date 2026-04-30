@@ -1,0 +1,47 @@
+.pagina {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 24px 0;
+  flex-wrap: wrap;
+}
+
+.paginaTitel {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  flex: 1;
+}
+
+.zoekbalk {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #1e2029;
+  color: var(--text);
+  font-size: 13px;
+  width: 180px;
+  font-family: inherit;
+}
+
+.zoekbalk::placeholder {
+  color: var(--muted);
+}
+
+.zoekbalk:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.laden {
+  padding: 60px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}

@@ -1,0 +1,47 @@
+.balk {
+  display: flex;
+  gap: 2px;
+  padding: 0 24px;
+  margin-top: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 0 16px;
+  height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.on {
+  color: #fff;
+  border-bottom-color: var(--accent);
+}
+
+.tel {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--muted);
+  border-radius: 20px;
+  padding: 1px 7px;
+}
+
+.tab.on .tel {
+  background: rgba(146, 25, 57, 0.2);
+  color: #e87090;
+}

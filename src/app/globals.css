@@ -1,0 +1,258 @@
+:root {
+  --bg: #21242d;
+  --surface: #21242d;
+  --surface2: #1e2029;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #921939;
+  --accent2: #7a1430;
+  --green: #4ade80;
+  --blue: #60a5fa;
+  --red: #f87171;
+  --text: #f0eef8;
+  --muted: rgba(255, 255, 255, 0.45);
+  --sidebar: #1e2029;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --card: rgba(255, 255, 255, 0.035);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  display: flex;
+  align-items: stretch;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* ── Buttons ── */
+.btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn-a {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-a:hover {
+  background: var(--accent2);
+  color: #fff;
+  border-color: var(--accent2);
+}
+
+/* ── Form inputs ── */
+.fi {
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #1e2029;
+  color: var(--text);
+  font-size: 13px;
+  width: 100%;
+}
+.fi::placeholder {
+  color: rgba(136, 128, 170, 0.4);
+}
+
+/* ── Badges ── */
+.badge-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(74, 222, 128, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+}
+.badge-uit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(96, 165, 250, 0.1);
+  color: var(--blue);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+
+/* ── Toast tray ── */
+.tray {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+}
+.toast {
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #1e2029;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 280px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+.ts {
+  color: var(--green);
+  border-color: rgba(74, 222, 128, 0.3);
+}
+.ti {
+  color: var(--blue);
+  border-color: rgba(96, 165, 250, 0.3);
+}
+.te {
+  color: var(--red);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* ── Tables ── */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 5px;
+}
+thead th {
+  background: var(--surface);
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+thead th:hover {
+  color: var(--text);
+}
+tbody tr {
+  cursor: pointer;
+  transition: all 0.15s;
+}
+tbody tr td {
+  background: var(--surface);
+  border-top: 1px solid rgba(45, 40, 72, 0.6);
+  border-bottom: 1px solid rgba(45, 40, 72, 0.6);
+}
+tbody tr td:first-child {
+  border-left: 1px solid rgba(45, 40, 72, 0.6);
+  border-radius: 10px 0 0 10px;
+}
+tbody tr td:last-child {
+  border-right: 1px solid rgba(45, 40, 72, 0.6);
+  border-radius: 0 10px 10px 0;
+}
+tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.025);
+}
+tbody tr:hover td {
+  background: #1e2029;
+  border-color: rgba(146, 25, 57, 0.35);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+tbody tr:hover td:first-child {
+  border-left-color: var(--accent);
+}
+td {
+  padding: 11px 12px;
+  vertical-align: middle;
+  border-right: 1px solid rgba(45, 40, 72, 0.4);
+}
+td:last-child {
+  border-right: none;
+}
+
+/* ── Modal overlay ── */
+.ov {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 500;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px 12px;
+  overflow-y: auto;
+}
+.ov.open {
+  display: flex;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 640px;
+  margin-bottom: 20px;
+}

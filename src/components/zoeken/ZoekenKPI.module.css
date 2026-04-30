@@ -1,0 +1,35 @@
+.strip {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px 0;
+  flex-wrap: wrap;
+}
+
+.kaart {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  min-width: 110px;
+  flex: 1;
+}
+
+.waarde {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.28);
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+.blauw .waarde { color: #60a5fa; }
+.geel .waarde  { color: #fbbf24; }
+.groen .waarde { color: #4ade80; }
+.grijs .waarde { color: rgba(255, 255, 255, 0.45); }

@@ -1,0 +1,100 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 520px;
+  padding: 28px;
+  animation: inschuiven 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@keyframes inschuiven {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.titel {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: -8px 0 0;
+}
+
+.sectie {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectieTitel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.typeKnoppen {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.typeKnoppen .btn {
+  flex: 1;
+  min-width: 80px;
+}
+
+.rij {
+  display: flex;
+  gap: 6px;
+}
+
+.waarschuwing {
+  font-size: 11px;
+  color: #fbbf24;
+}
+
+.creditGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.creditInfo {
+  font-size: 11px;
+  color: var(--green);
+}
+
+.veldLabel {
+  font-size: 10px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 3px;
+}
+
+.knoppen {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
