@@ -6,12 +6,24 @@ interface Props {
 
 export default function KentekenPlaat({ kenteken }: Props) {
   const clean = kenteken.replace(/-/g, '').toUpperCase();
-  const isMeldcode = /^\d+$/.test(clean) || clean.length < 5;
+  const isMeldcode = /^\d+$/.test(clean) || clean.length < 5 || clean === 'NNB' || clean === '';
 
   if (isMeldcode) {
     return (
-      <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', letterSpacing: '0.05em' }}>
-        {kenteken}
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        background: 'rgba(255,255,255,.07)',
+        border: '1.5px solid rgba(255,255,255,.12)',
+        borderRadius: 4,
+        padding: '3px 8px',
+        fontWeight: 700,
+        fontSize: 12,
+        color: 'var(--muted)',
+        letterSpacing: '0.06em',
+        fontFamily: 'Arial, sans-serif',
+      }}>
+        {kenteken || 'NNB'}
       </span>
     );
   }
