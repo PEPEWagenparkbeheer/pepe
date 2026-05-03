@@ -640,12 +640,12 @@ function TabGepland({ autos, zoek, onToggle, onBewerken, onAfgeleverd }: {
                   <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
                 </td>
               ))}
-              <td style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 200 }}>{r.taken_notitie || '—'}</td>
+              <td style={{ maxWidth: 220 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: r.taken_notitie ? 6 : 0 }}>{r.taken_notitie || ''}</div>
+                <button className={styles.bewerkLink} onClick={() => onBewerken(r)}>✏ Bewerken</button>
+              </td>
               <td onClick={(e) => e.stopPropagation()}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-                  <button className={styles.bewerkLink} onClick={() => onBewerken(r)}>— Bewerken</button>
-                  <button className={styles.afleverKnop} onClick={() => onAfgeleverd(r)}>✅ Afgeleverd</button>
-                </div>
+                <button className={styles.afleverKnop} onClick={() => onAfgeleverd(r)}>✅ Afgeleverd</button>
               </td>
             </tr>
           ))}
