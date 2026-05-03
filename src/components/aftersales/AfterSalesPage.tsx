@@ -102,42 +102,170 @@ function KpiStrip({ autos, klachten }: { autos: AfterSalesAuto[]; klachten: ASKl
   );
 }
 
+// ── Mail aflevering ───────────────────────────────────────────
+function mailAflevering(r: AfterSalesAuto, datum: string, tijdstip: string, factuur: boolean, poetsen: boolean, hubspot: boolean, bijzonderheden: string) {
+  const to = factuur
+    ? 'roger@pepewagenparkbeheer.nl;lorenzo@pepewagenparkbeheer.nl;perke@pepewagenparkbeheer.nl'
+    : 'roger@pepewagenparkbeheer.nl;lorenzo@pepewagenparkbeheer.nl';
+  const sub = encodeURIComponent(`Aflevering gepland – ${r.klant ?? ''} / ${r.merk ?? ''} ${r.model ?? ''}`);
+  const taken = [factuur && '📋 Factuur maken', poetsen && '🧹 Poetsen', hubspot && '🟠 In HubSpot zetten'].filter(Boolean).join('\n- ');
+  const body = encodeURIComponent(
+    `Hallo Roger en Lorenzo,\n\nEr is een aflevering gepland:\n\n` +
+    `Klant: ${r.klant ?? '—'}\nAuto: ${r.merk ?? ''} ${r.model ?? ''} (${r.kenteken})\n` +
+    `Datum: ${datum}${tijdstip ? ` om ${tijdstip}` : ''}\n` +
+    (taken ? `\nTe doen:\n- ${taken}\n` : '') +
+    (bijzonderheden ? `\nBijzonderheden:\n${bijzonderheden}\n` : '') +
+    `\nMet vriendelijke groet,\nPEPE Flow`
+  );
+  window.open(`mailto:${to}?subject=${sub}&body=${body}`);
+}
+
 // ── Tab: In behandeling ───────────────────────────────────────
-function TabLopend({ autos, zoek, onEdit, onToggle }: {
+function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
   autos: AfterSalesAuto[]; zoek: string;
   onEdit: (r: AfterSalesAuto) => void;
   onToggle: (id: string, veld: keyof AfterSalesAuto) => void;
+  onAfleveren: (r: AfterSalesAuto) => void;
 }) {
   const rijen = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
   if (!rijen.length) return <div className={styles.leeg}>Geen auto's in behandeling</div>;
   return (
     <div className={styles.tabelWrapper}>
-      <table className={styles.tabel}>
+      <table className={styles.tabel} style={{ minWidth: 1000 }}>
         <thead><tr>
           <th>Kenteken</th><th>Merk / Model</th><th>Klant</th><th>Type</th><th>Platen</th>
-          <th className={styles.chk}>Binnen</th><th className={styles.chk}>Aflctr.</th>
-          <th>Afleverdatum</th><th>Wie levert af</th><th>Rijklaar</th>
+          <th className={styles.chk}>Binnen</th><th className={styles.chk}>Aflevercontr.</th>
+          <th>Afleverdatum</th><th>Wie levert af</th><th>Status</th><th>Acties</th>
         </tr></thead>
         <tbody>
           {rijen.map((r) => {
-            const dotKls = r.klaar ? styles.dotGroen : (r.binnen && r.proefrit) ? styles.dotOranje : styles.dotRood;
+            const rijklaarDot = r.klaar ? styles.dotGroen : (r.binnen && r.proefrit) ? styles.dotOranje : styles.dotRood;
+            const importDot = r.bin_ontvangen ? styles.dotGroen : styles.dotOranje;
             return (
               <tr key={r.id} onClick={() => onEdit(r)}>
                 <td><KentekenPlaat kenteken={r.kenteken} /></td>
                 <td><span className={styles.kn}>{r.merk}</span> <span className={styles.modelAccent}>{r.model}</span></td>
-                <td>{r.klant}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{r.klant || '—'}</td>
                 <td>{r.type ? <span className={`${styles.badge} ${TYPE_CSS[r.type]}`}>{TYPE_LABEL[r.type]}</span> : '—'}</td>
-                <td>{r.platen || '—'}</td>
-                <td className={styles.chk}><Cb aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} /></td>
-                <td className={styles.chk}><Cb aan={!!r.aflevercontrole} onClick={() => onToggle(r.id, 'aflevercontrole')} /></td>
-                <td>{datumFmt(r.afleverdatum)}</td>
-                <td>{r.wie_levert_af || '—'}</td>
-                <td><div className={`${styles.dot} ${dotKls}`} title={r.klaar ? 'Rijklaar' : (r.binnen && r.proefrit) ? 'Binnen + proef OK' : 'Niet rijklaar'} /></td>
+                <td><PlatenBadge platen={r.platen} /></td>
+                <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                  <Cb aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} />
+                </td>
+                <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                  <Cb aan={!!r.aflevercontrole} onClick={() => onToggle(r.id, 'aflevercontrole')} />
+                </td>
+                <td style={{ whiteSpace: 'nowrap' }}>{datumFmt(r.afleverdatum) !== '—' ? <span style={{ color: 'var(--green)', fontWeight: 600 }}>{datumFmt(r.afleverdatum)}</span> : '—'}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{r.wie_levert_af || '—'}</td>
+
+                {/* Status */}
+                <td onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.statusRij}>
+                    {r.type === 'import' && (
+                      <div className={styles.statusItem}>
+                        <div className={`${styles.dot} ${importDot}`} title={r.bin_ontvangen ? 'BIN ontvangen — kenteken bekend' : 'Import nog niet afgerond'} />
+                        <span className={styles.statusLabel}>Import</span>
+                      </div>
+                    )}
+                    <div className={styles.statusItem}>
+                      <div className={`${styles.dot} ${rijklaarDot}`} title={r.klaar ? 'Rijklaar' : (r.binnen && r.proefrit) ? 'Binnen + proef OK' : 'Niet rijklaar'} />
+                      <span className={styles.statusLabel}>Rijklaar</span>
+                    </div>
+                  </div>
+                </td>
+
+                {/* Acties */}
+                <td onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className={styles.afleverKnop}
+                    onClick={() => onAfleveren(r)}
+                  >
+                    ✅ Afleveren
+                  </button>
+                </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ── Aflevering plannen popup ──────────────────────────────────
+function AfleveringPopup({ auto, isBewerken, onOpslaan, onSluiten }: {
+  auto: AfterSalesAuto;
+  isBewerken: boolean;
+  onOpslaan: (updates: Partial<AfterSalesAuto>, stuurMail: boolean) => void;
+  onSluiten: () => void;
+}) {
+  const [datum, setDatum] = useState(auto.afleverdatum ?? vandaagStr());
+  const [tijdstip, setTijdstip] = useState(auto.tijdstip_levering ?? '');
+  const [factuur, setFactuur] = useState(auto.factuur ?? false);
+  const [poetsen, setPoetsen] = useState(auto.poetsen ?? false);
+  const [hubspot, setHubspot] = useState(auto.hubspot ?? false);
+  const [bijzonderheden, setBijzonderheden] = useState(auto.taken_notitie ?? '');
+
+  function handleOpslaan(stuurMail: boolean) {
+    if (stuurMail) mailAflevering(auto, datum, tijdstip, factuur, poetsen, hubspot, bijzonderheden);
+    onOpslaan({ afleverdatum: datum, tijdstip_levering: tijdstip, factuur, poetsen, hubspot, taken_notitie: bijzonderheden }, stuurMail);
+  }
+
+  return (
+    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+      <div className={styles.modal} style={{ maxWidth: 500 }}>
+        <div className={styles.modalHeader}>
+          <div className={styles.modalTitel}>Aflevering plannen</div>
+          <button className={styles.sluitKnop} onClick={onSluiten}>×</button>
+        </div>
+        <div className={styles.modalBody} style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className={`${styles.fg} ${styles.vol}`} style={{ marginBottom: 4 }}>
+            <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
+              Plan de aflevering. Er gaat een mail naar Roger en Lorenzo met de uit te voeren taken.
+            </p>
+          </div>
+
+          <div className={styles.fg}>
+            <label>Afleverdatum</label>
+            <input className="fi" type="date" value={datum} onChange={(e) => setDatum(e.target.value)} />
+          </div>
+          <div className={styles.fg}>
+            <label>Tijdstip</label>
+            <input className="fi" type="time" value={tijdstip} onChange={(e) => setTijdstip(e.target.value)} />
+          </div>
+
+          <div className={`${styles.fg} ${styles.vol}`}>
+            <label>Taken voor Roger / Lorenzo</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+              {[
+                { aan: factuur, set: setFactuur, l: '📋 Factuur maken' },
+                { aan: poetsen, set: setPoetsen, l: '🧹 Poetsen' },
+                { aan: hubspot, set: setHubspot, l: '🟠 In HubSpot zetten' },
+              ].map(({ aan, set, l }) => (
+                <div key={l} className={styles.cbRij} style={{ cursor: 'pointer' }} onClick={() => set(!aan)}>
+                  <div className={`${styles.cb} ${aan ? styles.on : ''}`}>
+                    {aan && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                  </div>
+                  <span style={{ fontSize: 13 }}>{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className={`${styles.fg} ${styles.vol}`}>
+            <label>Bijzonderheden / Opmerkingen</label>
+            <textarea className="fi" rows={3} placeholder="Eventuele bijzonderheden..." value={bijzonderheden} onChange={(e) => setBijzonderheden(e.target.value)} />
+          </div>
+        </div>
+        <div className={styles.modalFooter}>
+          <button className="btn" onClick={onSluiten}>Annuleer</button>
+          {isBewerken && (
+            <button className="btn" onClick={() => handleOpslaan(false)}>Opslaan</button>
+          )}
+          <button className="btn btn-a" onClick={() => handleOpslaan(true)}>
+            📅 Plan aflevering &amp; Mail sturen
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -477,10 +605,11 @@ const AFLEVERING_CHECKS: { veld: keyof AfterSalesAuto; label: string }[] = [
   { veld: 'hubspot', label: 'HubSpot' },
 ];
 
-function TabGepland({ autos, zoek, onEdit, onToggle }: {
+function TabGepland({ autos, zoek, onToggle, onBewerken, onAfgeleverd }: {
   autos: AfterSalesAuto[]; zoek: string;
-  onEdit: (r: AfterSalesAuto) => void;
   onToggle: (id: string, veld: keyof AfterSalesAuto) => void;
+  onBewerken: (r: AfterSalesAuto) => void;
+  onAfgeleverd: (r: AfterSalesAuto) => void;
 }) {
   const rijen = autos
     .filter((r) => r.afleverdatum && !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)))
@@ -493,23 +622,31 @@ function TabGepland({ autos, zoek, onEdit, onToggle }: {
           <th>Kenteken</th><th>Merk / Model</th><th>Klant</th><th>Type</th>
           <th>Afleverdatum</th><th>Wie levert af</th>
           {AFLEVERING_CHECKS.map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
-          <th>Taken / notitie</th>
+          <th>Notitie</th><th>Acties</th>
         </tr></thead>
         <tbody>
           {rijen.map((r) => (
-            <tr key={r.id} onClick={() => onEdit(r)}>
-              <td><div className={styles.kn}>{r.kenteken}</div></td>
-              <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
-              <td>{r.klant}</td>
-              <td>{r.type || '—'}</td>
-              <td style={{ fontWeight: 600 }}>{datumFmt(r.afleverdatum)}</td>
-              <td>{r.wie_levert_af || '—'}</td>
+            <tr key={r.id}>
+              <td><KentekenPlaat kenteken={r.kenteken} /></td>
+              <td><span className={styles.kn}>{r.merk}</span> <span className={styles.modelAccent}>{r.model}</span></td>
+              <td style={{ whiteSpace: 'nowrap' }}>{r.klant || '—'}</td>
+              <td>{r.type ? <span className={`${styles.badge} ${TYPE_CSS[r.type]}`}>{TYPE_LABEL[r.type]}</span> : '—'}</td>
+              <td style={{ fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap' }}>
+                {datumFmt(r.afleverdatum)}{r.tijdstip_levering ? ` ${r.tijdstip_levering}` : ''}
+              </td>
+              <td style={{ whiteSpace: 'nowrap' }}>{r.wie_levert_af || '—'}</td>
               {AFLEVERING_CHECKS.map((s) => (
                 <td key={s.veld} className={styles.chk}>
                   <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
                 </td>
               ))}
-              <td style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 180 }}>{r.taken_notitie || '—'}</td>
+              <td style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 200 }}>{r.taken_notitie || '—'}</td>
+              <td onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                  <button className={styles.bewerkLink} onClick={() => onBewerken(r)}>— Bewerken</button>
+                  <button className={styles.afleverKnop} onClick={() => onAfgeleverd(r)}>✅ Afgeleverd</button>
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -663,11 +800,11 @@ function zoekMatch(r: AfterSalesAuto, q: string): boolean {
 // ── Hoofdpagina ───────────────────────────────────────────────
 export default function AfterSalesPage() {
   const { autos, klachten, loading, addAuto, updateAuto, removeAuto, toggleAuto, addKlacht, updateKlacht, removeKlacht } = useAfterSales();
-  // updateAuto doorgeven aan TabRijklaar voor complexe updates (datum, acc, wie)
   const [tab, setTab] = useState<HoofdTab>('lopend');
   const [zoek, setZoek] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<AfterSalesAuto | null>(null);
+  const [afleverAuto, setAfleverAuto] = useState<{ auto: AfterSalesAuto; bewerken: boolean } | null>(null);
 
   const TABS: { k: HoofdTab; l: string }[] = [
     { k: 'lopend', l: 'In behandeling' },
@@ -684,6 +821,17 @@ export default function AfterSalesPage() {
   async function handleOpslaan(rec: AfterSalesAuto | Omit<AfterSalesAuto, 'id' | 'created_at'>) {
     if ('id' in rec) await updateAuto(rec as AfterSalesAuto);
     else await addAuto(rec);
+  }
+
+  async function handleAfleveringOpslaan(updates: Partial<AfterSalesAuto>) {
+    if (!afleverAuto) return;
+    await updateAuto({ ...afleverAuto.auto, ...updates });
+    setAfleverAuto(null);
+    setTab('gepland');
+  }
+
+  async function handleAfgeleverd(r: AfterSalesAuto) {
+    await updateAuto({ ...r, gearchiveerd: true, afgeleverd_op: vandaagStr(), wie_heeft_afgeleverd: r.wie_levert_af ?? '' });
   }
 
   const actiefCount = useMemo(() => autos.filter((r) => !r.gearchiveerd).length, [autos]);
@@ -711,10 +859,10 @@ export default function AfterSalesPage() {
         <div className={styles.leeg}>Laden...</div>
       ) : (
         <>
-          {tab === 'lopend'    && <TabLopend    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} />}
+          {tab === 'lopend'    && <TabLopend    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} onAfleveren={(r) => setAfleverAuto({ auto: r, bewerken: false })} />}
           {tab === 'import'   && <TabImport    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} />}
           {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} onEdit={openEdit} onUpdate={updateAuto} />}
-          {tab === 'gepland'  && <TabGepland   autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} />}
+          {tab === 'gepland'  && <TabGepland   autos={autos} zoek={zoek} onToggle={toggleAuto} onBewerken={(r) => setAfleverAuto({ auto: r, bewerken: true })} onAfgeleverd={handleAfgeleverd} />}
           {tab === 'nalevering' && <TabNalevering klachten={klachten} autos={autos} zoek={zoek} onAddKlacht={addKlacht} onUpdateKlacht={updateKlacht} onRemoveKlacht={removeKlacht} />}
           {tab === 'archief'  && <TabArchief   autos={autos} zoek={zoek} onEdit={openEdit} />}
         </>
@@ -728,6 +876,16 @@ export default function AfterSalesPage() {
         onOpslaan={handleOpslaan}
         onVerwijder={removeAuto}
       />
+
+      {/* Aflevering plannen popup */}
+      {afleverAuto && (
+        <AfleveringPopup
+          auto={afleverAuto.auto}
+          isBewerken={afleverAuto.bewerken}
+          onOpslaan={(updates) => handleAfleveringOpslaan(updates)}
+          onSluiten={() => setAfleverAuto(null)}
+        />
+      )}
     </div>
   );
 }
