@@ -25,6 +25,7 @@ function deserializeAuto(r: Record<string, unknown>): AfterSalesAuto {
     kentekenbewijzen: bool(r.kentekenbewijzen),
     gelangenbest: bool(r.gelangenbest),
     proefrit: bool(r.proefrit),
+    wie_rijklaar_klaar: bool(r.wie_rijklaar_klaar),
     klaar: bool(r.klaar),
     factuur: bool(r.factuur),
     poetsen: bool(r.poetsen),

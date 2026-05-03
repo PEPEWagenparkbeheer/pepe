@@ -73,11 +73,15 @@ export interface AfterSalesAuto {
 
   // Rijklaar maken
   wie_rijklaar?: string;
+  wie_rijklaar_klaar?: boolean;  // WIE persoon heeft bevestigd klaar te zijn
   proefrit?: boolean;
-  apk?: string;
-  terugroep?: string;
-  accessoires?: string;       // komma-gescheiden tags: "Alarm,Trekhaak,Matten"
-  extra_accessoires?: string; // vrij tekstveld
+  proefrit_op?: string;          // datum proefrit afgevinkt
+  binnen_op?: string;            // datum binnen afgevinkt
+  apk?: string;                  // APK vervaldatum (ISO date) uit RDW
+  terugroep?: string;            // 'geen' = geen recall, anders: tekst van openstaande actie
+  accessoires?: string;          // komma-gescheiden items: "Alarm,Trekhaak,Matten"
+  accessoires_klaar?: string;    // komma-gescheiden afgevinkte items
+  extra_accessoires?: string;
   klaar?: boolean;
 
   // Geplande aflevering

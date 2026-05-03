@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Bash(npx tsc*)",
+      "Bash(npx *)",
+      "Bash(npm run *)",
+      "Bash(npm install*)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit*)",
+      "Bash(wc -l *)",
+      "Bash(grep *)"
+    ]
+  }
+}

@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
-import type { AfterSalesAuto, ASKlacht } from '@/types';
+import type { AfterSalesAuto, ASAutoType, ASKlacht } from '@/types';
+import KentekenPlaat from './KentekenPlaat';
 import AfterSalesModal from './AfterSalesModal';
 import styles from './AfterSalesPage.module.css';
 
@@ -27,6 +28,47 @@ function importVoortgang(r: AfterSalesAuto): number {
 function datumFmt(d?: string) {
   if (!d) return '—';
   try { return new Date(d).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }); } catch { return d; }
+}
+
+function vandaagStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function apkKleur(apkDatum?: string): 'groen' | 'oranje' | 'rood' | '' {
+  if (!apkDatum) return '';
+  const maanden = (new Date(apkDatum).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30.5);
+  if (maanden > 9) return 'groen';
+  if (maanden > 6) return 'oranje';
+  return 'rood';
+}
+
+const TYPE_CSS: Record<ASAutoType, string> = {
+  import:   styles.tpImport,
+  nl:       styles.tpNl,
+  nieuw:    styles.tpNieuw,
+  voorraad: styles.tpVoorraad,
+};
+const TYPE_LABEL: Record<ASAutoType, string> = {
+  import:   '🌍 Import',
+  nl:       '🇳🇱 NL',
+  nieuw:    '✨ Nieuw',
+  voorraad: '🏢 Voorraad',
+};
+
+async function rdwOphalen(kenteken: string): Promise<{ apk?: string; terugroep?: string }> {
+  const k = kenteken.replace(/-/g, '').toUpperCase();
+  try {
+    const [voertuigRes, terugroepRes] = await Promise.all([
+      fetch(`https://opendata.rdw.nl/resource/m9d7-ebf2.json?kenteken=${k}`),
+      fetch(`https://opendata.rdw.nl/resource/t49b-isb7.json?kenteken=${k}`),
+    ]);
+    const [voertuig, recalls] = await Promise.all([voertuigRes.json(), terugroepRes.json()]);
+    const apkRaw = voertuig[0]?.vervaldatum_apk_dt ?? voertuig[0]?.vervaldatum_apk;
+    const apk = apkRaw ? new Date(apkRaw).toISOString().slice(0, 10) : undefined;
+    const openRecalls = (recalls as { referentiecode_rdw?: string }[]).filter((r) => r.referentiecode_rdw);
+    const terugroep = openRecalls.length === 0 ? 'geen' : openRecalls.map((r) => r.referentiecode_rdw).join(', ');
+    return { apk, terugroep };
+  } catch { return {}; }
 }
 
 // ── KPI strip ─────────────────────────────────────────────────
@@ -74,30 +116,26 @@ function TabLopend({ autos, zoek, onEdit, onToggle }: {
         <thead><tr>
           <th>Kenteken</th><th>Merk / Model</th><th>Klant</th><th>Type</th><th>Platen</th>
           <th className={styles.chk}>Binnen</th><th className={styles.chk}>Aflctr.</th>
-          <th>Afleverdatum</th><th>Wie levert af</th><th>Status</th>
+          <th>Afleverdatum</th><th>Wie levert af</th><th>Rijklaar</th>
         </tr></thead>
         <tbody>
-          {rijen.map((r) => (
-            <tr key={r.id} onClick={() => onEdit(r)}>
-              <td><div className={styles.kn}>{r.kenteken}</div></td>
-              <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
-              <td>{r.klant}</td>
-              <td>{r.type ? <span className={styles.badge + ' ' + styles.badgeNieuw}>{r.type}</span> : '—'}</td>
-              <td>{r.platen || '—'}</td>
-              <td className={styles.chk}><Cb aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} /></td>
-              <td className={styles.chk}><Cb aan={!!r.aflevercontrole} onClick={() => onToggle(r.id, 'aflevercontrole')} /></td>
-              <td>{datumFmt(r.afleverdatum)}</td>
-              <td>{r.wie_levert_af || '—'}</td>
-              <td>
-                {r.klaar
-                  ? <span className={`${styles.badge} ${styles.badgeKlaar}`}>Rijklaar</span>
-                  : r.binnen
-                    ? <span className={`${styles.badge} ${styles.badgeBezig}`}>In verwerking</span>
-                    : <span className={`${styles.badge} ${styles.badgeNieuw}`}>Verwacht</span>
-                }
-              </td>
-            </tr>
-          ))}
+          {rijen.map((r) => {
+            const dotKls = r.klaar ? styles.dotGroen : (r.binnen && r.proefrit) ? styles.dotOranje : styles.dotRood;
+            return (
+              <tr key={r.id} onClick={() => onEdit(r)}>
+                <td><KentekenPlaat kenteken={r.kenteken} /></td>
+                <td><span className={styles.kn}>{r.merk}</span> <span className={styles.modelAccent}>{r.model}</span></td>
+                <td>{r.klant}</td>
+                <td>{r.type ? <span className={`${styles.badge} ${TYPE_CSS[r.type]}`}>{TYPE_LABEL[r.type]}</span> : '—'}</td>
+                <td>{r.platen || '—'}</td>
+                <td className={styles.chk}><Cb aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} /></td>
+                <td className={styles.chk}><Cb aan={!!r.aflevercontrole} onClick={() => onToggle(r.id, 'aflevercontrole')} /></td>
+                <td>{datumFmt(r.afleverdatum)}</td>
+                <td>{r.wie_levert_af || '—'}</td>
+                <td><div className={`${styles.dot} ${dotKls}`} title={r.klaar ? 'Rijklaar' : (r.binnen && r.proefrit) ? 'Binnen + proef OK' : 'Niet rijklaar'} /></td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -162,48 +200,270 @@ function TabImport({ autos, zoek, onEdit, onToggle }: {
   );
 }
 
-// ── Tab: Rijklaar maken ───────────────────────────────────────
-const RIJKLAAR_STAPPEN: { veld: keyof AfterSalesAuto; label: string }[] = [
-  { veld: 'binnen', label: 'Binn.' },
-  { veld: 'proefrit', label: 'Proef' },
-  { veld: 'aflevercontrole', label: 'Aflctr.' },
-  { veld: 'klaar', label: 'Klaar' },
-];
+// ── Platen badge ──────────────────────────────────────────────
+function PlatenBadge({ platen }: { platen?: string }) {
+  if (!platen) return <span style={{ color: 'var(--muted)' }}>—</span>;
+  const p = platen.toLowerCase();
+  if (p.includes('g+w') || p.includes('geel') && p.includes('wit')) {
+    return <span className={styles.platenGW}>G+W</span>;
+  }
+  if (p.includes('geel')) return <span className={styles.platenGeel}>GEEL</span>;
+  return <span style={{ fontSize: 12, color: 'var(--muted)' }}>{platen}</span>;
+}
 
-function TabRijklaar({ autos, zoek, onEdit, onToggle }: {
+// ── APK chip ──────────────────────────────────────────────────
+function ApkChip({ apk, onClick }: { apk?: string; onClick: (e: React.MouseEvent) => void }) {
+  const kleur = apkKleur(apk);
+  const klsMap = { groen: styles.apkGroen, oranje: styles.apkOranje, rood: styles.apkRood, '': styles.apkRdw };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      {apk ? (
+        <span className={`${styles.apkChip} ${klsMap[kleur]}`}>{datumFmt(apk)}</span>
+      ) : null}
+      <button className={styles.rdwKnop} onClick={onClick} title="Ophalen uit RDW">• RDW</button>
+    </div>
+  );
+}
+
+// ── Tab: Rijklaar maken ───────────────────────────────────────
+function TabRijklaar({ autos, zoek, onEdit, onUpdate }: {
   autos: AfterSalesAuto[]; zoek: string;
   onEdit: (r: AfterSalesAuto) => void;
-  onToggle: (id: string, veld: keyof AfterSalesAuto) => void;
+  onUpdate: (rec: AfterSalesAuto) => Promise<void>;
 }) {
+  const [accPopupId, setAccPopupId] = useState<string | null>(null);
+  const [nieuweAcc, setNieuweAcc] = useState('');
+  const [rdwLaden, setRdwLaden] = useState<string | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+
   const rijen = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
   if (!rijen.length) return <div className={styles.leeg}>Geen auto's</div>;
+
+  function toggleBool(r: AfterSalesAuto, veld: keyof AfterSalesAuto) {
+    const nieuweWaarde = !r[veld];
+    const extra: Partial<AfterSalesAuto> = {};
+    if (veld === 'binnen') extra.binnen_op = nieuweWaarde ? vandaagStr() : undefined;
+    if (veld === 'proefrit') extra.proefrit_op = nieuweWaarde ? vandaagStr() : undefined;
+    onUpdate({ ...r, [veld]: nieuweWaarde, ...extra });
+  }
+
+  function toggleWie(r: AfterSalesAuto) {
+    onUpdate({ ...r, wie_rijklaar_klaar: !r.wie_rijklaar_klaar });
+  }
+
+  async function haalRdwOp(r: AfterSalesAuto, e: React.MouseEvent) {
+    e.stopPropagation();
+    setRdwLaden(r.id);
+    const result = await rdwOphalen(r.kenteken);
+    await onUpdate({ ...r, ...result });
+    setRdwLaden(null);
+  }
+
+  function toggleAcc(r: AfterSalesAuto, item: string) {
+    const items = (r.accessoires ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const klaar = (r.accessoires_klaar ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const isKlaar = klaar.includes(item);
+    const nieuweKlaar = isKlaar ? klaar.filter((k) => k !== item) : [...klaar, item];
+    onUpdate({ ...r, accessoires_klaar: nieuweKlaar.join(',') });
+  }
+
+  function verwijderAcc(r: AfterSalesAuto, item: string) {
+    const items = (r.accessoires ?? '').split(',').map((s) => s.trim()).filter(Boolean).filter((i) => i !== item);
+    const klaar = (r.accessoires_klaar ?? '').split(',').map((s) => s.trim()).filter(Boolean).filter((i) => i !== item);
+    onUpdate({ ...r, accessoires: items.join(','), accessoires_klaar: klaar.join(',') });
+  }
+
+  function voegAccToe(r: AfterSalesAuto) {
+    if (!nieuweAcc.trim()) return;
+    const items = (r.accessoires ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (!items.includes(nieuweAcc.trim())) items.push(nieuweAcc.trim());
+    onUpdate({ ...r, accessoires: items.join(',') });
+    setNieuweAcc('');
+  }
+
   return (
-    <div className={styles.tabelWrapper}>
-      <table className={styles.tabel}>
+    <div className={styles.tabelWrapper} onClick={() => setAccPopupId(null)}>
+      <table className={styles.tabel} style={{ minWidth: 1100 }}>
         <thead><tr>
-          <th>Kenteken</th><th>Merk / Model</th><th>Klant</th><th>Type</th><th>Wie</th>
-          {RIJKLAAR_STAPPEN.map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
-          <th>Platen</th><th>APK</th><th>Terugroep</th><th>Acc. + Mwrk</th>
+          <th>Kenteken</th>
+          <th>Merk / Model</th>
+          <th>Klant</th>
+          <th>Type</th>
+          <th>Wie</th>
+          <th className={styles.chk}>Binn.</th>
+          <th className={styles.chk}>Proef</th>
+          <th>Platen</th>
+          <th>APK</th>
+          <th>Terugroep</th>
+          <th>Acc. + Mwrk</th>
+          <th className={styles.chk}>Aflctr.</th>
+          <th className={styles.chk}>Klaar</th>
         </tr></thead>
         <tbody>
-          {rijen.map((r) => (
-            <tr key={r.id} onClick={() => onEdit(r)}>
-              <td><div className={styles.kn}>{r.kenteken}</div></td>
-              <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
-              <td>{r.klant}</td>
-              <td>{r.type || '—'}</td>
-              <td>{r.wie_rijklaar || r.wie_levert_af || '—'}</td>
-              {RIJKLAAR_STAPPEN.map((s) => (
-                <td key={s.veld} className={styles.chk}>
-                  <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
+          {rijen.map((r) => {
+            const accItems = (r.accessoires ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+            const accKlaar = (r.accessoires_klaar ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+            const accPopupOpen = accPopupId === r.id;
+            const kleurTr = r.klaar ? styles.dotGroen : undefined;
+            const terugroepOpen = r.terugroep && r.terugroep !== 'geen';
+
+            return (
+              <tr key={r.id} onClick={() => onEdit(r)}>
+                {/* Kenteken */}
+                <td><KentekenPlaat kenteken={r.kenteken} /></td>
+
+                {/* Merk / Model */}
+                <td>
+                  <span className={styles.kn}>{r.merk}</span>{' '}
+                  <span className={styles.modelAccent}>{r.model}</span>
                 </td>
-              ))}
-              <td>{r.platen || '—'}</td>
-              <td>{r.apk || '—'}</td>
-              <td>{r.terugroep || '—'}</td>
-              <td>{r.accessoires || '—'}</td>
-            </tr>
-          ))}
+
+                {/* Klant */}
+                <td style={{ whiteSpace: 'nowrap' }}>{r.klant || '—'}</td>
+
+                {/* Type */}
+                <td>
+                  {r.type
+                    ? <span className={`${styles.badge} ${TYPE_CSS[r.type]}`}>{TYPE_LABEL[r.type]}</span>
+                    : '—'}
+                </td>
+
+                {/* Wie */}
+                <td onClick={(e) => e.stopPropagation()}>
+                  {r.wie_rijklaar ? (
+                    <button
+                      className={`${styles.wieChip} ${r.wie_rijklaar_klaar ? styles.wieKlaar : ''}`}
+                      onClick={() => toggleWie(r)}
+                      title="Klik om te bevestigen"
+                    >
+                      {r.wie_rijklaar_klaar && '✓ '}{r.wie_rijklaar}
+                    </button>
+                  ) : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
+                </td>
+
+                {/* Binnen */}
+                <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <div
+                      className={`${styles.cb} ${r.binnen ? styles.onAccent : ''}`}
+                      onClick={() => toggleBool(r, 'binnen')}
+                    >
+                      {r.binnen && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                    </div>
+                    {r.binnen_op && <span className={styles.datumtje}>{datumFmt(r.binnen_op)}</span>}
+                  </div>
+                </td>
+
+                {/* Proef */}
+                <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <div
+                      className={`${styles.cb} ${r.proefrit ? styles.onAccent : ''}`}
+                      onClick={() => toggleBool(r, 'proefrit')}
+                    >
+                      {r.proefrit && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                    </div>
+                    {r.proefrit_op && <span className={styles.datumtje}>{datumFmt(r.proefrit_op)}</span>}
+                  </div>
+                </td>
+
+                {/* Platen */}
+                <td><PlatenBadge platen={r.platen} /></td>
+
+                {/* APK */}
+                <td onClick={(e) => e.stopPropagation()}>
+                  <ApkChip
+                    apk={r.apk}
+                    onClick={(e) => haalRdwOp(r, e)}
+                  />
+                  {rdwLaden === r.id && <span style={{ fontSize: 10, color: 'var(--muted)' }}>laden...</span>}
+                </td>
+
+                {/* Terugroep */}
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div className={`${styles.dot} ${!r.terugroep ? styles.dotOranje : terugroepOpen ? styles.dotRood : styles.dotGroen}`} />
+                    <span style={{ fontSize: 11, color: terugroepOpen ? 'var(--red)' : 'var(--muted)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {terugroepOpen ? r.terugroep : (r.terugroep === 'geen' ? 'geen' : 'RDW')}
+                    </span>
+                  </div>
+                </td>
+
+                {/* Acc + Mwrk */}
+                <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', minWidth: 100 }}>
+                    {accItems.map((item) => (
+                      <span
+                        key={item}
+                        className={`${styles.accChip} ${accKlaar.includes(item) ? styles.accKlaar : ''}`}
+                        onClick={(e) => { e.stopPropagation(); toggleAcc(r, item); }}
+                        title={accKlaar.includes(item) ? 'Klik om af te vinken' : 'Klik om klaar te markeren'}
+                      >
+                        {accKlaar.includes(item) && '✓ '}{item}
+                      </span>
+                    ))}
+                    {accItems.length < 5 && (
+                      <button
+                        className={styles.accPlusKnop}
+                        onClick={(e) => { e.stopPropagation(); setAccPopupId(accPopupOpen ? null : r.id); setNieuweAcc(''); }}
+                        title="Accessoires beheren"
+                      >+</button>
+                    )}
+                    {accItems.length >= 5 && (
+                      <button
+                        className={styles.accPlusKnop}
+                        onClick={(e) => { e.stopPropagation(); setAccPopupId(accPopupOpen ? null : r.id); setNieuweAcc(''); }}
+                      >+{accItems.length - 4}</button>
+                    )}
+
+                    {/* Popup */}
+                    {accPopupOpen && (
+                      <div ref={popupRef} className={styles.accPopup} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.accPopupTitel}>🔧 Accessoires</div>
+                        <div className={styles.accLijst}>
+                          {accItems.map((item) => (
+                            <div key={item} className={styles.accRij}>
+                              <div
+                                className={`${styles.cb} ${accKlaar.includes(item) ? styles.on : ''}`}
+                                style={{ flexShrink: 0 }}
+                                onClick={() => toggleAcc(r, item)}
+                              >
+                                {accKlaar.includes(item) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                              </div>
+                              <span className={`${styles.accNaam} ${accKlaar.includes(item) ? styles.accKlaarNaam : ''}`}>{item}</span>
+                              <button className={styles.accVerwijder} onClick={() => verwijderAcc(r, item)}>×</button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className={styles.accInput}>
+                          <input
+                            className="fi"
+                            placeholder="bijv. Trekhaak, Belettering, Matten..."
+                            value={nieuweAcc}
+                            onChange={(e) => setNieuweAcc(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && voegAccToe(r)}
+                            style={{ flex: 1, fontSize: 12 }}
+                          />
+                          <button className="btn btn-a" style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }} onClick={() => voegAccToe(r)}>+ Toevoegen</button>
+                        </div>
+                        <button className="btn" style={{ width: '100%', marginTop: 6 }} onClick={() => setAccPopupId(null)}>Klaar</button>
+                      </div>
+                    )}
+                  </div>
+                </td>
+
+                {/* Aflevercontrole */}
+                <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                  <Cb aan={!!r.aflevercontrole} onClick={() => onUpdate({ ...r, aflevercontrole: !r.aflevercontrole })} />
+                </td>
+
+                {/* Klaar */}
+                <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                  <Cb aan={!!r.klaar} onClick={() => onUpdate({ ...r, klaar: !r.klaar })} />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -403,6 +663,7 @@ function zoekMatch(r: AfterSalesAuto, q: string): boolean {
 // ── Hoofdpagina ───────────────────────────────────────────────
 export default function AfterSalesPage() {
   const { autos, klachten, loading, addAuto, updateAuto, removeAuto, toggleAuto, addKlacht, updateKlacht, removeKlacht } = useAfterSales();
+  // updateAuto doorgeven aan TabRijklaar voor complexe updates (datum, acc, wie)
   const [tab, setTab] = useState<HoofdTab>('lopend');
   const [zoek, setZoek] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -452,7 +713,7 @@ export default function AfterSalesPage() {
         <>
           {tab === 'lopend'    && <TabLopend    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} />}
           {tab === 'import'   && <TabImport    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} />}
-          {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} />}
+          {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} onEdit={openEdit} onUpdate={updateAuto} />}
           {tab === 'gepland'  && <TabGepland   autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} />}
           {tab === 'nalevering' && <TabNalevering klachten={klachten} autos={autos} zoek={zoek} onAddKlacht={addKlacht} onUpdateKlacht={updateKlacht} onRemoveKlacht={removeKlacht} />}
           {tab === 'archief'  && <TabArchief   autos={autos} zoek={zoek} onEdit={openEdit} />}
