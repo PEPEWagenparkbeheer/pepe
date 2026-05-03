@@ -91,12 +91,14 @@ a {
   color: var(--accent);
 }
 .btn-a {
-  background: var(--accent);
+  background: linear-gradient(135deg, #7a1430, #921939);
+  box-shadow: 0 3px 12px rgba(146, 25, 57, 0.25);
   color: #fff;
   border-color: var(--accent);
 }
 .btn-a:hover {
   background: var(--accent2);
+  box-shadow: none;
   color: #fff;
   border-color: var(--accent2);
 }
@@ -231,6 +233,28 @@ td {
 }
 td:last-child {
   border-right: none;
+}
+
+/* ── Tabs ── */
+.tab {
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tab:hover {
+  color: var(--text);
+}
+.tab.on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
 }
 
 /* ── Modal overlay ── */

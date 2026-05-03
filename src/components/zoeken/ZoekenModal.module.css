@@ -244,3 +244,27 @@
 .verwijderKnop:hover {
   background: rgba(248, 113, 113, 0.1);
 }
+
+.zoekLinks {
+  margin-right: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.zoekLink {
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #1e2029;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.zoekLink:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

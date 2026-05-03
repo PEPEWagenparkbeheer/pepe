@@ -65,6 +65,19 @@
   text-decoration: none;
   transition: all 0.12s;
   cursor: pointer;
+  position: relative;
+}
+
+.item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  background: var(--accent);
+  border-radius: 0 3px 3px 0;
 }
 
 .item:hover {

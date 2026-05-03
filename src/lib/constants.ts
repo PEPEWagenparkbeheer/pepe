@@ -46,9 +46,10 @@ export const BRANDSTOF = [
 ];
 
 export const MERKEN_LIJST = [
-  'Alfa Romeo', 'Audi', 'BMW', 'Bentley', 'Citroën', 'Cupra', 'Dacia', 'DS', 'Ferrari',
-  'Fiat', 'Ford', 'Genesis', 'Honda', 'Hyundai', 'Jaguar', 'Jeep', 'Kia', 'Lamborghini',
-  'Land Rover', 'Lexus', 'Lucid', 'Maserati', 'Mazda', 'Mercedes-Benz', 'Mini', 'Mitsubishi',
-  'Nissan', 'Opel', 'Peugeot', 'Porsche', 'Renault', 'Rivian', 'Seat', 'Skoda', 'Smart',
-  'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo',
+  'Alfa Romeo', 'Audi', 'BMW', 'Bentley', 'BYD', 'Citroën', 'Cupra', 'Dacia', 'DS', 'Ferrari',
+  'Fiat', 'Ford', 'Genesis', 'Honda', 'Hyundai', 'Ineos', 'Jaguar', 'Jeep', 'Kia', 'Lamborghini',
+  'Land Rover', 'Leapmotor', 'Lexus', 'Lucid', 'Maserati', 'Mazda', 'Mercedes-Benz', 'MG', 'Mini',
+  'Mitsubishi', 'Nio', 'Nissan', 'Omoda', 'Opel', 'Peugeot', 'Polestar', 'Porsche', 'Renault',
+  'Rivian', 'Seat', 'Skoda', 'Smart', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo',
+  'XPeng', 'Zeekr',
 ];

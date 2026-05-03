@@ -1,9 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useBtw } from '@/hooks/useBtw';
 import { useZoekopdrachten } from '@/hooks/useZoekopdrachten';
 import { schietConfetti } from '@/lib/confetti';
 import type { Zoekopdracht } from '@/types';
+import type { AutoType, BrutoNetto } from './AkkoordModal';
 import AkkoordModal from './AkkoordModal';
 import ZoekenFilters, { type FilterOptie } from './ZoekenFilters';
 import ZoekenKPI from './ZoekenKPI';
@@ -11,8 +14,25 @@ import ZoekenModal from './ZoekenModal';
 import ZoekenTable, { type SortVeld } from './ZoekenTable';
 import styles from './ZoekenPage.module.css';
 
+function exportCsv(rijen: Zoekopdracht[]) {
+  const headers = ['Klant', 'E-mail klant', 'Auto', 'Details', 'Budget', 'BTW', 'Km', 'Jaar', 'Wie zoekt', 'Kleuren', 'Brandstof', 'Uitgewerkt', 'Terugkoppeling', 'Terugkoppeling notitie', 'Dealer', 'Inkopen', 'Contract', 'Akkoord', 'Opmerkingen'];
+  const rows = rijen.map((r) => [
+    r.klant, r.email_klant ?? '', r.auto, r.details ?? '', r.budget ?? '', r.btw ?? '', r.km ?? '', r.jaar ?? '', r.wiezoekt ?? '',
+    (r.kleuren ?? []).join(';'), (r.brandstof ?? []).join(';'),
+    r.uitgewerkt ? 'Ja' : '', r.terugkoppeling ? 'Ja' : '', r.terugkoppeling_txt ?? '', r.dealer ? 'Ja' : '',
+    r.inkopen ? 'Ja' : '', r.contract ? 'Ja' : '', r.akkoord ? 'Ja' : '', r.opmerkingen ?? '',
+  ]);
+  const csv = '﻿' + [headers, ...rows].map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'zoekopdrachten.csv';
+  a.click();
+}
+
 export default function ZoekenPage() {
   const { records, loading, add, update, remove, togglePrio, quickToggle } = useZoekopdrachten();
+  const { add: addBtw } = useBtw();
+  const { user } = useAuth();
 
   const [filter, setFilter] = useState<FilterOptie>('actueel');
   const [zoekterm, setZoekterm] = useState('');
@@ -52,12 +72,45 @@ export default function ZoekenPage() {
     else await add(rec);
   }
 
-  async function handleAkkoordBevestig(rec: Zoekopdracht) {
+  async function handleAkkoordBevestig(
+    rec: Zoekopdracht,
+    _bijzonderheden: string,
+    autoType: AutoType,
+    dealer: string,
+    btwBedrag: string,
+    brutoNetto: BrutoNetto,
+  ) {
+    const naam = user?.email?.split('@')[0] ?? user?.email ?? '';
     await update({
       ...rec,
       akkoord: true,
+      akkoord_door: naam,
       akkoord_datum: new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }),
     });
+
+    if (autoType === 'import' && brutoNetto === 'bruto') {
+      await addBtw({
+        auto: rec.auto,
+        type: 'import',
+        klant: rec.klant,
+        dealer_verkoper: dealer || undefined,
+        bedrag: btwBedrag ? parseFloat(btwBedrag) : undefined,
+        ingekocht_op: new Date().toISOString().slice(0, 10),
+        inkoper: naam || undefined,
+        gearchiveerd: false,
+      });
+    } else if (autoType === 'nieuw') {
+      await addBtw({
+        auto: rec.auto,
+        type: 'nieuw',
+        klant: rec.klant,
+        dealer_verkoper: dealer || undefined,
+        ingekocht_op: new Date().toISOString().slice(0, 10),
+        inkoper: naam || undefined,
+        gearchiveerd: false,
+      });
+    }
+
     schietConfetti();
     setAkkoordRecord(null);
   }
@@ -72,6 +125,9 @@ export default function ZoekenPage() {
           value={zoekterm}
           onChange={(e) => setZoekterm(e.target.value)}
         />
+        <button className="btn" onClick={() => exportCsv(rijen)}>
+          ↓ Export
+        </button>
         <button className="btn btn-a" onClick={() => { setEditRecord(null); setModalOpen(true); }}>
           + Nieuwe opdracht
         </button>

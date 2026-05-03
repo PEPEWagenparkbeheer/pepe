@@ -4,13 +4,13 @@ import { useState } from 'react';
 import type { Zoekopdracht } from '@/types';
 import styles from './AkkoordModal.module.css';
 
-type AutoType = 'import' | 'nl' | 'nieuw' | 'voorraad';
-type BrutoNetto = 'bruto' | 'netto';
+export type AutoType = 'import' | 'nl' | 'nieuw' | 'voorraad';
+export type BrutoNetto = 'bruto' | 'netto';
 
 interface Props {
   record: Zoekopdracht | null;
   open: boolean;
-  onBevestig: (record: Zoekopdracht, bijzonderheden: string) => void;
+  onBevestig: (record: Zoekopdracht, bijzonderheden: string, autoType: AutoType, dealer: string, btwBedrag: string, brutoNetto: BrutoNetto) => void;
   onSluiten: () => void;
 }
 
@@ -50,12 +50,12 @@ export default function AkkoordModal({ record, open, onBevestig, onSluiten }: Pr
   if (!open || !record) return null;
 
   const isImport = autoType === 'import';
-  const isCredit = autoType === 'nieuw' || autoType === 'nl';
+  const isCredit = autoType === 'nieuw';
 
   function handleBevestig() {
     if (!record) return;
     mailAkkoord(record, bijzonderheden);
-    onBevestig(record, bijzonderheden);
+    onBevestig(record, bijzonderheden, autoType, dealer, btwBedrag, brutoNetto);
   }
 
   return (

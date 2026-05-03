@@ -12,6 +12,7 @@ import {
   PROG,
 } from '@/lib/constants';
 import type { Zoekopdracht } from '@/types';
+import { buildZoekLinks } from '@/lib/zoeklinks';
 import WhatsAppModal from './WhatsAppModal';
 import styles from './ZoekenModal.module.css';
 
@@ -263,6 +264,14 @@ export default function ZoekenModal({ record, open, onSluiten, onOpslaan, onVerw
                 ))}
               </div>
             </div>
+
+            {/* After Sales e-mail — alleen tonen bij akkoord */}
+            {form.akkoord && (
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <label>After Sales e-mailadres</label>
+                <input className="fi" type="email" placeholder="aftersales@bedrijf.nl" value={form.as_email ?? ''} onChange={(e) => stelIn('as_email', e.target.value)} />
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -272,6 +281,15 @@ export default function ZoekenModal({ record, open, onSluiten, onOpslaan, onVerw
                 🗑 Verwijder
               </button>
             )}
+            {record && (() => {
+              const links = buildZoekLinks(record);
+              return links ? (
+                <div className={styles.zoekLinks}>
+                  <a className={styles.zoekLink} href={links.as24} target="_blank" rel="noreferrer">🔍 AutoScout24</a>
+                  <a className={styles.zoekLink} href={links.mde} target="_blank" rel="noreferrer">🔍 Mobile.de</a>
+                </div>
+              ) : null;
+            })()}
             <button className="btn" onClick={onSluiten}>Annuleer</button>
             <button className="btn btn-a" onClick={handleOpslaan} disabled={opslaan}>
               {opslaan ? 'Opslaan...' : 'Opslaan'}

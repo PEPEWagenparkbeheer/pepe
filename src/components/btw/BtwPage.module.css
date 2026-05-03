@@ -1,0 +1,256 @@
+.pagina {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tab balk */
+.tabBalk {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+
+.tabBalkRechts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.zoekbalk {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #1e2029;
+  color: var(--text);
+  font-size: 13px;
+  width: 200px;
+  font-family: inherit;
+}
+.zoekbalk::placeholder { color: var(--muted); }
+.zoekbalk:focus { outline: none; border-color: var(--accent); }
+
+/* KPI strip */
+.kpiStrip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.kpiCard {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  transition: all 0.18s;
+}
+.kpiCard:hover {
+  border-color: rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+  transform: translateY(-1px);
+}
+.kpiCard.warn { border-color: rgba(251,191,36,.25); background: rgba(251,191,36,.04); }
+
+.kpiIcoon { font-size: 16px; margin-bottom: 4px; }
+.kpiGetal {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1;
+}
+.kpiGetal.ok   { color: var(--green); }
+.kpiGetal.warn { color: #fbbf24; }
+.kpiLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* Tabel */
+.tabelWrapper { overflow-x: auto; }
+
+.tabel {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  min-width: 900px;
+  padding: 8px 20px;
+}
+.tabel thead th {
+  background: var(--surface);
+  padding: 9px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+  text-align: left;
+}
+.tabel thead th.chk { text-align: center; width: 44px; }
+
+.tabel tbody tr { cursor: pointer; }
+.tabel tbody tr td {
+  background: var(--surface);
+  padding: 10px 10px;
+  vertical-align: middle;
+  border-top: 1px solid rgba(45,40,72,.6);
+  border-bottom: 1px solid rgba(45,40,72,.6);
+  border-right: 1px solid rgba(45,40,72,.4);
+}
+.tabel tbody tr td:first-child { border-left: 1px solid rgba(45,40,72,.6); border-radius: 10px 0 0 10px; }
+.tabel tbody tr td:last-child  { border-right: 1px solid rgba(45,40,72,.6); border-radius: 0 10px 10px 0; }
+.tabel tbody tr:hover td { background: #1e2029; border-color: rgba(146,25,57,.35); }
+.tabel tbody tr:hover td:first-child { border-left-color: var(--accent); }
+.tabel tbody tr.laat td { border-left-color: rgba(251,191,36,.4); }
+
+/* Checkbox */
+.cb {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border);
+  background: #1e2029;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  cursor: pointer;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.cb.on { background: var(--green); border-color: var(--green); }
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.tpImport   { background: rgba(251,191,36,.12);  color: #fbbf24;      border: 1px solid rgba(251,191,36,.2); }
+.tpNl       { background: rgba(74,222,128,.10);  color: var(--green); border: 1px solid rgba(74,222,128,.2); }
+.tpNieuw    { background: rgba(96,165,250,.12);  color: #60a5fa;      border: 1px solid rgba(96,165,250,.2); }
+.tpVoorraad { background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid var(--border); }
+
+.wachttijdChip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(45,40,72,.6);
+  color: var(--muted);
+}
+.wachttijdChip.laat { background: rgba(251,191,36,.12); color: #fbbf24; border: 1px solid rgba(251,191,36,.2); }
+
+.leeg {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Modal */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.8);
+  z-index: 500;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px 12px;
+  overflow-y: auto;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 580px;
+  margin-bottom: 20px;
+  animation: inschuiven 0.2s ease;
+}
+
+@keyframes inschuiven {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.modalHeader {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modalTitel { font-weight: 700; font-size: 17px; }
+.sluitKnop { background: none; border: none; font-size: 24px; color: var(--muted); cursor: pointer; padding: 0 4px; line-height: 1; }
+.sluitKnop:hover { color: var(--text); }
+
+.modalBody {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.vol { grid-column: 1 / -1; }
+
+.cbRij { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.cbRij span { font-size: 13px; color: var(--text); }
+
+.modalFooter {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.verwijderKnop {
+  margin-right: auto;
+  padding: 8px 15px;
+  border-radius: 10px;
+  border: 1px solid rgba(248,113,113,.3);
+  background: transparent;
+  color: var(--red);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.verwijderKnop:hover { background: rgba(248,113,113,.1); }
+
+/* Archief */
+.archiefKnop {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.archiefKnop:hover { border-color: var(--accent); color: #e87090; }
