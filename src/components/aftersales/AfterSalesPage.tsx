@@ -241,7 +241,7 @@ function AfleveringPopup({ auto, isBewerken, onOpslaan, onSluiten }: {
                 { aan: poetsen, set: setPoetsen, l: '🧹 Poetsen' },
                 { aan: hubspot, set: setHubspot, l: '🟠 In HubSpot zetten' },
               ].map(({ aan, set, l }) => (
-                <div key={l} className={styles.cbRij} style={{ cursor: 'pointer' }} onClick={() => set(!aan)}>
+                <div key={l} className={styles.cbRij} style={{ cursor: 'pointer', width: 'fit-content' }} onClick={() => set(!aan)}>
                   <div className={`${styles.cb} ${aan ? styles.on : ''}`}>
                     {aan && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                   </div>
