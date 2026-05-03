@@ -18,16 +18,20 @@ function Cb({ aan, onClick }: { aan: boolean; onClick: (e: React.MouseEvent) => 
 }
 
 const TYPE_CSS: Record<BtwAutoType, string> = {
-  import: styles.tpImport,
-  nl: styles.tpNl,
-  nieuw: styles.tpNieuw,
-  voorraad: styles.tpVoorraad,
+  btw: styles.tpImport,
+  credit: styles.tpNieuw,
+};
+
+const TYPE_LABEL: Record<BtwAutoType, string> = {
+  btw: '🌍 BTW',
+  credit: '% Credit',
 };
 
 function typeBadge(t?: string) {
   if (!t) return null;
   const cls = TYPE_CSS[t as BtwAutoType] ?? '';
-  return <span className={`${styles.badge} ${cls}`}>{t}</span>;
+  const label = TYPE_LABEL[t as BtwAutoType] ?? t;
+  return <span className={`${styles.badge} ${cls}`}>{label}</span>;
 }
 
 function datumFmt(d?: string) {
@@ -47,7 +51,7 @@ function dagenGelden(ingekocht?: string): number | null {
 }
 
 function zoekMatch(r: BtwRecord, q: string): boolean {
-  return `${r.auto} ${r.klant ?? ''} ${r.dealer_verkoper ?? ''} ${r.inkoper ?? ''}`.toLowerCase().includes(q.toLowerCase());
+  return `${r.kenteken ?? ''} ${r.auto} ${r.klant ?? ''} ${r.berijder ?? ''} ${r.dealer_verkoper ?? ''}`.toLowerCase().includes(q.toLowerCase());
 }
 
 // ── KPI strip ─────────────────────────────────────────────────

@@ -170,14 +170,16 @@ export interface LeaseAanvraag {
 
 // ── BTW / Credit ─────────────────────────────────────────────
 
-export type BtwAutoType = 'import' | 'nl' | 'nieuw' | 'voorraad';
+export type BtwAutoType = 'btw' | 'credit';
 
 export interface BtwRecord {
   id: string;
   created_at?: string;
 
   // Basis
-  auto: string;
+  kenteken?: string;
+  auto: string;           // merk / model
+  berijder?: string;
   type?: BtwAutoType;
   klant?: string;
   dealer_verkoper?: string;

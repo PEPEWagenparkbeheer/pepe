@@ -91,7 +91,7 @@ export default function ZoekenPage() {
     if (autoType === 'import' && brutoNetto === 'bruto') {
       await addBtw({
         auto: rec.auto,
-        type: 'import',
+        type: 'btw',
         klant: rec.klant,
         dealer_verkoper: dealer || undefined,
         bedrag: btwBedrag ? parseFloat(btwBedrag) : undefined,
@@ -102,7 +102,7 @@ export default function ZoekenPage() {
     } else if (autoType === 'nieuw') {
       await addBtw({
         auto: rec.auto,
-        type: 'nieuw',
+        type: 'credit',
         klant: rec.klant,
         dealer_verkoper: dealer || undefined,
         ingekocht_op: new Date().toISOString().slice(0, 10),

@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import type { BtwAutoType, BtwRecord } from '@/types';
-import { INKOPERS_DEFAULT, INKOPERS_KEY } from '@/lib/constants';
 import styles from './BtwPage.module.css';
 
 const LEEG: Omit<BtwRecord, 'id' | 'created_at'> = {
+  kenteken: '',
   auto: '',
-  type: undefined,
+  berijder: '',
+  type: 'btw',
   klant: '',
   dealer_verkoper: '',
-  ingekocht_op: '',
+  ingekocht_op: new Date().toISOString().slice(0, 10),
   bedrag: undefined,
   gelangenbest_verstuurd: false,
   geld_van_lm: false,
@@ -20,19 +21,12 @@ const LEEG: Omit<BtwRecord, 'id' | 'created_at'> = {
   gearchiveerd: false,
 };
 
-const TYPE_KNOPPEN: { k: BtwAutoType; l: string }[] = [
-  { k: 'import', l: '🌍 Import' },
-  { k: 'nl', l: '🇳🇱 NL' },
-  { k: 'nieuw', l: '✨ Nieuw' },
-  { k: 'voorraad', l: '🏢 Voorraad' },
-];
-
-function laadInkopers(): string[] {
-  if (typeof window === 'undefined') return INKOPERS_DEFAULT;
-  try {
-    const s = localStorage.getItem(INKOPERS_KEY);
-    return s ? JSON.parse(s) : INKOPERS_DEFAULT;
-  } catch { return INKOPERS_DEFAULT; }
+function Cb({ aan, onClick }: { aan: boolean; onClick: () => void }) {
+  return (
+    <div className={`${styles.cb} ${aan ? styles.on : ''}`} onClick={onClick} style={{ cursor: 'pointer' }}>
+      {aan && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+    </div>
+  );
 }
 
 interface Props {
@@ -46,15 +40,10 @@ interface Props {
 export default function BtwModal({ record, open, onSluiten, onOpslaan, onVerwijder }: Props) {
   const [form, setForm] = useState<Omit<BtwRecord, 'id' | 'created_at'>>(LEEG);
   const [opslaan, setOpslaan] = useState(false);
-  const inkopers = laadInkopers();
 
   useEffect(() => {
     if (!open) return;
-    if (record) {
-      setForm({ ...LEEG, ...record });
-    } else {
-      setForm({ ...LEEG });
-    }
+    setForm(record ? { ...LEEG, ...record } : { ...LEEG });
   }, [open, record]);
 
   function stel<K extends keyof typeof form>(veld: K, waarde: (typeof form)[K]) {
@@ -62,7 +51,7 @@ export default function BtwModal({ record, open, onSluiten, onOpslaan, onVerwijd
   }
 
   async function handleOpslaan() {
-    if (!form.auto.trim()) { alert('Vul een auto in.'); return; }
+    if (!form.auto.trim()) { alert('Vul merk / model in.'); return; }
     setOpslaan(true);
     if (record) {
       await onOpslaan({ ...form, id: record.id, created_at: record.created_at });
@@ -86,26 +75,55 @@ export default function BtwModal({ record, open, onSluiten, onOpslaan, onVerwijd
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
       <div className={styles.modal}>
         <div className={styles.modalHeader}>
-          <div className={styles.modalTitel}>{record ? `${record.auto}` : 'BTW / Credit toevoegen'}</div>
+          <div className={styles.modalTitel}>
+            {record ? `${record.kenteken || record.auto}` : '🌍 BTW/Credit toevoegen'}
+          </div>
           <button className={styles.sluitKnop} onClick={onSluiten}>×</button>
         </div>
 
         <div className={styles.modalBody}>
-          <div className={`${styles.fg} ${styles.vol}`}>
-            <label>Auto *</label>
-            <input className="fi" placeholder="bijv. BMW X5 xDrive30d" value={form.auto} onChange={(e) => stel('auto', e.target.value)} />
+          {/* Rij 1: Kenteken + Merk/Model */}
+          <div className={styles.fg}>
+            <label>Kenteken / Meldcode</label>
+            <input className="fi" placeholder="bijv. AB-123-C" value={form.kenteken ?? ''} onChange={(e) => stel('kenteken', e.target.value)} />
           </div>
 
+          <div className={styles.fg}>
+            <label>Merk / Model</label>
+            <input className="fi" placeholder="bijv. Audi Q5" value={form.auto} onChange={(e) => stel('auto', e.target.value)} />
+          </div>
+
+          {/* Rij 2: Klant + Berijder */}
+          <div className={styles.fg}>
+            <label>Klant</label>
+            <input className="fi" placeholder="Naam klant" value={form.klant ?? ''} onChange={(e) => stel('klant', e.target.value)} />
+          </div>
+
+          <div className={styles.fg}>
+            <label>Berijder</label>
+            <input className="fi" placeholder="Naam berijder" value={form.berijder ?? ''} onChange={(e) => stel('berijder', e.target.value)} />
+          </div>
+
+          {/* Dealer/Verkoper */}
+          <div className={`${styles.fg} ${styles.vol}`}>
+            <label>Dealer / Verkoper</label>
+            <input className="fi" placeholder="bijv. Audi Zentrum" value={form.dealer_verkoper ?? ''} onChange={(e) => stel('dealer_verkoper', e.target.value)} />
+          </div>
+
+          {/* Type */}
           <div className={`${styles.fg} ${styles.vol}`}>
             <label>Type</label>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {TYPE_KNOPPEN.map(({ k, l }) => (
+            <div style={{ display: 'flex', gap: 8 }}>
+              {([
+                { k: 'btw' as BtwAutoType, l: '🌍 BTW terugvordering' },
+                { k: 'credit' as BtwAutoType, l: '% Credit factuur' },
+              ] as { k: BtwAutoType; l: string }[]).map(({ k, l }) => (
                 <button
                   key={k}
                   type="button"
                   className={`btn ${form.type === k ? 'btn-a' : ''}`}
-                  style={{ fontSize: 12, padding: '6px 12px' }}
-                  onClick={() => stel('type', form.type === k ? undefined : k)}
+                  style={{ flex: 1 }}
+                  onClick={() => stel('type', k)}
                 >
                   {l}
                 </button>
@@ -113,14 +131,18 @@ export default function BtwModal({ record, open, onSluiten, onOpslaan, onVerwijd
             </div>
           </div>
 
+          {/* Bedrag + Datum */}
           <div className={styles.fg}>
-            <label>Klant</label>
-            <input className="fi" placeholder="Naam klant" value={form.klant ?? ''} onChange={(e) => stel('klant', e.target.value)} />
-          </div>
-
-          <div className={styles.fg}>
-            <label>Dealer / Verkoper</label>
-            <input className="fi" placeholder="bijv. Audi Zentrum" value={form.dealer_verkoper ?? ''} onChange={(e) => stel('dealer_verkoper', e.target.value)} />
+            <label>Ontvangen bedrag (€)</label>
+            <input
+              className="fi"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="bijv. 3.500"
+              value={form.bedrag ?? ''}
+              onChange={(e) => stel('bedrag', e.target.value ? parseFloat(e.target.value) : undefined)}
+            />
           </div>
 
           <div className={styles.fg}>
@@ -128,48 +150,18 @@ export default function BtwModal({ record, open, onSluiten, onOpslaan, onVerwijd
             <input className="fi" type="date" value={form.ingekocht_op ?? ''} onChange={(e) => stel('ingekocht_op', e.target.value)} />
           </div>
 
-          <div className={styles.fg}>
-            <label>BTW bedrag (€)</label>
-            <input
-              className="fi"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="bijv. 8500"
-              value={form.bedrag ?? ''}
-              onChange={(e) => stel('bedrag', e.target.value ? parseFloat(e.target.value) : undefined)}
-            />
+          {/* Gelangenbest checkbox */}
+          <div className={`${styles.fg} ${styles.vol}`}>
+            <div className={styles.cbRij} onClick={() => stel('gelangenbest_verstuurd', !form.gelangenbest_verstuurd)}>
+              <Cb aan={!!form.gelangenbest_verstuurd} onClick={() => stel('gelangenbest_verstuurd', !form.gelangenbest_verstuurd)} />
+              <span>Gelangenbestätigung verstuurd</span>
+            </div>
           </div>
 
-          <div className={styles.fg}>
-            <label>Inkoper</label>
-            <select className="fi" value={form.inkoper ?? ''} onChange={(e) => stel('inkoper', e.target.value)}>
-              <option value="">— kies collega —</option>
-              {inkopers.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-
+          {/* Opmerkingen */}
           <div className={`${styles.fg} ${styles.vol}`}>
             <label>Opmerkingen</label>
-            <textarea className="fi" rows={2} placeholder="Interne notities..." value={form.opmerkingen ?? ''} onChange={(e) => stel('opmerkingen', e.target.value)} />
-          </div>
-
-          <div className={`${styles.fg} ${styles.vol}`}>
-            <label>Voortgang</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[
-                { k: 'gelangenbest_verstuurd' as const, l: 'Gelangensbestätigung verstuurd' },
-                { k: 'geld_van_lm' as const, l: 'Geld ontvangen van LM' },
-                { k: 'geld_van_dealer' as const, l: 'Geld ontvangen van dealer' },
-              ].map(({ k, l }) => (
-                <div key={k} className={styles.cbRij} onClick={() => stel(k, !form[k])} style={{ cursor: 'pointer' }}>
-                  <div className={`${styles.cb} ${form[k] ? styles.on : ''}`}>
-                    {form[k] && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                  </div>
-                  <span>{l}</span>
-                </div>
-              ))}
-            </div>
+            <textarea className="fi" rows={3} placeholder="Eventuele bijzonderheden..." value={form.opmerkingen ?? ''} onChange={(e) => stel('opmerkingen', e.target.value)} />
           </div>
         </div>
 
@@ -179,7 +171,7 @@ export default function BtwModal({ record, open, onSluiten, onOpslaan, onVerwijd
           )}
           <button className="btn" onClick={onSluiten}>Annuleer</button>
           <button className="btn btn-a" onClick={handleOpslaan} disabled={opslaan}>
-            {opslaan ? 'Opslaan...' : 'Opslaan'}
+            {opslaan ? 'Opslaan...' : record ? 'Opslaan' : '+ Toevoegen'}
           </button>
         </div>
       </div>
