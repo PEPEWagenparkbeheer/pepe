@@ -188,6 +188,13 @@ export interface BtwRecord {
   // Bedrag
   bedrag?: number;
 
+  // Credit factuur velden
+  lm_pct?: number;
+  lm_bedrag?: number;
+  dealer_pct?: number;
+  dealer_bedrag?: number;
+  verwachte_leverdatum?: string;
+
   // Voortgang
   gelangenbest_verstuurd?: boolean;
   geld_van_lm?: boolean;

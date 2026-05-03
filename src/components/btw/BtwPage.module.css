@@ -219,6 +219,23 @@
 .cbRij { display: flex; flex-direction: row; align-items: center; gap: 8px; }
 .cbRij span { font-size: 13px; color: var(--text); }
 
+.creditHint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.creditGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.creditSectie { display: flex; flex-direction: column; gap: 5px; }
+.creditSectie label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.creditRij { display: flex; gap: 6px; align-items: center; }
+
 .modalFooter {
   padding: 14px 22px;
   border-top: 1px solid var(--border);

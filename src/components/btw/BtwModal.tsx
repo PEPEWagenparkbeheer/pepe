@@ -13,6 +13,11 @@ const LEEG: Omit<BtwRecord, 'id' | 'created_at'> = {
   dealer_verkoper: '',
   ingekocht_op: new Date().toISOString().slice(0, 10),
   bedrag: undefined,
+  lm_pct: undefined,
+  lm_bedrag: undefined,
+  dealer_pct: undefined,
+  dealer_bedrag: undefined,
+  verwachte_leverdatum: '',
   gelangenbest_verstuurd: false,
   geld_van_lm: false,
   geld_van_dealer: false,
@@ -68,6 +73,8 @@ export default function BtwModal({ record, open, onSluiten, onOpslaan, onVerwijd
     await onVerwijder(record.id);
     onSluiten();
   }
+
+  const isCredit = form.type === 'credit';
 
   if (!open) return null;
 
@@ -131,6 +138,33 @@ export default function BtwModal({ record, open, onSluiten, onOpslaan, onVerwijd
             </div>
           </div>
 
+          {/* Credit-specifieke velden */}
+          {isCredit && (
+            <div className={`${styles.fg} ${styles.vol}`}>
+              <div className={styles.creditHint}>Vul percentage <em>of</em> bedrag in — of beide</div>
+              <div className={styles.creditGrid}>
+                <div className={styles.creditSectie}>
+                  <label>Van leasemaatschappij</label>
+                  <div className={styles.creditRij}>
+                    <input className="fi" type="number" min="0" step="0.1" placeholder="%" style={{ width: 64 }}
+                      value={form.lm_pct ?? ''} onChange={(e) => stel('lm_pct', e.target.value ? parseFloat(e.target.value) : undefined)} />
+                    <input className="fi" type="number" min="0" placeholder="€ bedrag" style={{ flex: 1 }}
+                      value={form.lm_bedrag ?? ''} onChange={(e) => stel('lm_bedrag', e.target.value ? parseFloat(e.target.value) : undefined)} />
+                  </div>
+                </div>
+                <div className={styles.creditSectie}>
+                  <label>Van dealer</label>
+                  <div className={styles.creditRij}>
+                    <input className="fi" type="number" min="0" step="0.1" placeholder="%" style={{ width: 64 }}
+                      value={form.dealer_pct ?? ''} onChange={(e) => stel('dealer_pct', e.target.value ? parseFloat(e.target.value) : undefined)} />
+                    <input className="fi" type="number" min="0" placeholder="€ bedrag" style={{ flex: 1 }}
+                      value={form.dealer_bedrag ?? ''} onChange={(e) => stel('dealer_bedrag', e.target.value ? parseFloat(e.target.value) : undefined)} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Bedrag + Datum */}
           <div className={styles.fg}>
             <label>Ontvangen bedrag (€)</label>
@@ -146,13 +180,18 @@ export default function BtwModal({ record, open, onSluiten, onOpslaan, onVerwijd
           </div>
 
           <div className={styles.fg}>
-            <label>Ingekocht op</label>
-            <input className="fi" type="date" value={form.ingekocht_op ?? ''} onChange={(e) => stel('ingekocht_op', e.target.value)} />
+            <label>{isCredit ? 'Verwachte leverdatum' : 'Ingekocht op'}</label>
+            <input
+              className="fi"
+              type="date"
+              value={isCredit ? (form.verwachte_leverdatum ?? '') : (form.ingekocht_op ?? '')}
+              onChange={(e) => isCredit ? stel('verwachte_leverdatum', e.target.value) : stel('ingekocht_op', e.target.value)}
+            />
           </div>
 
-          {/* Gelangenbest checkbox */}
+          {/* Gelangenbest checkbox — links uitgelijnd */}
           <div className={`${styles.fg} ${styles.vol}`}>
-            <div className={styles.cbRij} onClick={() => stel('gelangenbest_verstuurd', !form.gelangenbest_verstuurd)}>
+            <div className={styles.cbRij} style={{ width: 'fit-content' }} onClick={() => stel('gelangenbest_verstuurd', !form.gelangenbest_verstuurd)}>
               <Cb aan={!!form.gelangenbest_verstuurd} onClick={() => stel('gelangenbest_verstuurd', !form.gelangenbest_verstuurd)} />
               <span>Gelangenbestätigung verstuurd</span>
             </div>
