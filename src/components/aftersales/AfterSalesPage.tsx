@@ -896,7 +896,7 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
                             {new Date(laatsteUpdate.op).toLocaleDateString('nl-NL', { day: 'numeric', month: 'numeric', year: 'numeric' })}
                             {' '}<span className={styles.updateBadge}>{updates.length}×</span>
                           </span>
-                          <div className={styles.doorWieTip} style={{ maxWidth: 260, whiteSpace: 'normal' }}>
+                          <div className={styles.doorWieTip}>
                             <span style={{ fontWeight: 600, color: 'var(--accent)', fontSize: 11 }}>{laatsteUpdate.door}</span>
                             <span className={styles.cbTipTijd}>{new Date(laatsteUpdate.op).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })} {new Date(laatsteUpdate.op).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</span>
                             <span style={{ fontSize: 12, marginTop: 4, color: 'var(--text)' }}>{laatsteUpdate.tekst}</span>
