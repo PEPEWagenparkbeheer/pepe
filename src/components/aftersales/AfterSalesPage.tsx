@@ -274,15 +274,17 @@ function AfleveringPopup({ auto, isBewerken, onOpslaan, onSluiten }: {
 }
 
 // ── Tab: Import checklist ─────────────────────────────────────
-const IMPORT_CB_STAPPEN: { veld: keyof AfterSalesAuto; label: string }[] = [
-  { veld: 'aangevraagd',     label: 'Aangevr.' },
-  { veld: 'betaald',         label: 'Betaald' },
+// Stappen voor BIN: alles vóór bin_ontvangen, dan bin (popup), dan erna
+const IMPORT_VOOR_BIN: { veld: keyof AfterSalesAuto; label: string }[] = [
+  { veld: 'aangevraagd',      label: 'Aangevr.' },
+  { veld: 'betaald',          label: 'Betaald' },
   { veld: 'rdw_ingeschreven', label: 'RDW Inschr.' },
-  { veld: 'bpm_ingediend',   label: 'BPM ingd.' },
-  { veld: 'bpm_goedgekeurd', label: 'BPM goedg.' },
-  { veld: 'bin_ontvangen',   label: 'BIN ontv.' },
+  { veld: 'bpm_ingediend',    label: 'BPM ingd.' },
+  { veld: 'bpm_goedgekeurd',  label: 'BPM goedg.' },
+];
+const IMPORT_NA_BIN: { veld: keyof AfterSalesAuto; label: string }[] = [
   { veld: 'kentekenbewijzen', label: 'Kentekenbew.' },
-  { veld: 'gelangenbest',    label: 'Gelangenbest.' },
+  { veld: 'gelangenbest',     label: 'Gelangenbest.' },
 ];
 
 function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
@@ -291,34 +293,34 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
   onToggle: (id: string, veld: keyof AfterSalesAuto) => void;
   onUpdate: (r: AfterSalesAuto) => Promise<void>;
 }) {
-  const [binnenPopup, setBinnenPopup] = useState<AfterSalesAuto | null>(null);
+  const [binPopup, setBinPopup] = useState<AfterSalesAuto | null>(null);
   const [kentekentje, setKentekentje] = useState('');
 
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => r.type === 'import' && !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
-    return [...gefilterd].sort((a, b) => (a.binnen === b.binnen ? 0 : a.binnen ? 1 : -1));
+    return [...gefilterd].sort((a, b) => (a.bin_ontvangen === b.bin_ontvangen ? 0 : a.bin_ontvangen ? 1 : -1));
   }, [autos, zoek]);
 
-  async function handleBinnenBevestig() {
-    if (!binnenPopup) return;
-    await onUpdate({ ...binnenPopup, binnen: true, kenteken: kentekentje.trim() || binnenPopup.kenteken || '', binnen_op: vandaagStr() });
-    setBinnenPopup(null);
+  async function handleBinBevestig() {
+    if (!binPopup) return;
+    await onUpdate({ ...binPopup, bin_ontvangen: true, kenteken: kentekentje.trim() || binPopup.kenteken || '' });
+    setBinPopup(null);
     setKentekentje('');
   }
 
   if (!rijen.length) return <div className={styles.leeg}>Geen importauto's</div>;
   return (
     <>
-      {binnenPopup && (
-        <div className={styles.overlay} onClick={() => setBinnenPopup(null)}>
+      {binPopup && (
+        <div className={styles.overlay} onClick={() => setBinPopup(null)}>
           <div className={styles.modal} style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <span className={styles.modalTitel}>🚗 Auto is binnen</span>
-              <button className={styles.sluitKnop} onClick={() => setBinnenPopup(null)}>×</button>
+              <span className={styles.modalTitel}>📦 BIN ontvangen</span>
+              <button className={styles.sluitKnop} onClick={() => setBinPopup(null)}>×</button>
             </div>
             <div className={styles.modalBody} style={{ display: 'block', padding: 20 }}>
               <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
-                {binnenPopup.merk} {binnenPopup.model} — {binnenPopup.klant}
+                {binPopup.merk} {binPopup.model} — {binPopup.klant}
               </p>
               <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Kenteken</label>
               <input
@@ -327,12 +329,12 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
                 value={kentekentje}
                 onChange={(e) => setKentekentje(e.target.value.toUpperCase())}
                 autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && handleBinnenBevestig()}
+                onKeyDown={(e) => e.key === 'Enter' && handleBinBevestig()}
               />
             </div>
             <div className={styles.modalFooter}>
-              <button className="btn" onClick={() => setBinnenPopup(null)}>Annuleer</button>
-              <button className="btn btn-a" onClick={handleBinnenBevestig}>✅ Bevestig binnen</button>
+              <button className="btn" onClick={() => setBinPopup(null)}>Annuleer</button>
+              <button className="btn btn-a" onClick={handleBinBevestig}>✅ Bevestig BIN</button>
             </div>
           </div>
         </div>
@@ -343,25 +345,24 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
             <th>Kenteken</th>
             <th>Merk / Model</th>
             <th>Klant</th>
-            {IMPORT_CB_STAPPEN.slice(0, 2).map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
+            <th>Aangevr.</th>
             <th>Transportdatum</th>
+            <th className={styles.chk}>Betaald</th>
             <th className={styles.chk}>Binnen</th>
-            {IMPORT_CB_STAPPEN.slice(2).map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
+            {IMPORT_VOOR_BIN.slice(2).map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
+            <th className={styles.chk}>BIN ontv.</th>
+            {IMPORT_NA_BIN.map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
             <th>Voortgang</th>
           </tr></thead>
           <tbody>
             {rijen.map((r) => {
               const pct = importVoortgang(r);
               return (
-                <tr key={r.id} onClick={() => onEdit(r)} style={{ opacity: r.binnen ? 0.65 : 1 }}>
+                <tr key={r.id} onClick={() => onEdit(r)} style={{ opacity: r.bin_ontvangen ? 0.65 : 1 }}>
                   <td><KentekenPlaat kenteken={r.kenteken ?? ''} /></td>
                   <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
                   <td>{r.klant}</td>
-                  {IMPORT_CB_STAPPEN.slice(0, 2).map((s) => (
-                    <td key={s.veld} className={styles.chk}>
-                      <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
-                    </td>
-                  ))}
+                  <td className={styles.chk}><Cb aan={!!r.aangevraagd} onClick={() => onToggle(r.id, 'aangevraagd')} /></td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <input
                       type="date"
@@ -370,17 +371,21 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
                       onChange={(e) => onUpdate({ ...r, transportdatum: e.target.value })}
                     />
                   </td>
+                  <td className={styles.chk}><Cb aan={!!r.betaald} onClick={() => onToggle(r.id, 'betaald')} /></td>
+                  <td className={styles.chk}><Cb aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} /></td>
+                  {IMPORT_VOOR_BIN.slice(2).map((s) => (
+                    <td key={s.veld} className={styles.chk}>
+                      <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
+                    </td>
+                  ))}
                   <td className={styles.chk}>
-                    {r.binnen ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                        <Cb aan={true} onClick={() => onToggle(r.id, 'binnen')} />
-                        {r.binnen_op && <span className={styles.datumtje}>{datumFmt(r.binnen_op)}</span>}
-                      </div>
+                    {r.bin_ontvangen ? (
+                      <Cb aan={true} onClick={() => onToggle(r.id, 'bin_ontvangen')} />
                     ) : (
-                      <Cb aan={false} onClick={(e) => { e.stopPropagation(); setBinnenPopup(r); setKentekentje(r.kenteken ?? ''); }} />
+                      <Cb aan={false} onClick={(e) => { e.stopPropagation(); setBinPopup(r); setKentekentje(r.kenteken ?? ''); }} />
                     )}
                   </td>
-                  {IMPORT_CB_STAPPEN.slice(2).map((s) => (
+                  {IMPORT_NA_BIN.map((s) => (
                     <td key={s.veld} className={styles.chk}>
                       <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
                     </td>
