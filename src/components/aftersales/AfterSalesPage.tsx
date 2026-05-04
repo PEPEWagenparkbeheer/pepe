@@ -3,6 +3,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAfterSales } from '@/hooks/useAfterSales';
 import { schietConfetti } from '@/lib/confetti';
 import type { AfterSalesAuto, ASAutoType, ASKlacht, KlachtUpdate } from '@/types';
@@ -25,6 +26,33 @@ function Cb({ aan, onClick }: { aan: boolean; onClick: (e: React.MouseEvent) => 
   return (
     <div className={`${styles.cb} ${aan ? styles.on : ''}`} onClick={(e) => { e.stopPropagation(); onClick(e); }}>
       {aan && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+    </div>
+  );
+}
+
+// ── Portal tooltip (ontsnapt aan table overflow-x) ───────────
+function PortalTip({ children, tip }: { children: React.ReactNode; tip: React.ReactNode }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  return (
+    <div
+      style={{ display: 'inline-block', cursor: 'default' }}
+      onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setPos({ x: r.left, y: r.bottom + 8 }); }}
+      onMouseLeave={() => setPos(null)}
+    >
+      {children}
+      {pos && typeof document !== 'undefined' && createPortal(
+        <div style={{
+          position: 'fixed', top: pos.y, left: pos.x, width: 290,
+          background: '#16181f', border: '1px solid rgba(255,255,255,.15)',
+          borderRadius: 10, padding: '10px 14px', fontSize: 12,
+          zIndex: 9999, boxShadow: '0 8px 32px rgba(0,0,0,.7)',
+          display: 'flex', flexDirection: 'column', gap: 5,
+          pointerEvents: 'none',
+        }}>
+          {tip}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -774,15 +802,15 @@ const leegKlachtForm = (): KlachtFormType => ({
 
 function DoorWieTip({ naam, aangemaakt }: { naam?: string; aangemaakt?: string }) {
   if (!naam) return <span style={{ color: 'var(--muted)' }}>—</span>;
+  if (!aangemaakt) return <span>{naam}</span>;
   return (
-    <div className={styles.doorWieWrap}>
+    <PortalTip tip={
+      <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+        Aangemaakt {new Date(aangemaakt).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}
+      </span>
+    }>
       <span>{naam}</span>
-      {aangemaakt && (
-        <div className={styles.doorWieTip}>
-          <span className={styles.cbTipTijd}>Aangemaakt {new Date(aangemaakt).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-        </div>
-      )}
-    </div>
+    </PortalTip>
   );
 }
 
@@ -891,17 +919,18 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {laatsteUpdate ? (
-                        <div className={styles.doorWieWrap}>
-                          <span style={{ fontSize: 12 }}>
-                            {new Date(laatsteUpdate.op).toLocaleDateString('nl-NL', { day: 'numeric', month: 'numeric', year: 'numeric' })}
-                            {' '}<span className={styles.updateBadge}>{updates.length}×</span>
+                        <PortalTip tip={<>
+                          <span style={{ fontWeight: 600, color: 'var(--accent)', fontSize: 12 }}>{laatsteUpdate.door}</span>
+                          <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                            {new Date(laatsteUpdate.op).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })} {new Date(laatsteUpdate.op).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
                           </span>
-                          <div className={styles.doorWieTip}>
-                            <span style={{ fontWeight: 600, color: 'var(--accent)', fontSize: 11 }}>{laatsteUpdate.door}</span>
-                            <span className={styles.cbTipTijd}>{new Date(laatsteUpdate.op).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })} {new Date(laatsteUpdate.op).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</span>
-                            <span style={{ fontSize: 12, marginTop: 4, color: 'var(--text)' }}>{laatsteUpdate.tekst}</span>
-                          </div>
-                        </div>
+                          <span style={{ fontSize: 13, color: 'var(--text)', marginTop: 2 }}>{laatsteUpdate.tekst}</span>
+                        </>}>
+                          <span style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            {new Date(laatsteUpdate.op).toLocaleDateString('nl-NL', { day: 'numeric', month: 'numeric', year: 'numeric' })}
+                            <span className={styles.updateBadge}>{updates.length}×</span>
+                          </span>
+                        </PortalTip>
                       ) : (
                         <span style={{ fontSize: 12, color: 'var(--muted)' }}>
                           {k.created_at ? new Date(k.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '—'}
