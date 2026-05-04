@@ -5,13 +5,20 @@
 import { useMemo, useRef, useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
 import { schietConfetti } from '@/lib/confetti';
-import type { AfterSalesAuto, ASAutoType, ASKlacht } from '@/types';
+import type { AfterSalesAuto, ASAutoType, ASKlacht, KlachtUpdate } from '@/types';
 import KentekenPlaat from './KentekenPlaat';
 import AfterSalesModal from './AfterSalesModal';
 import styles from './AfterSalesPage.module.css';
 
 type HoofdTab = 'lopend' | 'import' | 'rijklaar' | 'gepland' | 'nalevering' | 'archief';
 type NalTab = 'open' | 'opgelost';
+
+const AS_MEDEWERKERS = ['Roger', 'Lorenzo', 'Joep', 'Diego', 'Jasper'];
+const KLACHT_STATUSSEN = [
+  { k: 'open',           l: 'Open' },
+  { k: 'in_behandeling', l: 'In behandeling' },
+  { k: 'opgelost',       l: 'Opgelost' },
+] as const;
 
 // ── Helpers ───────────────────────────────────────────────────
 function Cb({ aan, onClick }: { aan: boolean; onClick: (e: React.MouseEvent) => void }) {
@@ -755,36 +762,92 @@ function TabGepland({ autos, zoek, onToggle, onBewerken, onAfgeleverd }: {
 }
 
 // ── Tab: Nalevering / Klachten ────────────────────────────────
-function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onRemoveKlacht }: {
+type KlachtFormType = {
+  kenteken: string; merk_model: string; klant: string;
+  omschrijving: string; oplossing: string; door_wie: string;
+  status: ASKlacht['status']; updates: KlachtUpdate[];
+};
+const leegKlachtForm = (): KlachtFormType => ({
+  kenteken: '', merk_model: '', klant: '', omschrijving: '',
+  oplossing: '', door_wie: '', status: 'in_behandeling', updates: [],
+});
+
+function DoorWieTip({ naam, aangemaakt }: { naam?: string; aangemaakt?: string }) {
+  if (!naam) return <span style={{ color: 'var(--muted)' }}>—</span>;
+  return (
+    <div className={styles.doorWieWrap}>
+      <span>{naam}</span>
+      {aangemaakt && (
+        <div className={styles.doorWieTip}>
+          <span className={styles.cbTipTijd}>Aangemaakt {new Date(aangemaakt).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onRemoveKlacht, gebruiker }: {
   klachten: ASKlacht[]; autos: AfterSalesAuto[]; zoek: string;
   onAddKlacht: (k: Omit<ASKlacht, 'id' | 'created_at'>) => Promise<unknown>;
   onUpdateKlacht: (k: ASKlacht) => Promise<void>;
   onRemoveKlacht: (id: string) => Promise<void>;
+  gebruiker: string;
 }) {
   const [nalTab, setNalTab] = useState<NalTab>('open');
   const [klachtModal, setKlachtModal] = useState(false);
   const [editKlacht, setEditKlacht] = useState<ASKlacht | null>(null);
-  const [klachtForm, setKlachtForm] = useState({ kenteken: '', merk_model: '', klant: '', omschrijving: '', oplossing: '', door_wie: '' });
+  const [klachtForm, setKlachtForm] = useState<KlachtFormType>(leegKlachtForm());
+  const [nieuweUpdate, setNieuweUpdate] = useState('');
 
-  function openNieuw() { setEditKlacht(null); setKlachtForm({ kenteken: '', merk_model: '', klant: '', omschrijving: '', oplossing: '', door_wie: '' }); setKlachtModal(true); }
-  function openEdit(k: ASKlacht) { setEditKlacht(k); setKlachtForm({ kenteken: k.kenteken, merk_model: k.merk_model ?? '', klant: k.klant ?? '', omschrijving: k.omschrijving, oplossing: k.oplossing ?? '', door_wie: k.door_wie ?? '' }); setKlachtModal(true); }
+  function openNieuw() {
+    setEditKlacht(null);
+    setKlachtForm(leegKlachtForm());
+    setNieuweUpdate('');
+    setKlachtModal(true);
+  }
+  function openEdit(k: ASKlacht) {
+    setEditKlacht(k);
+    setKlachtForm({
+      kenteken: k.kenteken, merk_model: k.merk_model ?? '', klant: k.klant ?? '',
+      omschrijving: k.omschrijving, oplossing: k.oplossing ?? '',
+      door_wie: k.door_wie ?? '', status: k.status,
+      updates: k.updates ?? [],
+    });
+    setNieuweUpdate('');
+    setKlachtModal(true);
+  }
 
   async function handleOpslaan() {
     if (!klachtForm.kenteken || !klachtForm.omschrijving) { alert('Vul kenteken en omschrijving in.'); return; }
     if (editKlacht) {
       await onUpdateKlacht({ ...editKlacht, ...klachtForm });
     } else {
-      await onAddKlacht({ ...klachtForm, auto_id: '', status: 'open' });
+      await onAddKlacht({ ...klachtForm, auto_id: '' });
     }
     setKlachtModal(false);
   }
 
-  async function handleOplossen(k: ASKlacht) {
-    await onUpdateKlacht({ ...k, status: 'opgelost', opgelost_op: new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }) });
+  function handleAddUpdate() {
+    const tekst = nieuweUpdate.trim();
+    if (!tekst) return;
+    const update: KlachtUpdate = { tekst, op: new Date().toISOString(), door: klachtForm.door_wie || gebruiker || '?' };
+    setKlachtForm((f) => ({ ...f, updates: [...f.updates, update] }));
+    setNieuweUpdate('');
   }
 
-  const gefilterdeKlachten = klachten
-    .filter((k) => k.status === nalTab && (!zoek || `${k.kenteken} ${k.klant} ${k.omschrijving}`.toLowerCase().includes(zoek.toLowerCase())));
+  async function handleStatusChange(k: ASKlacht, nieuweStatus: ASKlacht['status']) {
+    const extra: Partial<ASKlacht> = {};
+    if (nieuweStatus === 'opgelost') extra.opgelost_op = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    await onUpdateKlacht({ ...k, status: nieuweStatus, ...extra });
+  }
+
+  const gefilterdeKlachten = klachten.filter((k) => {
+    const isOpen = k.status !== 'opgelost';
+    if (nalTab === 'open' && !isOpen) return false;
+    if (nalTab === 'opgelost' && isOpen) return false;
+    if (zoek && !`${k.kenteken} ${k.klant} ${k.omschrijving}`.toLowerCase().includes(zoek.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <>
@@ -792,7 +855,7 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
         <button className={`tab ${nalTab === 'open' ? 'on' : ''}`} onClick={() => setNalTab('open')}>Open klachten</button>
         <button className={`tab ${nalTab === 'opgelost' ? 'on' : ''}`} onClick={() => setNalTab('opgelost')}>✅ Opgelost</button>
         <div style={{ marginLeft: 'auto', padding: '8px 0' }}>
-          <button className="btn btn-a" onClick={openNieuw}>+ Klacht toevoegen</button>
+          <button className="btn btn-a" onClick={openNieuw}>+ Nalevering / Klacht</button>
         </div>
       </div>
 
@@ -804,28 +867,46 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
             <thead><tr>
               <th>Kenteken</th><th>Merk / Model</th><th>Klant</th>
               <th>Omschrijving</th><th>Oplossing</th>
-              {nalTab === 'open' ? <><th>Door wie</th><th>Acties</th></> : <><th>Opgelost op</th><th>Door wie</th></>}
+              <th>Status</th><th>Aangemaakt</th><th>Door wie</th><th>Acties</th>
             </tr></thead>
             <tbody>
-              {gefilterdeKlachten.map((k) => (
-                <tr key={k.id} onClick={() => openEdit(k)}>
-                  <td><div className={styles.kn}>{k.kenteken}</div></td>
-                  <td>{k.merk_model || '—'}</td>
-                  <td>{k.klant || '—'}</td>
-                  <td style={{ maxWidth: 200 }}>{k.omschrijving}</td>
-                  <td style={{ maxWidth: 180, color: 'var(--muted)', fontSize: 12 }}>{k.oplossing || '—'}</td>
-                  {nalTab === 'open' ? (
-                    <>
-                      <td>{k.door_wie || '—'}</td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <button className="btn" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => handleOplossen(k)}>✅ Oplossen</button>
-                      </td>
-                    </>
-                  ) : (
-                    <><td>{k.opgelost_op || '—'}</td><td>{k.door_wie || '—'}</td></>
-                  )}
-                </tr>
-              ))}
+              {gefilterdeKlachten.map((k) => {
+                const updateCount = k.updates?.length ?? 0;
+                return (
+                  <tr key={k.id} onClick={() => openEdit(k)}>
+                    <td><KentekenPlaat kenteken={k.kenteken ?? ''} /></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{k.merk_model || '—'}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{k.klant || '—'}</td>
+                    <td style={{ maxWidth: 220, fontSize: 12 }}>{k.omschrijving}</td>
+                    <td style={{ maxWidth: 180, color: 'var(--muted)', fontSize: 12 }}>{k.oplossing || '—'}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <select
+                        className={styles.statusSelect}
+                        value={k.status}
+                        onChange={(e) => handleStatusChange(k, e.target.value as ASKlacht['status'])}
+                      >
+                        {KLACHT_STATUSSEN.map((s) => <option key={s.k} value={s.k}>{s.l}</option>)}
+                      </select>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontSize: 12 }}>{k.created_at ? new Date(k.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '—'}</span>
+                        {updateCount > 0 && <span className={styles.updateBadge}>{updateCount}×</span>}
+                      </div>
+                    </td>
+                    <td><DoorWieTip naam={k.door_wie} aangemaakt={k.created_at} /></td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button className={styles.bewerkLink} onClick={() => openEdit(k)}>✏ Bewerk</button>
+                        {nalTab === 'opgelost' && (
+                          <button className="btn" style={{ fontSize: 11, padding: '4px 8px' }} onClick={() => handleStatusChange(k, 'in_behandeling')}>↩ Terugzetten</button>
+                        )}
+                        <button className={styles.verwijderIcon} onClick={async () => { if (confirm('Klacht verwijderen?')) await onRemoveKlacht(k.id); }}>🗑</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -836,19 +917,78 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
         <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && setKlachtModal(false)}>
           <div className={styles.modal}>
             <div className={styles.modalHeader}>
-              <div className={styles.modalTitel}>{editKlacht ? 'Klacht bewerken' : 'Klacht toevoegen'}</div>
+              <div className={styles.modalTitel}>{editKlacht ? 'Nalevering bewerken' : 'Nalevering toevoegen'}</div>
               <button className={styles.sluitKnop} onClick={() => setKlachtModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              <div className={styles.fg}><label>Kenteken *</label><input className="fi" value={klachtForm.kenteken} onChange={(e) => setKlachtForm((f) => ({ ...f, kenteken: e.target.value.toUpperCase() }))} /></div>
-              <div className={styles.fg}><label>Klant</label><input className="fi" value={klachtForm.klant} onChange={(e) => setKlachtForm((f) => ({ ...f, klant: e.target.value }))} /></div>
-              <div className={`${styles.fg} ${styles.vol}`}><label>Merk / Model</label><input className="fi" value={klachtForm.merk_model} onChange={(e) => setKlachtForm((f) => ({ ...f, merk_model: e.target.value }))} /></div>
-              <div className={`${styles.fg} ${styles.vol}`}><label>Omschrijving *</label><textarea className="fi" rows={2} value={klachtForm.omschrijving} onChange={(e) => setKlachtForm((f) => ({ ...f, omschrijving: e.target.value }))} /></div>
-              <div className={`${styles.fg} ${styles.vol}`}><label>Oplossing</label><textarea className="fi" rows={2} value={klachtForm.oplossing} onChange={(e) => setKlachtForm((f) => ({ ...f, oplossing: e.target.value }))} /></div>
-              <div className={styles.fg}><label>Door wie</label><input className="fi" value={klachtForm.door_wie} onChange={(e) => setKlachtForm((f) => ({ ...f, door_wie: e.target.value }))} /></div>
+              {/* Rij 1: Kenteken + Merk/Model */}
+              <div className={styles.fg}>
+                <label>Kenteken</label>
+                <input className="fi" value={klachtForm.kenteken} onChange={(e) => setKlachtForm((f) => ({ ...f, kenteken: e.target.value.toUpperCase() }))} />
+              </div>
+              <div className={styles.fg}>
+                <label>Merk / Model</label>
+                <input className="fi" value={klachtForm.merk_model} onChange={(e) => setKlachtForm((f) => ({ ...f, merk_model: e.target.value }))} />
+              </div>
+              {/* Rij 2: Klant + Door wie */}
+              <div className={styles.fg}>
+                <label>Klant</label>
+                <input className="fi" value={klachtForm.klant} onChange={(e) => setKlachtForm((f) => ({ ...f, klant: e.target.value }))} />
+              </div>
+              <div className={styles.fg}>
+                <label>Door wie aangemaakt</label>
+                <select className="fi" value={klachtForm.door_wie} onChange={(e) => setKlachtForm((f) => ({ ...f, door_wie: e.target.value }))}>
+                  <option value="">— Kies medewerker —</option>
+                  {AS_MEDEWERKERS.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              {/* Omschrijving */}
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <label>Omschrijving klacht / nalevering</label>
+                <textarea className="fi" rows={3} value={klachtForm.omschrijving} onChange={(e) => setKlachtForm((f) => ({ ...f, omschrijving: e.target.value }))} />
+              </div>
+              {/* Oplossing */}
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <label>Geboden oplossing</label>
+                <textarea className="fi" rows={2} value={klachtForm.oplossing} onChange={(e) => setKlachtForm((f) => ({ ...f, oplossing: e.target.value }))} />
+              </div>
+              {/* Status */}
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <label>Status</label>
+                <select className="fi" value={klachtForm.status} onChange={(e) => setKlachtForm((f) => ({ ...f, status: e.target.value as ASKlacht['status'] }))}>
+                  {KLACHT_STATUSSEN.map((s) => <option key={s.k} value={s.k}>{s.l}</option>)}
+                </select>
+              </div>
+              {/* Historie / Verloop */}
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <label className={styles.historieLabel}>Historie / Verloop</label>
+                <div className={styles.updateLijst}>
+                  {klachtForm.updates.length === 0 ? (
+                    <span className={styles.updateLeeg}>Nog geen updates</span>
+                  ) : (
+                    klachtForm.updates.map((u, i) => (
+                      <div key={i} className={styles.updateRij}>
+                        <span className={styles.updateTekst}>{u.tekst}</span>
+                        <span className={styles.updateMeta}>{u.door} · {new Date(u.op).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} {new Date(u.op).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <textarea
+                    className="fi"
+                    rows={2}
+                    placeholder="Nieuwe update toevoegen..."
+                    value={nieuweUpdate}
+                    onChange={(e) => setNieuweUpdate(e.target.value)}
+                    style={{ flex: 1, resize: 'vertical' }}
+                  />
+                  <button className="btn btn-a" style={{ alignSelf: 'flex-end', whiteSpace: 'nowrap' }} onClick={handleAddUpdate}>+ Update</button>
+                </div>
+              </div>
             </div>
             <div className={styles.modalFooter}>
-              {editKlacht && <button className={styles.verwijderKnop} onClick={async () => { await onRemoveKlacht(editKlacht.id); setKlachtModal(false); }}>🗑 Verwijder</button>}
+              {editKlacht && <button className={styles.verwijderKnop} onClick={async () => { if (confirm('Klacht verwijderen?')) { await onRemoveKlacht(editKlacht.id); setKlachtModal(false); } }}>🗑 Verwijder</button>}
               <button className="btn" onClick={() => setKlachtModal(false)}>Annuleer</button>
               <button className="btn btn-a" onClick={handleOpslaan}>Opslaan</button>
             </div>
@@ -965,7 +1105,7 @@ export default function AfterSalesPage() {
           {tab === 'import'   && <TabImport    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} onUpdate={updateAuto} />}
           {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} onEdit={openEdit} onUpdate={updateAuto} onToggleMeta={toggleAutoMeta} />}
           {tab === 'gepland'  && <TabGepland   autos={autos} zoek={zoek} onToggle={toggleAuto} onBewerken={(r) => setAfleverAuto({ auto: r, bewerken: true })} onAfgeleverd={handleAfgeleverd} />}
-          {tab === 'nalevering' && <TabNalevering klachten={klachten} autos={autos} zoek={zoek} onAddKlacht={addKlacht} onUpdateKlacht={updateKlacht} onRemoveKlacht={removeKlacht} />}
+          {tab === 'nalevering' && <TabNalevering klachten={klachten} autos={autos} zoek={zoek} onAddKlacht={addKlacht} onUpdateKlacht={updateKlacht} onRemoveKlacht={removeKlacht} gebruiker={gebruiker} />}
           {tab === 'archief'  && <TabArchief   autos={autos} zoek={zoek} onEdit={openEdit} />}
         </>
       )}

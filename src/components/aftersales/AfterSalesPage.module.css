@@ -507,6 +507,111 @@
 }
 .verwijderKnop:hover { background: rgba(248,113,113,.1); }
 
+/* Nalevering — inline status select */
+.statusSelect {
+  background: #1e2029;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 8px;
+  cursor: pointer;
+  max-width: 140px;
+}
+.statusSelect:focus { outline: none; border-color: var(--accent); }
+
+/* Nalevering — update count badge */
+.updateBadge {
+  background: #2563eb33;
+  border: 1px solid #2563eb66;
+  color: #60a5fa;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+/* Nalevering — door wie hover tooltip */
+.doorWieWrap {
+  position: relative;
+  display: inline-block;
+  cursor: default;
+}
+.doorWieTip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #16181f;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 500;
+  box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.doorWieTip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(255,255,255,.12);
+}
+.doorWieWrap:hover .doorWieTip { opacity: 1; }
+
+/* Nalevering — verwijder icon knop */
+.verwijderIcon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.verwijderIcon:hover { opacity: 1; }
+
+/* Nalevering modal — historie sectie */
+.historieLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 8px;
+}
+.updateLijst {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.updateLeeg { font-size: 12px; color: var(--muted); }
+.updateRij {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.updateRij:last-child { border-bottom: none; padding-bottom: 0; }
+.updateTekst { font-size: 13px; color: var(--text); }
+.updateMeta { font-size: 11px; color: var(--muted); }
+
 /* Type knoppen */
 .typeGrid { display: flex; gap: 6px; flex-wrap: wrap; }
 .typeBtn {

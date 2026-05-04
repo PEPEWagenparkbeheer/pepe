@@ -99,6 +99,12 @@ export interface AfterSalesAuto {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
+export interface KlachtUpdate {
+  tekst: string;
+  op: string;    // ISO timestamp
+  door: string;
+}
+
 export interface ASKlacht {
   id: string;
   auto_id: string;
@@ -108,9 +114,10 @@ export interface ASKlacht {
   klant?: string;
   omschrijving: string;
   oplossing?: string;
-  status: 'open' | 'opgelost';
+  status: 'open' | 'in_behandeling' | 'opgelost';
   opgelost_op?: string;
   door_wie?: string;
+  updates?: KlachtUpdate[];
 }
 
 // ── Lease ────────────────────────────────────────────────────
