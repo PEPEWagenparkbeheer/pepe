@@ -830,7 +830,7 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
   function handleAddUpdate() {
     const tekst = nieuweUpdate.trim();
     if (!tekst) return;
-    const update: KlachtUpdate = { tekst, op: new Date().toISOString(), door: klachtForm.door_wie || gebruiker || '?' };
+    const update: KlachtUpdate = { tekst, op: new Date().toISOString(), door: gebruiker || '?' };
     setKlachtForm((f) => ({ ...f, updates: [...f.updates, update] }));
     setNieuweUpdate('');
   }
@@ -867,11 +867,12 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
             <thead><tr>
               <th>Kenteken</th><th>Merk / Model</th><th>Klant</th>
               <th>Omschrijving</th><th>Oplossing</th>
-              <th>Status</th><th>Aangemaakt</th><th>Door wie</th><th>Acties</th>
+              <th>Status</th><th>Laatste update</th><th>Door wie</th><th>Acties</th>
             </tr></thead>
             <tbody>
               {gefilterdeKlachten.map((k) => {
-                const updateCount = k.updates?.length ?? 0;
+                const updates = k.updates ?? [];
+                const laatsteUpdate = updates.length > 0 ? updates[updates.length - 1] : null;
                 return (
                   <tr key={k.id} onClick={() => openEdit(k)}>
                     <td><KentekenPlaat kenteken={k.kenteken ?? ''} /></td>
@@ -889,10 +890,23 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
                       </select>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ fontSize: 12 }}>{k.created_at ? new Date(k.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '—'}</span>
-                        {updateCount > 0 && <span className={styles.updateBadge}>{updateCount}×</span>}
-                      </div>
+                      {laatsteUpdate ? (
+                        <div className={styles.doorWieWrap}>
+                          <span style={{ fontSize: 12 }}>
+                            {new Date(laatsteUpdate.op).toLocaleDateString('nl-NL', { day: 'numeric', month: 'numeric', year: 'numeric' })}
+                            {' '}<span className={styles.updateBadge}>{updates.length}×</span>
+                          </span>
+                          <div className={styles.doorWieTip} style={{ maxWidth: 260, whiteSpace: 'normal' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--accent)', fontSize: 11 }}>{laatsteUpdate.door}</span>
+                            <span className={styles.cbTipTijd}>{new Date(laatsteUpdate.op).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })} {new Date(laatsteUpdate.op).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span style={{ fontSize: 12, marginTop: 4, color: 'var(--text)' }}>{laatsteUpdate.tekst}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          {k.created_at ? new Date(k.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '—'}
+                        </span>
+                      )}
                     </td>
                     <td><DoorWieTip naam={k.door_wie} aangemaakt={k.created_at} /></td>
                     <td onClick={(e) => e.stopPropagation()}>
