@@ -151,6 +151,7 @@ export default function ZoekenPage() {
             const rec = records.find((r) => r.id === id);
             if (rec) setAkkoordRecord(rec);
           }}
+          onTerugzetten={(rec) => update({ ...rec, akkoord: false, akkoord_door: undefined, akkoord_datum: undefined })}
         />
       )}
 

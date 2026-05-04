@@ -157,10 +157,11 @@ function TabLopend({ records, zoek, onEdit, onToggle, onArchiveer }: {
 }
 
 // ── Tab: Archief ──────────────────────────────────────────────
-function TabArchief({ records, zoek, onEdit }: {
+function TabArchief({ records, zoek, onEdit, onTerugzetten }: {
   records: BtwRecord[];
   zoek: string;
   onEdit: (r: BtwRecord) => void;
+  onTerugzetten: (r: BtwRecord) => void;
 }) {
   const rijen = records.filter((r) => r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
   if (!rijen.length) return <div className={styles.leeg}>Archief is leeg</div>;
@@ -176,6 +177,7 @@ function TabArchief({ records, zoek, onEdit }: {
           <th>Ingekocht</th>
           <th>Bedrag</th>
           <th>Opmerkingen</th>
+          <th>Acties</th>
         </tr></thead>
         <tbody>
           {rijen.map((r) => (
@@ -187,6 +189,9 @@ function TabArchief({ records, zoek, onEdit }: {
               <td style={{ whiteSpace: 'nowrap' }}>{datumFmt(r.ingekocht_op)}</td>
               <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{bedragFmt(r.bedrag)}</td>
               <td style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 200 }}>{r.opmerkingen || '—'}</td>
+              <td onClick={(e) => e.stopPropagation()}>
+                <button className="btn" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => onTerugzetten(r)}>↩ Terugzetten</button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -233,7 +238,7 @@ export default function BtwPage() {
       ) : (
         <>
           {tab === 'lopend'  && <TabLopend  records={records} zoek={zoek} onEdit={openEdit} onToggle={toggle} onArchiveer={handleArchiveer} />}
-          {tab === 'archief' && <TabArchief records={records} zoek={zoek} onEdit={openEdit} />}
+          {tab === 'archief' && <TabArchief records={records} zoek={zoek} onEdit={openEdit} onTerugzetten={(r) => save({ ...r, gearchiveerd: false })} />}
         </>
       )}
 

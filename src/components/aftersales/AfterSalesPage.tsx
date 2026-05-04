@@ -1043,9 +1043,10 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
 }
 
 // ── Tab: Archief ──────────────────────────────────────────────
-function TabArchief({ autos, zoek, onEdit }: {
+function TabArchief({ autos, zoek, onEdit, onTerugzetten }: {
   autos: AfterSalesAuto[]; zoek: string;
   onEdit: (r: AfterSalesAuto) => void;
+  onTerugzetten: (r: AfterSalesAuto) => void;
 }) {
   const rijen = autos.filter((r) => r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
   if (!rijen.length) return <div className={styles.leeg}>Archief is leeg</div>;
@@ -1054,17 +1055,20 @@ function TabArchief({ autos, zoek, onEdit }: {
       <table className={styles.tabel}>
         <thead><tr>
           <th>Kenteken</th><th>Merk / Model</th><th>Klant</th><th>Type</th>
-          <th>Afgeleverd op</th><th>Wie heeft afgeleverd</th>
+          <th>Afgeleverd op</th><th>Wie heeft afgeleverd</th><th>Acties</th>
         </tr></thead>
         <tbody>
           {rijen.map((r) => (
             <tr key={r.id} onClick={() => onEdit(r)}>
-              <td><div className={styles.kn}>{r.kenteken}</div></td>
+              <td><KentekenPlaat kenteken={r.kenteken ?? ''} /></td>
               <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
               <td>{r.klant}</td>
               <td>{r.type || '—'}</td>
               <td>{datumFmt(r.afgeleverd_op)}</td>
               <td>{r.wie_heeft_afgeleverd || r.wie_levert_af || '—'}</td>
+              <td onClick={(e) => e.stopPropagation()}>
+                <button className="btn" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => onTerugzetten(r)}>↩ Terugzetten</button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -1149,7 +1153,7 @@ export default function AfterSalesPage() {
           {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} onEdit={openEdit} onUpdate={updateAuto} onToggleMeta={toggleAutoMeta} />}
           {tab === 'gepland'  && <TabGepland   autos={autos} zoek={zoek} onToggle={toggleAuto} onBewerken={(r) => setAfleverAuto({ auto: r, bewerken: true })} onAfgeleverd={handleAfgeleverd} />}
           {tab === 'nalevering' && <TabNalevering klachten={klachten} autos={autos} zoek={zoek} onAddKlacht={addKlacht} onUpdateKlacht={updateKlacht} onRemoveKlacht={removeKlacht} gebruiker={gebruiker} />}
-          {tab === 'archief'  && <TabArchief   autos={autos} zoek={zoek} onEdit={openEdit} />}
+          {tab === 'archief'  && <TabArchief   autos={autos} zoek={zoek} onEdit={openEdit} onTerugzetten={(r) => updateAuto({ ...r, gearchiveerd: false, afgeleverd_op: undefined, wie_heeft_afgeleverd: undefined })} />}
         </>
       )}
 

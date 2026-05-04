@@ -15,6 +15,7 @@ interface Props {
   onQuickToggle: (id: number, veld: keyof Zoekopdracht) => void;
   onTogglePrio: (id: number) => void;
   onAkkoord: (id: number) => void;
+  onTerugzetten?: (rec: Zoekopdracht) => void;
 }
 
 const QUICK_VELDEN: { veld: keyof Zoekopdracht; titel: string }[] = [
@@ -71,7 +72,7 @@ function KolomHeader({
 }
 
 export default function ZoekenTable({
-  rows, sortVeld, sortRichting, onSort, onEdit, onQuickToggle, onTogglePrio, onAkkoord,
+  rows, sortVeld, sortRichting, onSort, onEdit, onQuickToggle, onTogglePrio, onAkkoord, onTerugzetten,
 }: Props) {
   if (!rows.length) {
     return (
@@ -150,7 +151,12 @@ export default function ZoekenTable({
                 ))}
                 <td onClick={(e) => e.stopPropagation()}>
                   {r.akkoord ? (
-                    <span className="badge-ok">✓ Akkoord</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="badge-ok">✓ Akkoord</span>
+                      {onTerugzetten && (
+                        <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} onClick={(e) => { e.stopPropagation(); onTerugzetten(r); }}>↩</button>
+                      )}
+                    </div>
                   ) : (
                     <button
                       className={styles.akkoordBtn}
