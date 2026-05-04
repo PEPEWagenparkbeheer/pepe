@@ -56,9 +56,9 @@ function importVoortgang(r: AfterSalesAuto): number {
   return Math.round((aan / stappen.length) * 100);
 }
 
-function datumFmt(d?: string) {
+function datumFmt(d?: string, metJaar = false) {
   if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }); } catch { return d; }
+  try { return new Date(d).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', ...(metJaar ? { year: '2-digit' } : {}) }); } catch { return d; }
 }
 
 function vandaagStr() {
@@ -454,7 +454,7 @@ function ApkChip({ apk, onClick }: { apk?: string; onClick: (e: React.MouseEvent
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
       {apk ? (
-        <span className={`${styles.apkChip} ${klsMap[kleur]}`}>{datumFmt(apk)}</span>
+        <span className={`${styles.apkChip} ${klsMap[kleur]}`}>{datumFmt(apk, true)}</span>
       ) : null}
       <button className={styles.rdwKnop} onClick={onClick} title="Ophalen uit RDW">• RDW</button>
     </div>
