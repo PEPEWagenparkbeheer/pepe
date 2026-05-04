@@ -22,6 +22,34 @@ function Cb({ aan, onClick }: { aan: boolean; onClick: (e: React.MouseEvent) => 
   );
 }
 
+function metaTijd(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+}
+
+function CbMeta({ aan, onClick, meta, accentKleur }: {
+  aan: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  meta?: { op: string; door: string };
+  accentKleur?: boolean;
+}) {
+  const cls = `${styles.cb} ${aan ? (accentKleur ? styles.onAccent : styles.on) : ''}`;
+  const checkKleur = accentKleur ? '#fff' : '#000';
+  return (
+    <div className={styles.cbWrap}>
+      <div className={cls} onClick={(e) => { e.stopPropagation(); onClick(e); }}>
+        {aan && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke={checkKleur} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+      </div>
+      {aan && meta && (
+        <div className={styles.cbTip}>
+          <span className={styles.cbTipDoor}>{meta.door}</span>
+          <span className={styles.cbTipTijd}>{metaTijd(meta.op)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function importVoortgang(r: AfterSalesAuto): number {
   const stappen = ['aangevraagd','betaald','binnen','rdw_ingeschreven','bpm_ingediend','bpm_goedgekeurd','bin_ontvangen','kentekenbewijzen','gelangenbest'] as const;
   const aan = stappen.filter((k) => r[k]).length;
@@ -362,7 +390,7 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
                   <td><KentekenPlaat kenteken={r.kenteken ?? ''} /></td>
                   <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
                   <td>{r.klant}</td>
-                  <td className={styles.chk}><Cb aan={!!r.aangevraagd} onClick={() => onToggle(r.id, 'aangevraagd')} /></td>
+                  <td className={styles.chk}><CbMeta aan={!!r.aangevraagd} onClick={() => onToggle(r.id, 'aangevraagd')} meta={r.veld_meta?.['aangevraagd']} /></td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <input
                       type="date"
@@ -371,23 +399,23 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
                       onChange={(e) => onUpdate({ ...r, transportdatum: e.target.value })}
                     />
                   </td>
-                  <td className={styles.chk}><Cb aan={!!r.betaald} onClick={() => onToggle(r.id, 'betaald')} /></td>
-                  <td className={styles.chk}><Cb aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} /></td>
+                  <td className={styles.chk}><CbMeta aan={!!r.betaald} onClick={() => onToggle(r.id, 'betaald')} meta={r.veld_meta?.['betaald']} /></td>
+                  <td className={styles.chk}><CbMeta aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} meta={r.veld_meta?.['binnen']} /></td>
                   {IMPORT_VOOR_BIN.slice(2).map((s) => (
                     <td key={s.veld} className={styles.chk}>
-                      <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
+                      <CbMeta aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} meta={r.veld_meta?.[String(s.veld)]} />
                     </td>
                   ))}
                   <td className={styles.chk}>
                     {r.bin_ontvangen ? (
-                      <Cb aan={true} onClick={() => onToggle(r.id, 'bin_ontvangen')} />
+                      <CbMeta aan={true} onClick={() => onToggle(r.id, 'bin_ontvangen')} meta={r.veld_meta?.['bin_ontvangen']} />
                     ) : (
                       <Cb aan={false} onClick={(e) => { e.stopPropagation(); setBinPopup(r); setKentekentje(r.kenteken ?? ''); }} />
                     )}
                   </td>
                   {IMPORT_NA_BIN.map((s) => (
                     <td key={s.veld} className={styles.chk}>
-                      <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
+                      <CbMeta aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} meta={r.veld_meta?.[String(s.veld)]} />
                     </td>
                   ))}
                   <td>
@@ -434,10 +462,11 @@ function ApkChip({ apk, onClick }: { apk?: string; onClick: (e: React.MouseEvent
 }
 
 // ── Tab: Rijklaar maken ───────────────────────────────────────
-function TabRijklaar({ autos, zoek, onEdit, onUpdate }: {
+function TabRijklaar({ autos, zoek, onEdit, onUpdate, onToggleMeta }: {
   autos: AfterSalesAuto[]; zoek: string;
   onEdit: (r: AfterSalesAuto) => void;
   onUpdate: (rec: AfterSalesAuto) => Promise<void>;
+  onToggleMeta: (rec: AfterSalesAuto, veld: keyof AfterSalesAuto, nieuweWaarde: boolean, extra?: Partial<AfterSalesAuto>) => Promise<void>;
 }) {
   const [accPopupId, setAccPopupId] = useState<string | null>(null);
   const [nieuweAcc, setNieuweAcc] = useState('');
@@ -452,7 +481,7 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate }: {
     const extra: Partial<AfterSalesAuto> = {};
     if (veld === 'binnen') extra.binnen_op = nieuweWaarde ? vandaagStr() : undefined;
     if (veld === 'proefrit') extra.proefrit_op = nieuweWaarde ? vandaagStr() : undefined;
-    onUpdate({ ...r, [veld]: nieuweWaarde, ...extra });
+    onToggleMeta(r, veld, nieuweWaarde, extra);
   }
 
   function toggleWie(r: AfterSalesAuto) {
@@ -552,12 +581,7 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate }: {
                 {/* Binnen */}
                 <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <div
-                      className={`${styles.cb} ${r.binnen ? styles.onAccent : ''}`}
-                      onClick={() => toggleBool(r, 'binnen')}
-                    >
-                      {r.binnen && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                    </div>
+                    <CbMeta aan={!!r.binnen} onClick={() => toggleBool(r, 'binnen')} meta={r.veld_meta?.['binnen']} accentKleur />
                     {r.binnen_op && <span className={styles.datumtje}>{datumFmt(r.binnen_op)}</span>}
                   </div>
                 </td>
@@ -565,12 +589,7 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate }: {
                 {/* Proef */}
                 <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <div
-                      className={`${styles.cb} ${r.proefrit ? styles.onAccent : ''}`}
-                      onClick={() => toggleBool(r, 'proefrit')}
-                    >
-                      {r.proefrit && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                    </div>
+                    <CbMeta aan={!!r.proefrit} onClick={() => toggleBool(r, 'proefrit')} meta={r.veld_meta?.['proefrit']} accentKleur />
                     {r.proefrit_op && <span className={styles.datumtje}>{datumFmt(r.proefrit_op)}</span>}
                   </div>
                 </td>
@@ -662,12 +681,12 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate }: {
 
                 {/* Aflevercontrole */}
                 <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
-                  <Cb aan={!!r.aflevercontrole} onClick={() => onUpdate({ ...r, aflevercontrole: !r.aflevercontrole })} />
+                  <CbMeta aan={!!r.aflevercontrole} onClick={() => toggleBool(r, 'aflevercontrole')} meta={r.veld_meta?.['aflevercontrole']} />
                 </td>
 
                 {/* Klaar */}
                 <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
-                  <Cb aan={!!r.klaar} onClick={() => onUpdate({ ...r, klaar: !r.klaar })} />
+                  <CbMeta aan={!!r.klaar} onClick={() => toggleBool(r, 'klaar')} meta={r.veld_meta?.['klaar']} />
                 </td>
               </tr>
             );
@@ -879,7 +898,7 @@ function zoekMatch(r: AfterSalesAuto, q: string): boolean {
 
 // ── Hoofdpagina ───────────────────────────────────────────────
 export default function AfterSalesPage() {
-  const { autos, klachten, loading, addAuto, updateAuto, removeAuto, toggleAuto, addKlacht, updateKlacht, removeKlacht } = useAfterSales();
+  const { autos, klachten, loading, gebruiker, addAuto, updateAuto, removeAuto, toggleAuto, toggleAutoMeta, addKlacht, updateKlacht, removeKlacht } = useAfterSales();
   const [tab, setTab] = useState<HoofdTab>('lopend');
   const [zoek, setZoek] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -944,7 +963,7 @@ export default function AfterSalesPage() {
         <>
           {tab === 'lopend'    && <TabLopend    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} onAfleveren={(r) => setAfleverAuto({ auto: r, bewerken: false })} />}
           {tab === 'import'   && <TabImport    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} onUpdate={updateAuto} />}
-          {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} onEdit={openEdit} onUpdate={updateAuto} />}
+          {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} onEdit={openEdit} onUpdate={updateAuto} onToggleMeta={toggleAutoMeta} />}
           {tab === 'gepland'  && <TabGepland   autos={autos} zoek={zoek} onToggle={toggleAuto} onBewerken={(r) => setAfleverAuto({ auto: r, bewerken: true })} onAfgeleverd={handleAfgeleverd} />}
           {tab === 'nalevering' && <TabNalevering klachten={klachten} autos={autos} zoek={zoek} onAddKlacht={addKlacht} onUpdateKlacht={updateKlacht} onRemoveKlacht={removeKlacht} />}
           {tab === 'archief'  && <TabArchief   autos={autos} zoek={zoek} onEdit={openEdit} />}

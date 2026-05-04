@@ -94,6 +94,9 @@ export interface AfterSalesAuto {
   afgeleverd_op?: string;
   wie_heeft_afgeleverd?: string;
   gearchiveerd?: boolean;
+
+  // Tijdstempel + wie per afgevinkt veld
+  veld_meta?: Record<string, { op: string; door: string }>;
 }
 
 export interface ASKlacht {

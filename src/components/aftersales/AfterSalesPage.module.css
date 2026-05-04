@@ -148,6 +148,47 @@
 }
 .cb.on { background: var(--green); border-color: var(--green); }
 
+/* Checkbox met tooltip wrapper */
+.cbWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cbTip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #16181f;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 7px;
+  padding: 7px 11px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 500;
+  box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.cbTip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(255,255,255,.12);
+}
+.cbWrap:hover .cbTip { opacity: 1; }
+.cbTipDoor { font-weight: 600; color: var(--accent); }
+.cbTipTijd { color: var(--muted); }
+
 /* Voortgangsbalk */
 .voortgang {
   height: 5px;

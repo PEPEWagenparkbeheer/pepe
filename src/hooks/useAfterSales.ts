@@ -31,6 +31,7 @@ function deserializeAuto(r: Record<string, unknown>): AfterSalesAuto {
     poetsen: bool(r.poetsen),
     hubspot: bool(r.hubspot),
     gearchiveerd: bool(r.gearchiveerd),
+    veld_meta: (r.veld_meta as Record<string, { op: string; door: string }>) ?? {},
   };
 }
 
@@ -55,8 +56,10 @@ export function useAfterSales() {
   const [autos, setAutos] = useState<AfterSalesAuto[]>([]);
   const [klachten, setKlachten] = useState<ASKlacht[]>([]);
   const [loading, setLoading] = useState(true);
+  const [gebruiker, setGebruiker] = useState('');
   const autosRef = useRef<AfterSalesAuto[]>([]);
   const klachtenRef = useRef<ASKlacht[]>([]);
+  const gebruikerRef = useRef('');
 
   function updateAutos(next: AfterSalesAuto[]) {
     autosRef.current = next;
@@ -70,6 +73,15 @@ export function useAfterSales() {
   }
 
   useEffect(() => {
+    // Gebruiker ophalen
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user;
+      if (!u) return;
+      const naam = u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split('@')[0] ?? '?';
+      gebruikerRef.current = naam;
+      setGebruiker(naam);
+    });
+
     const lokaalAutos = localLoadAutos();
     const lokaalKlachten = localLoadKlachten();
     if (lokaalAutos.length) { autosRef.current = lokaalAutos; setAutos(lokaalAutos); }
@@ -107,10 +119,29 @@ export function useAfterSales() {
     try { await supabase.from('after_sales').delete().eq('id', id); } catch { /* leeg */ }
   }, []);
 
+  // toggleAuto voegt automatisch tijdstempel + gebruiker toe aan veld_meta
   const toggleAuto = useCallback(async (id: string, veld: keyof AfterSalesAuto) => {
     const rec = autosRef.current.find((r) => r.id === id);
     if (!rec) return;
-    await updateAuto({ ...rec, [veld]: !rec[veld] });
+    const nieuweWaarde = !rec[veld];
+    const meta = { ...(rec.veld_meta ?? {}) };
+    if (nieuweWaarde) {
+      meta[String(veld)] = { op: new Date().toISOString(), door: gebruikerRef.current || '?' };
+    } else {
+      delete meta[String(veld)];
+    }
+    await updateAuto({ ...rec, [veld]: nieuweWaarde, veld_meta: meta });
+  }, [updateAuto]);
+
+  // Hulpfunctie voor rijklaar-tab: update met metadata in één aanroep
+  const toggleAutoMeta = useCallback(async (rec: AfterSalesAuto, veld: keyof AfterSalesAuto, nieuweWaarde: boolean, extra?: Partial<AfterSalesAuto>) => {
+    const meta = { ...(rec.veld_meta ?? {}) };
+    if (nieuweWaarde) {
+      meta[String(veld)] = { op: new Date().toISOString(), door: gebruikerRef.current || '?' };
+    } else {
+      delete meta[String(veld)];
+    }
+    await updateAuto({ ...rec, [veld]: nieuweWaarde, veld_meta: meta, ...(extra ?? {}) });
   }, [updateAuto]);
 
   // ── Klachten ──────────────────────────────────────────────
@@ -132,8 +163,8 @@ export function useAfterSales() {
   }, []);
 
   return {
-    autos, klachten, loading,
-    addAuto, updateAuto, removeAuto, toggleAuto,
+    autos, klachten, loading, gebruiker,
+    addAuto, updateAuto, removeAuto, toggleAuto, toggleAutoMeta,
     addKlacht, updateKlacht, removeKlacht,
   };
 }
