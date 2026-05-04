@@ -274,60 +274,132 @@ function AfleveringPopup({ auto, isBewerken, onOpslaan, onSluiten }: {
 }
 
 // ── Tab: Import checklist ─────────────────────────────────────
-const IMPORT_STAPPEN: { veld: keyof AfterSalesAuto; label: string }[] = [
-  { veld: 'aangevraagd', label: 'Aangevr.' },
-  { veld: 'betaald', label: 'Betaald' },
-  { veld: 'binnen', label: 'Binnen' },
-  { veld: 'rdw_ingeschreven', label: 'RDW' },
-  { veld: 'bpm_ingediend', label: 'BPM ingd.' },
+const IMPORT_CB_STAPPEN: { veld: keyof AfterSalesAuto; label: string }[] = [
+  { veld: 'aangevraagd',     label: 'Aangevr.' },
+  { veld: 'betaald',         label: 'Betaald' },
+  { veld: 'rdw_ingeschreven', label: 'RDW Inschr.' },
+  { veld: 'bpm_ingediend',   label: 'BPM ingd.' },
   { veld: 'bpm_goedgekeurd', label: 'BPM goedg.' },
-  { veld: 'bin_ontvangen', label: 'BIN' },
+  { veld: 'bin_ontvangen',   label: 'BIN ontv.' },
   { veld: 'kentekenbewijzen', label: 'Kentekenbew.' },
-  { veld: 'gelangenbest', label: 'Gelangenbest.' },
+  { veld: 'gelangenbest',    label: 'Gelangenbest.' },
 ];
 
-function TabImport({ autos, zoek, onEdit, onToggle }: {
+function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
   autos: AfterSalesAuto[]; zoek: string;
   onEdit: (r: AfterSalesAuto) => void;
   onToggle: (id: string, veld: keyof AfterSalesAuto) => void;
+  onUpdate: (r: AfterSalesAuto) => Promise<void>;
 }) {
-  const rijen = autos.filter((r) => r.type === 'import' && !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
+  const [binnenPopup, setBinnenPopup] = useState<AfterSalesAuto | null>(null);
+  const [kentekentje, setKentekentje] = useState('');
+
+  const rijen = useMemo(() => {
+    const gefilterd = autos.filter((r) => r.type === 'import' && !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
+    return [...gefilterd].sort((a, b) => (a.binnen === b.binnen ? 0 : a.binnen ? 1 : -1));
+  }, [autos, zoek]);
+
+  async function handleBinnenBevestig() {
+    if (!binnenPopup) return;
+    await onUpdate({ ...binnenPopup, binnen: true, kenteken: kentekentje.trim() || binnenPopup.kenteken || '', binnen_op: vandaagStr() });
+    setBinnenPopup(null);
+    setKentekentje('');
+  }
+
   if (!rijen.length) return <div className={styles.leeg}>Geen importauto's</div>;
   return (
-    <div className={styles.tabelWrapper}>
-      <table className={styles.tabel}>
-        <thead><tr>
-          <th>Kenteken</th><th>Merk / Model</th><th>Klant</th>
-          {IMPORT_STAPPEN.map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
-          <th>Voortgang</th>
-        </tr></thead>
-        <tbody>
-          {rijen.map((r) => {
-            const pct = importVoortgang(r);
-            return (
-              <tr key={r.id} onClick={() => onEdit(r)}>
-                <td><div className={styles.kn}>{r.kenteken}</div></td>
-                <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
-                <td>{r.klant}</td>
-                {IMPORT_STAPPEN.map((s) => (
-                  <td key={s.veld} className={styles.chk}>
-                    <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
+    <>
+      {binnenPopup && (
+        <div className={styles.overlay} onClick={() => setBinnenPopup(null)}>
+          <div className={styles.modal} style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <span className={styles.modalTitel}>🚗 Auto is binnen</span>
+              <button className={styles.sluitKnop} onClick={() => setBinnenPopup(null)}>×</button>
+            </div>
+            <div className={styles.modalBody} style={{ display: 'block', padding: 20 }}>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
+                {binnenPopup.merk} {binnenPopup.model} — {binnenPopup.klant}
+              </p>
+              <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Kenteken</label>
+              <input
+                className="fi"
+                placeholder="bv. KGT-37-Z"
+                value={kentekentje}
+                onChange={(e) => setKentekentje(e.target.value.toUpperCase())}
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleBinnenBevestig()}
+              />
+            </div>
+            <div className={styles.modalFooter}>
+              <button className="btn" onClick={() => setBinnenPopup(null)}>Annuleer</button>
+              <button className="btn btn-a" onClick={handleBinnenBevestig}>✅ Bevestig binnen</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className={styles.tabelWrapper}>
+        <table className={styles.tabel}>
+          <thead><tr>
+            <th>Kenteken</th>
+            <th>Merk / Model</th>
+            <th>Klant</th>
+            {IMPORT_CB_STAPPEN.slice(0, 2).map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
+            <th>Transportdatum</th>
+            <th className={styles.chk}>Binnen</th>
+            {IMPORT_CB_STAPPEN.slice(2).map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
+            <th>Voortgang</th>
+          </tr></thead>
+          <tbody>
+            {rijen.map((r) => {
+              const pct = importVoortgang(r);
+              return (
+                <tr key={r.id} onClick={() => onEdit(r)} style={{ opacity: r.binnen ? 0.65 : 1 }}>
+                  <td><KentekenPlaat kenteken={r.kenteken ?? ''} /></td>
+                  <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
+                  <td>{r.klant}</td>
+                  {IMPORT_CB_STAPPEN.slice(0, 2).map((s) => (
+                    <td key={s.veld} className={styles.chk}>
+                      <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
+                    </td>
+                  ))}
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="date"
+                      className={styles.datumInput}
+                      value={r.transportdatum ?? ''}
+                      onChange={(e) => onUpdate({ ...r, transportdatum: e.target.value })}
+                    />
                   </td>
-                ))}
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div className={styles.voortgang} style={{ flex: 1 }}>
-                      <div className={styles.voortgangBalk} style={{ width: pct + '%' }} />
+                  <td className={styles.chk}>
+                    {r.binnen ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <Cb aan={true} onClick={() => onToggle(r.id, 'binnen')} />
+                        {r.binnen_op && <span className={styles.datumtje}>{datumFmt(r.binnen_op)}</span>}
+                      </div>
+                    ) : (
+                      <Cb aan={false} onClick={(e) => { e.stopPropagation(); setBinnenPopup(r); setKentekentje(r.kenteken ?? ''); }} />
+                    )}
+                  </td>
+                  {IMPORT_CB_STAPPEN.slice(2).map((s) => (
+                    <td key={s.veld} className={styles.chk}>
+                      <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
+                    </td>
+                  ))}
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className={styles.voortgang} style={{ flex: 1 }}>
+                        <div className={styles.voortgangBalk} style={{ width: pct + '%' }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{Math.round(pct)}%</span>
                     </div>
-                    <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{pct}%</span>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -866,7 +938,7 @@ export default function AfterSalesPage() {
       ) : (
         <>
           {tab === 'lopend'    && <TabLopend    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} onAfleveren={(r) => setAfleverAuto({ auto: r, bewerken: false })} />}
-          {tab === 'import'   && <TabImport    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} />}
+          {tab === 'import'   && <TabImport    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} onUpdate={updateAuto} />}
           {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} onEdit={openEdit} onUpdate={updateAuto} />}
           {tab === 'gepland'  && <TabGepland   autos={autos} zoek={zoek} onToggle={toggleAuto} onBewerken={(r) => setAfleverAuto({ auto: r, bewerken: true })} onAfgeleverd={handleAfgeleverd} />}
           {tab === 'nalevering' && <TabNalevering klachten={klachten} autos={autos} zoek={zoek} onAddKlacht={addKlacht} onUpdateKlacht={updateKlacht} onRemoveKlacht={removeKlacht} />}
