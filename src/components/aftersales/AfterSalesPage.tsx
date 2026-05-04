@@ -1,7 +1,10 @@
 'use client';
 
+'use client';
+
 import { useMemo, useRef, useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
+import { schietConfetti } from '@/lib/confetti';
 import type { AfterSalesAuto, ASAutoType, ASKlacht } from '@/types';
 import KentekenPlaat from './KentekenPlaat';
 import AfterSalesModal from './AfterSalesModal';
@@ -831,7 +834,10 @@ export default function AfterSalesPage() {
   }
 
   async function handleAfgeleverd(r: AfterSalesAuto) {
+    const naam = [r.merk, r.model, r.klant ? `(${r.klant})` : ''].filter(Boolean).join(' ');
+    if (!confirm(`Weet je zeker dat je ${naam} wilt archiveren als afgeleverd?`)) return;
     await updateAuto({ ...r, gearchiveerd: true, afgeleverd_op: vandaagStr(), wie_heeft_afgeleverd: r.wie_levert_af ?? '' });
+    schietConfetti();
   }
 
   const actiefCount = useMemo(() => autos.filter((r) => !r.gearchiveerd).length, [autos]);
