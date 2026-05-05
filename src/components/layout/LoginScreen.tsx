@@ -8,7 +8,6 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [onthoud, setOnthoud] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +19,7 @@ export default function LoginScreen() {
     setLoading(true);
     setError('');
     try {
-      await signIn(email, password, onthoud);
+      await signIn(email, password);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Inloggen mislukt.');
     } finally {
@@ -44,7 +43,7 @@ export default function LoginScreen() {
           <label>E-mailadres</label>
           <input
             type="email"
-            placeholder="naam@pepe.nl"
+            placeholder="naam@pepewagenparkbeheer.nl"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
@@ -60,17 +59,6 @@ export default function LoginScreen() {
             autoComplete="current-password"
             onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
           />
-        </div>
-
-        <div className={styles.onthoudRij} onClick={() => setOnthoud((v) => !v)}>
-          <div className={`${styles.checkbox} ${onthoud ? styles.checkboxAan : ''}`}>
-            {onthoud && (
-              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                <polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </div>
-          <span>Onthoud mij</span>
         </div>
 
         <button className={styles.loginBtn} onClick={handleLogin} disabled={loading}>
