@@ -5,6 +5,9 @@
   flex-wrap: wrap;
 }
 
+.klikbaar { cursor: pointer; }
+.klikbaar:hover { border-color: var(--accent); transform: translateY(-1px); }
+
 .kaart {
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -17,19 +20,20 @@
 .waarde {
   font-size: 28px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
   line-height: 1;
   letter-spacing: -0.03em;
 }
 
 .label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.28);
+  color: var(--muted);
   margin-top: 3px;
   font-weight: 500;
 }
 
-.blauw .waarde { color: #60a5fa; }
-.geel .waarde  { color: #fbbf24; }
-.groen .waarde { color: #4ade80; }
-.grijs .waarde { color: rgba(255, 255, 255, 0.45); }
+.blauw .waarde { color: var(--blue); }
+.geel .waarde  { color: #d97706; }
+.groen .waarde { color: var(--green); }
+.grijs .waarde { color: var(--muted); }
+.rood .waarde  { color: var(--accent); }

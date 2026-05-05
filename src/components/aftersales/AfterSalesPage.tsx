@@ -1,12 +1,11 @@
 'use client';
 
-'use client';
-
 import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { supabase } from '@/lib/supabase';
 import { useAfterSales } from '@/hooks/useAfterSales';
 import { schietConfetti } from '@/lib/confetti';
-import type { AfterSalesAuto, ASAutoType, ASKlacht, KlachtUpdate } from '@/types';
+import type { AfterSalesAuto, ASAutoType, ASKlacht, BtwAutoType, KlachtUpdate } from '@/types';
 import KentekenPlaat from './KentekenPlaat';
 import AfterSalesModal from './AfterSalesModal';
 import styles from './AfterSalesPage.module.css';
@@ -138,29 +137,47 @@ async function rdwOphalen(kenteken: string): Promise<{ apk?: string; terugroep?:
 }
 
 // ── KPI strip ─────────────────────────────────────────────────
-function KpiStrip({ autos, klachten }: { autos: AfterSalesAuto[]; klachten: ASKlacht[] }) {
-  const actief = autos.filter((r) => !r.gearchiveerd).length;
-  const klaar  = autos.filter((r) => r.klaar && !r.gearchiveerd).length;
-  const gepland = autos.filter((r) => r.afleverdatum && !r.gearchiveerd).length;
-  const imports = autos.filter((r) => r.type === 'import' && !r.gearchiveerd).length;
-  const openKlachten = klachten.filter((k) => k.status === 'open').length;
-  const archief = autos.filter((r) => r.gearchiveerd).length;
+function KpiStrip({ autos, klachten, onTab }: { autos: AfterSalesAuto[]; klachten: ASKlacht[]; onTab: (t: HoofdTab) => void }) {
+  const nu = new Date();
+  const actief = autos.filter((r) => !r.gearchiveerd);
 
-  const kaarten = [
-    { icoon: '🚗', getal: actief, label: 'Actief' },
-    { icoon: '✅', getal: klaar, label: 'Rijklaar', kleur: klaar > 0 ? 'ok' : '' },
-    { icoon: '📅', getal: gepland, label: 'Gepland' },
-    { icoon: '🌍', getal: imports, label: 'Import' },
-    { icoon: '⚠️', getal: openKlachten, label: 'Klachten', kleur: openKlachten > 0 ? 'warn' : '' },
-    { icoon: '📦', getal: archief, label: 'Archief' },
+  const binnen = actief.filter((r) => r.binnen && !r.klaar).length;
+  const rijklaar = actief.filter((r) => r.binnen && !r.klaar).length;
+
+  const apkWaarsch = actief.filter((r) => {
+    if (!r.apk) return false;
+    const maanden = (new Date(r.apk).getTime() - nu.getTime()) / (1000 * 60 * 60 * 24 * 30.5);
+    return maanden < 6;
+  }).length;
+
+  const recalls = actief.filter((r) => r.terugroep && r.terugroep !== 'geen').length;
+  const openKlachten = klachten.filter((k) => k.status !== 'opgelost').length;
+
+  const klaarZonderDatum = actief.filter((r) => {
+    if (r.afleverdatum) return false;
+    return r.type === 'import'
+      ? (r.binnen && r.aflevercontrole && r.klaar)
+      : !!r.klaar;
+  }).length;
+
+  const geplandAfl = actief.filter((r) => !!r.afleverdatum).length;
+
+  const kaarten: { icoon: string; getal: number; label: string; kleur: string; tab: HoofdTab }[] = [
+    { icoon: '📦', getal: binnen, label: "Auto's binnen", kleur: binnen > 0 ? 'ok' : '', tab: 'rijklaar' },
+    { icoon: '🚗', getal: rijklaar, label: 'Rijklaar te maken', kleur: '', tab: 'rijklaar' },
+    { icoon: '📅', getal: apkWaarsch, label: 'APK < 6 mnd', kleur: apkWaarsch > 0 ? 'warn' : '', tab: 'rijklaar' },
+    { icoon: '🔔', getal: recalls, label: 'Terugroepacties', kleur: recalls > 0 ? 'hot' : '', tab: 'rijklaar' },
+    { icoon: '⚠️', getal: openKlachten, label: 'Open klachten', kleur: openKlachten > 0 ? 'warn' : '', tab: 'nalevering' },
+    { icoon: '🚗', getal: klaarZonderDatum, label: 'Klaar — datum plan', kleur: klaarZonderDatum > 0 ? 'ok' : '', tab: 'gepland' },
+    { icoon: '📅', getal: geplandAfl, label: 'Geplande afleveringen', kleur: geplandAfl > 0 ? 'warn' : '', tab: 'gepland' },
   ];
 
   return (
     <div className={`${styles.kpiStrip} ${styles.col7}`} style={{ gridTemplateColumns: `repeat(${kaarten.length}, 1fr)` }}>
-      {kaarten.map(({ icoon, getal, label, kleur }) => (
-        <div key={label} className={styles.kpiCard}>
+      {kaarten.map(({ icoon, getal, label, kleur, tab }) => (
+        <div key={label} className={styles.kpiCard} onClick={() => onTab(tab)}>
           <div className={styles.kpiIcoon}>{icoon}</div>
-          <div className={`${styles.kpiGetal} ${kleur ? styles[kleur as 'warn' | 'ok'] : ''}`}>{getal}</div>
+          <div className={`${styles.kpiGetal} ${kleur ? styles[kleur as 'warn' | 'ok' | 'hot'] : ''}`}>{getal}</div>
           <div className={styles.kpiLabel}>{label}</div>
         </div>
       ))}
@@ -210,7 +227,7 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
             return (
               <tr key={r.id} onClick={() => onEdit(r)}>
                 <td><KentekenPlaat kenteken={r.kenteken} /></td>
-                <td><span className={styles.kn}>{r.merk}</span> <span className={styles.modelAccent}>{r.model}</span></td>
+                <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
                 <td style={{ whiteSpace: 'nowrap' }}>{r.klant || '—'}</td>
                 <td>{r.type ? <span className={`${styles.badge} ${TYPE_CSS[r.type]}`}>{TYPE_LABEL[r.type]}</span> : '—'}</td>
                 <td><PlatenBadge platen={r.platen} /></td>
@@ -220,7 +237,21 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
                 <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
                   <Cb aan={!!r.aflevercontrole} onClick={() => onToggle(r.id, 'aflevercontrole')} />
                 </td>
-                <td style={{ whiteSpace: 'nowrap' }}>{datumFmt(r.afleverdatum) !== '—' ? <span style={{ color: 'var(--green)', fontWeight: 600 }}>{datumFmt(r.afleverdatum)}</span> : '—'}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {datumFmt(r.afleverdatum) !== '—' ? (
+                    r.tijdstip_levering ? (
+                      <PortalTip tip={
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#f0eef8' }}>🕐 {r.tijdstip_levering}</span>
+                      }>
+                        <span style={{ color: 'var(--green)', fontWeight: 600, cursor: 'default', borderBottom: '1px dashed var(--green)', paddingBottom: 1 }}>
+                          {datumFmt(r.afleverdatum)}
+                        </span>
+                      </PortalTip>
+                    ) : (
+                      <span style={{ color: 'var(--green)', fontWeight: 600 }}>{datumFmt(r.afleverdatum)}</span>
+                    )
+                  ) : '—'}
+                </td>
                 <td style={{ whiteSpace: 'nowrap' }}>{r.wie_levert_af || '—'}</td>
 
                 {/* Status */}
@@ -762,7 +793,7 @@ function TabGepland({ autos, zoek, onToggle, onBewerken, onAfgeleverd }: {
           {rijen.map((r) => (
             <tr key={r.id}>
               <td><KentekenPlaat kenteken={r.kenteken} /></td>
-              <td><span className={styles.kn}>{r.merk}</span> <span className={styles.modelAccent}>{r.model}</span></td>
+              <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
               <td style={{ whiteSpace: 'nowrap' }}>{r.klant || '—'}</td>
               <td>{r.type ? <span className={`${styles.badge} ${TYPE_CSS[r.type]}`}>{TYPE_LABEL[r.type]}</span> : '—'}</td>
               <td style={{ fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap' }}>
@@ -865,7 +896,10 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
 
   async function handleStatusChange(k: ASKlacht, nieuweStatus: ASKlacht['status']) {
     const extra: Partial<ASKlacht> = {};
-    if (nieuweStatus === 'opgelost') extra.opgelost_op = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (nieuweStatus === 'opgelost') {
+      extra.opgelost_op = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      schietConfetti();
+    }
     await onUpdateKlacht({ ...k, status: nieuweStatus, ...extra });
   }
 
@@ -1077,6 +1111,60 @@ function TabArchief({ autos, zoek, onEdit, onTerugzetten }: {
   );
 }
 
+// ── BTW/Credit nieuw popup ────────────────────────────────────
+function BtwCreditNieuwPopup({ auto, onBevestig, onAnnuleer }: {
+  auto: AfterSalesAuto | Omit<AfterSalesAuto, 'id' | 'created_at'>;
+  onBevestig: (type: BtwAutoType, dealerVerkoper: string, bedrag?: number) => Promise<void>;
+  onAnnuleer: () => void;
+}) {
+  const [type, setType] = useState<BtwAutoType>('btw');
+  const [dealerVerkoper, setDealerVerkoper] = useState('');
+  const [bedrag, setBedrag] = useState('');
+  const [laden, setLaden] = useState(false);
+
+  async function bevestig() {
+    setLaden(true);
+    await onBevestig(type, dealerVerkoper, bedrag ? parseFloat(bedrag.replace(',', '.')) : undefined);
+    setLaden(false);
+  }
+
+  return (
+    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onAnnuleer()}>
+      <div className={styles.modal} style={{ maxWidth: 480 }}>
+        <div className={styles.modalHeader}>
+          <div className={styles.modalTitel}>📋 BTW / Credit toevoegen</div>
+          <button className={styles.sluitKnop} onClick={onAnnuleer}>×</button>
+        </div>
+        <div className={styles.modalBody}>
+          <div className={`${styles.fg} ${styles.vol}`} style={{ background: 'var(--surface2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 700 }}>{auto.merk} {auto.model}</span>
+            {auto.klant ? <span style={{ color: 'var(--muted)' }}> · {auto.klant}</span> : null}
+          </div>
+          <div className={styles.fg}>
+            <label>Type</label>
+            <select className="fi" value={type} onChange={(e) => setType(e.target.value as BtwAutoType)}>
+              <option value="btw">💳 BTW</option>
+              <option value="credit">📄 Credit</option>
+            </select>
+          </div>
+          <div className={styles.fg}>
+            <label>Waarvandaan (dealer / verkoper)</label>
+            <input className="fi" placeholder="bijv. Pon, VW Dealer Amsterdam..." value={dealerVerkoper} onChange={(e) => setDealerVerkoper(e.target.value)} />
+          </div>
+          <div className={styles.fg}>
+            <label>Bedrag (optioneel)</label>
+            <input className="fi" type="text" inputMode="decimal" placeholder="bijv. 1500" value={bedrag} onChange={(e) => setBedrag(e.target.value)} />
+          </div>
+        </div>
+        <div className={styles.modalFooter}>
+          <button className="btn" onClick={onAnnuleer}>Overslaan</button>
+          <button className="btn btn-a" onClick={bevestig} disabled={laden}>{laden ? 'Opslaan...' : '+ Toevoegen aan BTW/Credit'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Zoekhelper ────────────────────────────────────────────────
 function zoekMatch(r: AfterSalesAuto, q: string): boolean {
   const lower = q.toLowerCase();
@@ -1091,6 +1179,7 @@ export default function AfterSalesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<AfterSalesAuto | null>(null);
   const [afleverAuto, setAfleverAuto] = useState<{ auto: AfterSalesAuto; bewerken: boolean } | null>(null);
+  const [btwAuto, setBtwAuto] = useState<AfterSalesAuto | Omit<AfterSalesAuto, 'id' | 'created_at'> | null>(null);
 
   const TABS: { k: HoofdTab; l: string }[] = [
     { k: 'lopend', l: 'In behandeling' },
@@ -1105,8 +1194,35 @@ export default function AfterSalesPage() {
   function openNieuw() { setEditRecord(null); setModalOpen(true); }
 
   async function handleOpslaan(rec: AfterSalesAuto | Omit<AfterSalesAuto, 'id' | 'created_at'>) {
+    const wasNietInBtw = !editRecord?.btw_credit;
     if ('id' in rec) await updateAuto(rec as AfterSalesAuto);
     else await addAuto(rec);
+    if (wasNietInBtw && rec.btw_credit) setBtwAuto(rec);
+  }
+
+  async function handleBtwBevestig(type: BtwAutoType, dealerVerkoper: string, bedrag?: number) {
+    if (!btwAuto) return;
+    const vandaag = new Date().toISOString().slice(0, 10);
+    const btwRec = {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      kenteken: btwAuto.kenteken,
+      auto: `${btwAuto.merk ?? ''} ${btwAuto.model ?? ''}`.trim() || btwAuto.kenteken,
+      type,
+      klant: btwAuto.klant ?? '',
+      dealer_verkoper: dealerVerkoper,
+      ingekocht_op: vandaag,
+      bedrag: bedrag ?? null,
+      inkoper: btwAuto.wie_levert_af ?? '',
+      gelangenbest_verstuurd: false,
+      geld_van_lm: false,
+      geld_van_dealer: false,
+      gearchiveerd: false,
+      veld_meta: {},
+    };
+    const { error } = await supabase.from('btw_records').insert(btwRec);
+    if (error) console.error('BTW insert fout:', error);
+    setBtwAuto(null);
   }
 
   async function handleAfleveringOpslaan(updates: Partial<AfterSalesAuto>) {
@@ -1141,7 +1257,7 @@ export default function AfterSalesPage() {
       </div>
 
       {/* KPI strip */}
-      <KpiStrip autos={autos} klachten={klachten} />
+      <KpiStrip autos={autos} klachten={klachten} onTab={setTab} />
 
       {/* Tab inhoud */}
       {loading ? (
@@ -1173,6 +1289,15 @@ export default function AfterSalesPage() {
           isBewerken={afleverAuto.bewerken}
           onOpslaan={(updates) => handleAfleveringOpslaan(updates)}
           onSluiten={() => setAfleverAuto(null)}
+        />
+      )}
+
+      {/* BTW/Credit popup na opslaan met vinkje */}
+      {btwAuto && (
+        <BtwCreditNieuwPopup
+          auto={btwAuto}
+          onBevestig={handleBtwBevestig}
+          onAnnuleer={() => setBtwAuto(null)}
         />
       )}
     </div>

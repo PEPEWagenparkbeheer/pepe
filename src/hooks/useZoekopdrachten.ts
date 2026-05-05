@@ -91,20 +91,23 @@ export function useZoekopdrachten() {
     const nieuw: Zoekopdracht = { ...rec, id: Date.now() };
     const next = [...recordsRef.current, nieuw];
     updateRecords(next);
-    try { await supabase.from('zoekopdrachten').upsert(serialize(nieuw)); } catch { /* leeg */ }
+    const { error } = await supabase.from('zoekopdrachten').upsert(serialize(nieuw));
+    if (error) console.error('zoekopdrachten insert fout:', error.message, error.details);
     return nieuw;
   }, []);
 
   const update = useCallback(async (rec: Zoekopdracht) => {
     const next = recordsRef.current.map((r) => (r.id === rec.id ? rec : r));
     updateRecords(next);
-    try { await supabase.from('zoekopdrachten').upsert(serialize(rec)); } catch { /* leeg */ }
+    const { error } = await supabase.from('zoekopdrachten').upsert(serialize(rec));
+    if (error) console.error('zoekopdrachten upsert fout:', error.message, error.details);
   }, []);
 
   const remove = useCallback(async (id: number) => {
     const next = recordsRef.current.filter((r) => r.id !== id);
     updateRecords(next);
-    try { await supabase.from('zoekopdrachten').delete().eq('id', id); } catch { /* leeg */ }
+    const { error } = await supabase.from('zoekopdrachten').delete().eq('id', id);
+    if (error) console.error('zoekopdrachten delete fout:', error.message);
   }, []);
 
   const togglePrio = useCallback(async (id: number) => {

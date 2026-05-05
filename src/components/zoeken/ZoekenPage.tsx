@@ -47,6 +47,8 @@ export default function ZoekenPage() {
     let gefilterd = records.filter((r) => {
       if (q && !`${r.klant} ${r.auto} ${r.details ?? ''} ${r.opmerkingen ?? ''} ${r.email_klant ?? ''}`.toLowerCase().includes(q)) return false;
       if (filter === 'actueel') return !r.akkoord && !r.uitgesteld;
+      if (filter === 'prio') return !!r.prio && !r.akkoord && !r.uitgesteld;
+      if (filter === 'terugkoppeling') return !!r.uitgewerkt && !r.terugkoppeling && !r.akkoord && !r.uitgesteld;
       if (filter === 'uitgesteld') return !!r.uitgesteld;
       if (filter === 'akkoord' || filter === 'archief') return !!r.akkoord;
       return !r.akkoord && !r.uitgesteld;
@@ -133,7 +135,7 @@ export default function ZoekenPage() {
         </button>
       </div>
 
-      <ZoekenKPI records={records} />
+      <ZoekenKPI records={records} onFilter={setFilter} />
       <ZoekenFilters actief={filter} records={records} onChange={setFilter} />
 
       {loading ? (

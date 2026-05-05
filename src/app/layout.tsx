@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="nl" style={{ height: '100%' }}>
+    <html lang="nl" style={{ height: '100%', colorScheme: 'light' }}>
       <body className={plusJakartaSans.className}>
         <AppLayout>{children}</AppLayout>
       </body>

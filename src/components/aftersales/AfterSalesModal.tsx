@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import type { AfterSalesAuto, ASAutoType } from '@/types';
-import { MERKEN_LIJST, INKOPERS_DEFAULT } from '@/lib/constants';
+import { MERKEN_LIJST, WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
+import { useMedewerkers } from '@/hooks/useMedewerkers';
+
+function leesWie(): string[] {
+  if (typeof window === 'undefined') return WIE_DEFAULT;
+  try { const s = localStorage.getItem(WIE_KEY); return s ? JSON.parse(s) : WIE_DEFAULT; } catch { return WIE_DEFAULT; }
+}
 import styles from './AfterSalesPage.module.css';
 
 const ACC_TAGS = ['Alarm', 'Alarm keuren', 'Voertuigvolg', 'Trekhaak', 'Matten'];
@@ -32,6 +38,8 @@ interface Props {
 }
 
 export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, onVerwijder }: Props) {
+  const wieLijst = leesWie();
+  const { namen: medewerkers } = useMedewerkers();
   const [form, setForm] = useState<Omit<AfterSalesAuto, 'id' | 'created_at'>>(LEEG);
   const [opslaan, setOpslaan] = useState(false);
   const [rdwLaden, setRdwLaden] = useState(false);
@@ -109,7 +117,7 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
 
         <div className={styles.modalBody}>
 
-          {/* Kenteken + RDW */}
+          {/* ── AUTO GEGEVENS ── */}
           <div className={`${styles.fg} ${styles.vol}`}>
             <label>Kenteken / Meldcode</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -132,7 +140,6 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             </div>
           </div>
 
-          {/* Type auto */}
           <div className={styles.fg}>
             <label>Type auto</label>
             <select className="fi" value={form.type ?? 'nl'} onChange={(e) => stel('type', e.target.value as ASAutoType)}>
@@ -140,7 +147,6 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             </select>
           </div>
 
-          {/* Merk */}
           <div className={styles.fg}>
             <label>Merk</label>
             <select className="fi" value={form.merk ?? ''} onChange={(e) => stel('merk', e.target.value)}>
@@ -149,25 +155,11 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             </select>
           </div>
 
-          {/* Model */}
           <div className={styles.fg}>
             <label>Model</label>
             <input className="fi" placeholder="bijv. Q5, A6, EV3..." value={form.model ?? ''} onChange={(e) => stel('model', e.target.value)} />
           </div>
 
-          {/* Klant naam */}
-          <div className={styles.fg}>
-            <label>Klant naam</label>
-            <input className="fi" placeholder="Voornaam Achternaam" value={form.klant ?? ''} onChange={(e) => stel('klant', e.target.value)} />
-          </div>
-
-          {/* E-mail klant */}
-          <div className={styles.fg}>
-            <label>E-mail klant</label>
-            <input className="fi" type="email" placeholder="klant@email.nl" value={form.email_klant ?? ''} onChange={(e) => stel('email_klant', e.target.value)} />
-          </div>
-
-          {/* Kentekenplaten */}
           <div className={styles.fg}>
             <label>Kentekenplaten</label>
             <select className="fi" value={form.platen ?? ''} onChange={(e) => stel('platen', e.target.value)}>
@@ -175,44 +167,6 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             </select>
           </div>
 
-          {/* Wie levert af */}
-          <div className={styles.fg}>
-            <label>Wie levert af</label>
-            <select className="fi" value={form.wie_levert_af ?? ''} onChange={(e) => stel('wie_levert_af', e.target.value)}>
-              <option value="">— kies —</option>
-              {INKOPERS_DEFAULT.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-
-          {/* Wie maakt klaar */}
-          <div className={styles.fg}>
-            <label>Wie maakt klaar</label>
-            <select className="fi" value={form.wie_rijklaar ?? ''} onChange={(e) => stel('wie_rijklaar', e.target.value)}>
-              <option value="">— kies —</option>
-              {INKOPERS_DEFAULT.map((n) => <option key={n} value={n}>{n}</option>)}
-              <option value="__extern__">Extern / Anders</option>
-            </select>
-          </div>
-
-          {/* Klaarmaker naam (vrij invullen) */}
-          <div className={styles.fg}>
-            <label>Klaarmaker naam (vrij invullen)</label>
-            <input className="fi" placeholder="Naam garage/persoon" value={form.klaarmaker_naam ?? ''} onChange={(e) => stel('klaarmaker_naam', e.target.value)} />
-          </div>
-
-          {/* Geplande leverdatum */}
-          <div className={styles.fg}>
-            <label>Geplande leverdatum</label>
-            <input className="fi" type="date" value={form.afleverdatum ?? ''} onChange={(e) => stel('afleverdatum', e.target.value)} />
-          </div>
-
-          {/* Tijdstip levering */}
-          <div className={styles.fg}>
-            <label>Tijdstip levering</label>
-            <input className="fi" type="time" value={form.tijdstip_levering ?? ''} onChange={(e) => stel('tijdstip_levering', e.target.value)} />
-          </div>
-
-          {/* Transportdatum — alleen bij import */}
           {isImport && (
             <div className={`${styles.fg} ${styles.vol}`}>
               <label>Transportdatum</label>
@@ -220,9 +174,40 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             </div>
           )}
 
-          {/* Accessoires tags */}
+          {/* ── KLANT GEGEVENS ── */}
+          <div className={styles.sectieHdr}>Klant gegevens</div>
+
+          <div className={styles.fg}>
+            <label>Klant naam</label>
+            <input className="fi" placeholder="Voornaam Achternaam" value={form.klant ?? ''} onChange={(e) => stel('klant', e.target.value)} />
+          </div>
+
+          <div className={styles.fg}>
+            <label>E-mail klant</label>
+            <input className="fi" type="email" placeholder="klant@email.nl" value={form.email_klant ?? ''} onChange={(e) => stel('email_klant', e.target.value)} />
+          </div>
+
+          {/* ── WIE MAAKT KLAAR ── */}
+          <div className={styles.sectieHdr}>Wie maakt klaar</div>
+
+          <div className={styles.fg}>
+            <label>Wie maakt klaar</label>
+            <select className="fi" value={form.wie_rijklaar ?? ''} onChange={(e) => stel('wie_rijklaar', e.target.value)}>
+              <option value="">— kies —</option>
+              {wieLijst.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+
+          <div className={styles.fg}>
+            <label>Klaarmaker naam (vrij invullen)</label>
+            <input className="fi" placeholder="Naam garage/persoon" value={form.klaarmaker_naam ?? ''} onChange={(e) => stel('klaarmaker_naam', e.target.value)} />
+          </div>
+
+          {/* ── ACCESSOIRES ── */}
+          <div className={styles.sectieHdr}>Accessoires</div>
+
           <div className={`${styles.fg} ${styles.vol}`}>
-            <label>Accessoires</label>
+            <label>Selecteer accessoires</label>
             <div className={styles.typeGrid}>
               {ACC_TAGS.map((tag) => (
                 <button
@@ -237,21 +222,43 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             </div>
           </div>
 
-          {/* Extra accessoires / opmerkingen */}
           <div className={`${styles.fg} ${styles.vol}`}>
             <label>Extra accessoires / opmerkingen</label>
             <input className="fi" placeholder="bijv. velgen 18 inch, dashcam..." value={form.extra_accessoires ?? ''} onChange={(e) => stel('extra_accessoires', e.target.value)} />
           </div>
 
-          {/* Interne notities */}
+          {/* ── GEPLANDE AFLEVERING ── */}
+          <div className={styles.sectieHdr}>Geplande aflevering</div>
+
+          <div className={styles.fg}>
+            <label>Geplande leverdatum</label>
+            <input className="fi" type="date" value={form.afleverdatum ?? ''} onChange={(e) => stel('afleverdatum', e.target.value)} />
+          </div>
+
+          <div className={styles.fg}>
+            <label>Tijdstip levering</label>
+            <input className="fi" type="time" value={form.tijdstip_levering ?? ''} onChange={(e) => stel('tijdstip_levering', e.target.value)} />
+          </div>
+
           <div className={`${styles.fg} ${styles.vol}`}>
-            <label>Interne notities</label>
+            <label>Wie levert af</label>
+            <select className="fi" value={form.wie_levert_af ?? ''} onChange={(e) => stel('wie_levert_af', e.target.value)}>
+              <option value="">— kies —</option>
+              {medewerkers.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+
+          {/* ── INTERNE NOTITIES ── */}
+          <div className={styles.sectieHdr}>Interne notities</div>
+
+          <div className={`${styles.fg} ${styles.vol}`}>
             <textarea className="fi" rows={3} placeholder="bijv. staat bij VDU, wacht op onderdeel..." value={form.notitie ?? ''} onChange={(e) => stel('notitie', e.target.value)} />
           </div>
 
-          {/* BTW / Credit overzicht */}
+          {/* ── BTW / CREDIT ── */}
+          <div className={styles.sectieHdr}>BTW / Credit</div>
+
           <div className={`${styles.fg} ${styles.vol}`}>
-            <label>BTW / Credit overzicht</label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 'normal', fontSize: 13, textTransform: 'none', letterSpacing: 0, color: 'var(--text)' }}>
               <input
                 type="checkbox"

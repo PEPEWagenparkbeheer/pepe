@@ -75,36 +75,42 @@ export function useLease() {
   const addAanvraag = useCallback(async (rec: Omit<LeaseAanvraag, 'id' | 'created_at'>) => {
     const nieuw: LeaseAanvraag = { ...rec, id: crypto.randomUUID(), created_at: new Date().toISOString() };
     updateAanvragen([nieuw, ...aanvraagRef.current]);
-    try { await supabase.from('lease_aanvragen').insert(nieuw); } catch { /* leeg */ }
+    const { error } = await supabase.from('lease_aanvragen').insert(nieuw);
+    if (error) console.error('lease_aanvragen insert fout:', error.message, error.details);
     return nieuw;
   }, []);
 
   const saveAanvraag = useCallback(async (rec: LeaseAanvraag) => {
     updateAanvragen(aanvraagRef.current.map((r) => (r.id === rec.id ? rec : r)));
-    try { await supabase.from('lease_aanvragen').upsert(rec); } catch { /* leeg */ }
+    const { error } = await supabase.from('lease_aanvragen').upsert(rec);
+    if (error) console.error('lease_aanvragen upsert fout:', error.message, error.details);
   }, []);
 
   const removeAanvraag = useCallback(async (id: string) => {
     updateAanvragen(aanvraagRef.current.filter((r) => r.id !== id));
-    try { await supabase.from('lease_aanvragen').delete().eq('id', id); } catch { /* leeg */ }
+    const { error } = await supabase.from('lease_aanvragen').delete().eq('id', id);
+    if (error) console.error('lease_aanvragen delete fout:', error.message);
   }, []);
 
   // ── Klanten ───────────────────────────────────────────────
   const addKlant = useCallback(async (rec: Omit<LeaseKlant, 'id' | 'created_at'>) => {
     const nieuw: LeaseKlant = { ...rec, id: crypto.randomUUID(), created_at: new Date().toISOString() };
     updateKlanten([...klantRef.current, nieuw].sort((a, b) => a.naam.localeCompare(b.naam)));
-    try { await supabase.from('lease_klanten').insert(nieuw); } catch { /* leeg */ }
+    const { error } = await supabase.from('lease_klanten').insert(nieuw);
+    if (error) console.error('lease_klanten insert fout:', error.message, error.details);
     return nieuw;
   }, []);
 
   const saveKlant = useCallback(async (rec: LeaseKlant) => {
     updateKlanten(klantRef.current.map((r) => (r.id === rec.id ? rec : r)));
-    try { await supabase.from('lease_klanten').upsert(rec); } catch { /* leeg */ }
+    const { error } = await supabase.from('lease_klanten').upsert(rec);
+    if (error) console.error('lease_klanten upsert fout:', error.message, error.details);
   }, []);
 
   const removeKlant = useCallback(async (id: string) => {
     updateKlanten(klantRef.current.filter((r) => r.id !== id));
-    try { await supabase.from('lease_klanten').delete().eq('id', id); } catch { /* leeg */ }
+    const { error } = await supabase.from('lease_klanten').delete().eq('id', id);
+    if (error) console.error('lease_klanten delete fout:', error.message);
   }, []);
 
   return {

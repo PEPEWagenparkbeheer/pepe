@@ -6,10 +6,8 @@ import { supabase } from '@/lib/supabase';
 import styles from './DashboardPage.module.css';
 
 interface DashData {
-  actief: number;
   prio: number;
-  uitgesteld: number;
-  terugkoppeling: number;
+  akkoordMnd: number;
   prioRijen: { id: number; klant: string; auto: string; wiezoekt?: string }[];
   rijklaarRijen: { id: string; kenteken: string; merk?: string; model?: string; klant?: string; afleverdatum?: string }[];
   btwRijen: { id: string; auto: string; klant?: string; ingekocht_op?: string }[];
@@ -34,7 +32,7 @@ function dagenGeleden(datum?: string): number {
 }
 
 const LEEG: DashData = {
-  actief: 0, prio: 0, uitgesteld: 0, terugkoppeling: 0,
+  prio: 0, akkoordMnd: 0,
   prioRijen: [], rijklaarRijen: [], btwRijen: [], leaseRijen: [],
 };
 
@@ -60,7 +58,7 @@ export default function DashboardPage() {
     const veertienDagenGeleden = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
 
     const [zoekRes, asRes, btwRes, leaseRes] = await Promise.all([
-      supabase.from('zoekopdrachten').select('id,klant,auto,wiezoekt,prio,uitgesteld,terugkoppeling,akkoord'),
+      supabase.from('zoekopdrachten').select('id,klant,auto,wiezoekt,prio,uitgesteld,akkoord,akkoord_datum'),
       supabase.from('after_sales').select('id,kenteken,merk,model,klant,afleverdatum,binnen,klaar,gearchiveerd'),
       supabase.from('btw_records').select('id,auto,klant,ingekocht_op,geld_van_lm,geld_van_dealer,gearchiveerd'),
       supabase.from('lease_aanvragen').select('id,klant_naam,merk,model,leasemaatschappij,verkocht,akkoord,offerte_verstuurd'),
@@ -71,10 +69,13 @@ export default function DashboardPage() {
     const btw = btwRes.data ?? [];
     const lease = leaseRes.data ?? [];
 
-    const actief = zoek.filter(z => !z.akkoord && !z.uitgesteld).length;
+    const nu = new Date();
     const prio = zoek.filter(z => z.prio && !z.akkoord && !z.uitgesteld).length;
-    const uitgesteld = zoek.filter(z => z.uitgesteld && !z.akkoord).length;
-    const terugkoppeling = zoek.filter(z => z.terugkoppeling && !z.akkoord).length;
+    const akkoordMnd = zoek.filter(z => {
+      if (!z.akkoord || !z.akkoord_datum) return false;
+      const d = new Date(z.akkoord_datum);
+      return d.getMonth() === nu.getMonth() && d.getFullYear() === nu.getFullYear();
+    }).length;
 
     const prioRijen = zoek
       .filter(z => z.prio && !z.akkoord && !z.uitgesteld)
@@ -96,7 +97,7 @@ export default function DashboardPage() {
       .slice(0, 6)
       .map(l => ({ id: l.id, klant_naam: l.klant_naam, merk: l.merk, model: l.model, leasemaatschappij: l.leasemaatschappij }));
 
-    setData({ actief, prio, uitgesteld, terugkoppeling, prioRijen, rijklaarRijen, btwRijen, leaseRijen });
+    setData({ prio, akkoordMnd, prioRijen, rijklaarRijen, btwRijen, leaseRijen });
     setLaden(false);
   }
 
@@ -114,25 +115,25 @@ export default function DashboardPage() {
 
       {/* KPI strip */}
       <div className={styles.kpiStrip}>
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiIcoon}>🔍</div>
-          <div className={styles.kpiGetal}>{data.actief}</div>
-          <div className={styles.kpiLabel}>Actief zoeken</div>
-        </div>
         <div className={`${styles.kpiCard} ${data.prio > 0 ? styles.hot : ''}`}>
           <div className={styles.kpiIcoon}>🚩</div>
           <div className={`${styles.kpiGetal} ${data.prio > 0 ? styles.warn : ''}`}>{data.prio}</div>
-          <div className={styles.kpiLabel}>Prio</div>
+          <div className={styles.kpiLabel}>Prio opdrachten</div>
         </div>
-        <div className={`${styles.kpiCard} ${data.uitgesteld > 0 ? styles.warn : ''}`}>
-          <div className={styles.kpiIcoon}>⏸</div>
-          <div className={styles.kpiGetal}>{data.uitgesteld}</div>
-          <div className={styles.kpiLabel}>Uitgesteld</div>
+        <div className={`${styles.kpiCard} ${data.rijklaarRijen.length > 0 ? styles.warn : ''}`}>
+          <div className={styles.kpiIcoon}>📦</div>
+          <div className={styles.kpiGetal}>{data.rijklaarRijen.length}</div>
+          <div className={styles.kpiLabel}>Auto rijklaar</div>
         </div>
-        <div className={`${styles.kpiCard} ${data.terugkoppeling > 0 ? styles.warn : ''}`}>
-          <div className={styles.kpiIcoon}>💬</div>
-          <div className={`${styles.kpiGetal} ${data.terugkoppeling > 0 ? styles.warn : ''}`}>{data.terugkoppeling}</div>
-          <div className={styles.kpiLabel}>Terugkoppeling</div>
+        <div className={`${styles.kpiCard} ${data.btwRijen.length > 0 ? styles.hot : ''}`}>
+          <div className={styles.kpiIcoon}>💶</div>
+          <div className={`${styles.kpiGetal} ${data.btwRijen.length > 0 ? styles.warn : ''}`}>{data.btwRijen.length}</div>
+          <div className={styles.kpiLabel}>BTW &gt; 14 dagen</div>
+        </div>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiIcoon}>✅</div>
+          <div className={styles.kpiGetal}>{data.akkoordMnd}</div>
+          <div className={styles.kpiLabel}>Akkoord deze maand</div>
         </div>
       </div>
 

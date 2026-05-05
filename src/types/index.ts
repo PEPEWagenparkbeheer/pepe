@@ -218,6 +218,7 @@ export interface BtwRecord {
   opmerkingen?: string;
   inkoper?: string;
   gearchiveerd?: boolean;
+  veld_meta?: Record<string, { op: string; door: string }>;
 }
 
 // ── Auth ─────────────────────────────────────────────────────

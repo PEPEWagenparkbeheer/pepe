@@ -10,6 +10,17 @@ const NAL_SK = 'pepe_nal_v1';
 // ── Bool helper ───────────────────────────────────────────────
 const bool = (v: unknown) => v === true || v === 'TRUE' || v === 'true';
 
+// Lege strings in datumvelden veroorzaken een Supabase 400-fout (PostgreSQL verwerpt '' als date).
+// Dit converteert ze naar null voordat het record naar de DB gaat.
+const DATE_VELDEN = ['afleverdatum', 'transportdatum', 'proefrit_op', 'binnen_op', 'afgeleverd_op'] as const;
+function prepareForDb(rec: AfterSalesAuto): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...rec };
+  for (const v of DATE_VELDEN) {
+    if (out[v] === '') out[v] = null;
+  }
+  return out;
+}
+
 // ── AfterSalesAuto serialisatie ───────────────────────────────
 function deserializeAuto(r: Record<string, unknown>): AfterSalesAuto {
   return {
@@ -105,13 +116,15 @@ export function useAfterSales() {
   const addAuto = useCallback(async (rec: Omit<AfterSalesAuto, 'id' | 'created_at'>) => {
     const nieuw: AfterSalesAuto = { ...rec, id: crypto.randomUUID(), created_at: new Date().toISOString() };
     updateAutos([nieuw, ...autosRef.current]);
-    try { await supabase.from('after_sales').insert(nieuw); } catch { /* leeg */ }
+    const { error } = await supabase.from('after_sales').insert(prepareForDb(nieuw));
+    if (error) console.error('after_sales insert fout:', error.message, error.details);
     return nieuw;
   }, []);
 
   const updateAuto = useCallback(async (rec: AfterSalesAuto) => {
     updateAutos(autosRef.current.map((r) => (r.id === rec.id ? rec : r)));
-    try { await supabase.from('after_sales').upsert(rec); } catch { /* leeg */ }
+    const { error } = await supabase.from('after_sales').upsert(prepareForDb(rec));
+    if (error) console.error('after_sales upsert fout:', error.message, error.details);
   }, []);
 
   const removeAuto = useCallback(async (id: string) => {

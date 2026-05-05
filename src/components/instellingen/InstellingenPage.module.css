@@ -1,0 +1,321 @@
+.page {
+  padding: 28px 32px;
+  min-height: 100%;
+  background: var(--bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.titel {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+}
+
+.savedBadge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+  background: rgba(22, 163, 74, 0.1);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 20px;
+  max-width: 860px;
+}
+
+.kaart {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 22px;
+}
+
+.kaartHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.kaartIcon {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.kaartTitel {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.kaartSub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.lijst {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.leeg {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 10px 0;
+  text-align: center;
+}
+
+.rij {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--surface2);
+  transition: background 0.1s;
+}
+
+.rij:hover {
+  background: var(--row-hover);
+}
+
+.naam {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.acties {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.rij:hover .acties {
+  opacity: 1;
+}
+
+.bewerkKnop,
+.verwijderKnop {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  transition: background 0.1s;
+  line-height: 1;
+}
+
+.bewerkKnop {
+  color: var(--blue);
+}
+
+.bewerkKnop:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.verwijderKnop {
+  color: var(--red);
+}
+
+.verwijderKnop:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.bewerkenInput {
+  flex: 1;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text);
+  outline: none;
+}
+
+.opslaanKnop {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.annuleerKnop {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 5px;
+}
+
+.annuleerKnop:hover {
+  background: rgba(21, 28, 39, 0.07);
+}
+
+.toevoegRij {
+  display: flex;
+  gap: 8px;
+}
+
+.toevoegInput {
+  flex: 1;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 11px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.toevoegInput:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.toevoegInput::placeholder {
+  color: var(--muted);
+}
+
+.toevoegKnop {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.12s;
+}
+
+.toevoegKnop:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.toevoegKnop:not(:disabled):hover {
+  opacity: 0.88;
+}
+
+.placeholder {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 20px 0;
+  text-align: center;
+}
+
+.medewerkersInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.emailLabel {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.inactief {
+  opacity: 0.45;
+}
+
+.activeerKnop {
+  background: none;
+  border: 1px solid var(--green);
+  color: var(--green);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+
+.activeerKnop:hover {
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.deactiveerKnop {
+  background: none;
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  color: var(--red);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+
+.deactiveerKnop:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.toevoegBlok {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.emailPreview {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 2px;
+}
+
+.emailPreview strong {
+  color: var(--text);
+}
+
+.melding {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 10px;
+  border-radius: 7px;
+}
+
+.meldingOk {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--green);
+}
+
+.meldingFout {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--red);
+}

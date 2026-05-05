@@ -2,40 +2,23 @@
   width: 228px;
   min-width: 228px;
   flex-shrink: 0;
-  background: #1e2029;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--sidebar);
+  border-right: 1px solid var(--sidebar-border);
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 0;
-  align-self: flex-start;
-  height: 100vh;
+  height: 100%;
   overflow-y: auto;
 }
 
 .logoArea {
-  padding: 20px 16px 16px;
+  padding: 18px 16px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
-.shield {
-  width: 24px;
-  height: 28px;
-  flex-shrink: 0;
-}
-
-.logoText {
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  color: #fff;
-}
-
-.logoText span {
-  color: #921939;
+.logoImg {
+  height: 34px;
+  width: auto;
+  display: block;
 }
 
 .nav {

@@ -50,7 +50,7 @@
   padding: 7px 13px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   color: var(--text);
   font-size: 12px;
   font-weight: 600;
@@ -118,7 +118,7 @@
   padding: 7px 9px;
   border-radius: 10px;
   border: 1.5px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   cursor: pointer;
   min-width: 50px;
   transition: all 0.15s;
@@ -132,18 +132,18 @@
 
 .kleurItem.kleurActief {
   border-color: var(--accent);
-  background: rgba(146, 25, 57, 0.12);
+  background: rgba(146, 25, 57, 0.08);
 }
 
 .kleurItem.kleurActief span {
-  color: #e87090;
+  color: var(--accent);
 }
 
 .kleurSwatch {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(21, 28, 39, 0.15);
 }
 
 /* Pill knoppen (opties, brandstof) */
@@ -157,7 +157,7 @@
   padding: 6px 13px;
   border-radius: 20px;
   border: 1px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
@@ -171,8 +171,8 @@
 }
 
 .pill.pillActief {
-  border-color: rgba(74, 222, 128, 0.4);
-  background: rgba(74, 222, 128, 0.08);
+  border-color: rgba(22, 163, 74, 0.35);
+  background: rgba(22, 163, 74, 0.08);
   color: var(--green);
 }
 
@@ -190,7 +190,7 @@
   padding: 9px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   cursor: pointer;
   font-size: 13px;
   transition: border-color 0.15s;
@@ -201,7 +201,7 @@
 }
 
 .progItem.progActief {
-  border-color: rgba(74, 222, 128, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 .progDot {
@@ -242,7 +242,7 @@
 }
 
 .verwijderKnop:hover {
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(220, 38, 38, 0.08);
 }
 
 .zoekLinks {
@@ -255,7 +255,7 @@
   padding: 7px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;

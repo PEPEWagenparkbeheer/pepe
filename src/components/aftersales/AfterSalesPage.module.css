@@ -29,7 +29,7 @@
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   color: var(--text);
   font-size: 13px;
   width: 200px;
@@ -57,8 +57,8 @@
   transition: all 0.18s;
 }
 .kpiCard:hover {
-  border-color: rgba(255,255,255,.14);
-  background: rgba(255,255,255,.05);
+  border-color: rgba(21,28,39,.18);
+  background: var(--surface2);
   transform: translateY(-1px);
 }
 .kpiCard.actief { border-color: var(--accent); }
@@ -66,8 +66,8 @@
 .kpiCard.hot:hover  { border-color: rgba(248,113,113,.6); }
 .kpiCard.warn { border-color: rgba(251,191,36,.25);  background: rgba(251,191,36,.04); }
 .kpiCard.warn:hover { border-color: rgba(251,191,36,.5); }
-.kpiCard.good { border-color: rgba(74,222,128,.25);  background: rgba(74,222,128,.04); }
-.kpiCard.good:hover { border-color: rgba(74,222,128,.5); }
+.kpiCard.good { border-color: rgba(22,163,74,.25);  background: rgba(22,163,74,.04); }
+.kpiCard.good:hover { border-color: rgba(22,163,74,.5); }
 
 .kpiIcoon { font-size: 16px; margin-bottom: 4px; }
 .kpiGetal {
@@ -77,7 +77,7 @@
   color: var(--text);
   line-height: 1;
 }
-.kpiGetal.warn { color: #fbbf24; }
+.kpiGetal.warn { color: #b45309; }
 .kpiGetal.ok { color: var(--green); }
 .kpiLabel {
   font-size: 10px;
@@ -119,13 +119,13 @@
   background: var(--surface);
   padding: 10px 10px;
   vertical-align: middle;
-  border-top: 1px solid rgba(45,40,72,.6);
-  border-bottom: 1px solid rgba(45,40,72,.6);
-  border-right: 1px solid rgba(45,40,72,.4);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
 }
-.tabel tbody tr td:first-child { border-left: 1px solid rgba(45,40,72,.6); border-radius: 10px 0 0 10px; }
-.tabel tbody tr td:last-child  { border-right: 1px solid rgba(45,40,72,.6); border-radius: 0 10px 10px 0; }
-.tabel tbody tr:hover td { background: #1e2029; border-color: rgba(146,25,57,.35); }
+.tabel tbody tr td:first-child { border-left: 1px solid var(--border); border-radius: 10px 0 0 10px; }
+.tabel tbody tr td:last-child  { border-right: 1px solid var(--border); border-radius: 0 10px 10px 0; }
+.tabel tbody tr:hover td { background: var(--row-hover); border-color: rgba(146,25,57,.25); }
 .tabel tbody tr:hover td:first-child { border-left-color: var(--accent); }
 
 .kn { font-weight: 700; font-size: 14px; }
@@ -137,7 +137,7 @@
   height: 18px;
   border-radius: 5px;
   border: 1.5px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -160,18 +160,18 @@
   bottom: calc(100% + 7px);
   left: 50%;
   transform: translateX(-50%);
-  background: #16181f;
-  border: 1px solid rgba(255,255,255,.12);
+  background: #151c27;
+  border: 1px solid rgba(21,28,39,.15);
   border-radius: 7px;
   padding: 7px 11px;
   font-size: 11px;
   white-space: nowrap;
-  color: var(--text);
+  color: #f0eef8;
   display: flex;
   flex-direction: column;
   gap: 2px;
   z-index: 500;
-  box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  box-shadow: 0 6px 20px rgba(21,28,39,.2);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
@@ -183,11 +183,11 @@
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: rgba(255,255,255,.12);
+  border-top-color: rgba(21,28,39,.15);
 }
 .cbWrap:hover .cbTip { opacity: 1; }
-.cbTipDoor { font-weight: 600; color: var(--accent); }
-.cbTipTijd { color: var(--muted); }
+.cbTipDoor { font-weight: 600; color: #e87090; }
+.cbTipTijd { color: rgba(240,238,248,.5); }
 
 /* Voortgangsbalk */
 .voortgang {
@@ -213,26 +213,26 @@
   font-weight: 700;
 }
 /* Status badges (voor Status kolom) */
-.badgeNieuw   { background: rgba(96,165,250,.12);  color: #60a5fa;       border: 1px solid rgba(96,165,250,.2); }
-.badgeBezig   { background: rgba(251,191,36,.1);   color: #fbbf24;       border: 1px solid rgba(251,191,36,.15); }
-.badgeKlaar   { background: rgba(74,222,128,.08);  color: var(--green);  border: 1px solid rgba(74,222,128,.2); }
+.badgeNieuw   { background: rgba(37,99,235,.10);  color: var(--blue);       border: 1px solid rgba(37,99,235,.2); }
+.badgeBezig   { background: rgba(180,83,9,.10);    color: #b45309;           border: 1px solid rgba(180,83,9,.2); }
+.badgeKlaar   { background: rgba(22,163,74,.08);   color: var(--green);      border: 1px solid rgba(22,163,74,.2); }
 
 /* Type badges (voor Type kolom) */
-.tpImport   { background: rgba(251,191,36,.12);  color: #fbbf24;       border: 1px solid rgba(251,191,36,.2); }
-.tpNl       { background: rgba(74,222,128,.10);  color: var(--green);  border: 1px solid rgba(74,222,128,.2); }
-.tpNieuw    { background: rgba(96,165,250,.12);  color: #60a5fa;       border: 1px solid rgba(96,165,250,.2); }
-.tpVoorraad { background: rgba(255,255,255,.05); color: var(--muted);  border: 1px solid var(--border); }
+.tpImport   { background: rgba(180,83,9,.10);    color: #b45309;      border: 1px solid rgba(180,83,9,.2); }
+.tpNl       { background: rgba(22,163,74,.10);   color: var(--green); border: 1px solid rgba(22,163,74,.2); }
+.tpNieuw    { background: rgba(37,99,235,.10);   color: var(--blue);  border: 1px solid rgba(37,99,235,.2); }
+.tpVoorraad { background: rgba(21,28,39,.05);    color: var(--muted); border: 1px solid var(--border); }
 
 /* Platen badges */
-.kpBesteld   { background: rgba(251,191,36,.15); color: #fbbf24; border: 1px solid rgba(251,191,36,.25); padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
-.kpOntvangen { background: rgba(96,165,250,.12); color: #60a5fa; border: 1px solid rgba(96,165,250,.2);  padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
-.kpGemonteerd{ background: rgba(74,222,128,.10); color: var(--green); border: 1px solid rgba(74,222,128,.2); padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+.kpBesteld   { background: rgba(180,83,9,.10);  color: #b45309;      border: 1px solid rgba(180,83,9,.2);  padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+.kpOntvangen { background: rgba(37,99,235,.10); color: var(--blue);  border: 1px solid rgba(37,99,235,.2); padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+.kpGemonteerd{ background: rgba(22,163,74,.10); color: var(--green); border: 1px solid rgba(22,163,74,.2); padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
 .kpOnbekend  { color: var(--muted); font-size: 12px; }
-.platenGeel  { background: rgba(251,191,36,.18); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; }
-.platenGW    { background: rgba(251,191,36,.18); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; }
+.platenGeel  { background: rgba(180,83,9,.10);  color: #b45309;      border: 1px solid rgba(180,83,9,.2);  padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; }
+.platenGW    { background: rgba(180,83,9,.10);  color: #b45309;      border: 1px solid rgba(180,83,9,.2);  padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; }
 
-/* Model accent kleur (zoals origineel) */
-.modelAccent { color: #e8a0b0; font-weight: 600; }
+/* Model accent kleur */
+.modelAccent { color: var(--accent); font-weight: 600; }
 
 /* Checkbox variant — accent (rood) voor binnen/proef */
 .cb.onAccent { background: var(--accent); border-color: var(--accent); }
@@ -253,7 +253,7 @@
   width: 130px;
 }
 .datumInput:focus { outline: none; border-color: var(--accent); }
-.datumInput::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+.datumInput::-webkit-calendar-picker-indicator { filter: none; cursor: pointer; opacity: 0.5; }
 
 /* WIE chip */
 .wieChip {
@@ -269,8 +269,8 @@
   white-space: nowrap;
   transition: all 0.15s;
 }
-.wieChip:hover { border-color: rgba(255,255,255,.2); color: var(--text); }
-.wieKlaar { background: rgba(74,222,128,.12); border-color: rgba(74,222,128,.3); color: var(--green); }
+.wieChip:hover { border-color: rgba(21,28,39,.25); color: var(--text); }
+.wieKlaar { background: rgba(22,163,74,.10); border-color: rgba(22,163,74,.3); color: var(--green); }
 
 /* APK chip */
 .apkChip {
@@ -280,15 +280,15 @@
   font-weight: 700;
   white-space: nowrap;
 }
-.apkGroen { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.25); }
-.apkOranje { background: rgba(245,158,11,.12); color: #f59e0b; border: 1px solid rgba(245,158,11,.25); }
-.apkRood  { background: rgba(248,113,113,.12); color: var(--red); border: 1px solid rgba(248,113,113,.25); }
+.apkGroen { background: rgba(22,163,74,.10); color: var(--green); border: 1px solid rgba(22,163,74,.25); }
+.apkOranje { background: rgba(180,83,9,.10); color: #b45309; border: 1px solid rgba(180,83,9,.25); }
+.apkRood  { background: rgba(220,38,38,.10); color: var(--red); border: 1px solid rgba(220,38,38,.25); }
 .apkRdw   { background: transparent; }
 
 .rdwKnop {
   background: none;
   border: none;
-  color: #60a5fa;
+  color: var(--blue);
   font-size: 10px;
   font-weight: 600;
   cursor: pointer;
@@ -296,7 +296,7 @@
   font-family: inherit;
   white-space: nowrap;
 }
-.rdwKnop:hover { color: #93c5fd; }
+.rdwKnop:hover { color: #1d4ed8; }
 
 /* Accessoires */
 .accChip {
@@ -306,15 +306,15 @@
   border-radius: 20px;
   font-size: 11px;
   font-weight: 600;
-  background: rgba(255,255,255,.06);
+  background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s;
 }
-.accChip:hover { border-color: rgba(255,255,255,.2); color: var(--text); }
-.accKlaar { background: rgba(74,222,128,.12); border-color: rgba(74,222,128,.3); color: var(--green); }
+.accChip:hover { border-color: rgba(21,28,39,.25); color: var(--text); }
+.accKlaar { background: rgba(22,163,74,.10); border-color: rgba(22,163,74,.3); color: var(--green); }
 
 .accPlusKnop {
   width: 22px; height: 22px;
@@ -329,7 +329,7 @@
   font-family: inherit;
   flex-shrink: 0;
 }
-.accPlusKnop:hover { border-color: rgba(255,255,255,.3); color: var(--text); }
+.accPlusKnop:hover { border-color: rgba(21,28,39,.3); color: var(--text); }
 
 /* Accessoires popup */
 .accPopup {
@@ -342,7 +342,7 @@
   border-radius: 14px;
   padding: 14px;
   min-width: 300px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  box-shadow: 0 8px 32px rgba(21,28,39,.15);
   animation: inschuiven 0.15s ease;
 }
 .accPopupTitel { font-weight: 700; font-size: 15px; margin-bottom: 10px; }
@@ -363,9 +363,9 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
-.dotGroen { background: var(--green);  box-shadow: 0 0 5px rgba(74,222,128,.5); }
-.dotOranje { background: #f59e0b;      box-shadow: 0 0 5px rgba(245,158,11,.4); }
-.dotRood  { background: var(--red);    box-shadow: 0 0 5px rgba(248,113,113,.4); }
+.dotGroen { background: var(--green);  box-shadow: 0 0 5px rgba(22,163,74,.4); }
+.dotOranje { background: #d97706;      box-shadow: 0 0 5px rgba(217,119,6,.35); }
+.dotRood  { background: var(--red);    box-shadow: 0 0 5px rgba(220,38,38,.35); }
 
 /* Aflever actie knop */
 .actBtn {
@@ -373,7 +373,7 @@
   border-radius: 20px;
   border: 1px solid rgba(146,25,57,.4);
   background: transparent;
-  color: #e87090;
+  color: var(--accent);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -381,14 +381,14 @@
   white-space: nowrap;
   transition: background 0.15s;
 }
-.actBtn:hover { background: rgba(146,25,57,.15); }
+.actBtn:hover { background: rgba(146,25,57,.08); }
 
 /* Afleveren knop (groen) */
 .afleverKnop {
   padding: 5px 12px;
   border-radius: 20px;
-  border: 1px solid rgba(74,222,128,.3);
-  background: rgba(74,222,128,.1);
+  border: 1px solid rgba(22,163,74,.3);
+  background: rgba(22,163,74,.08);
   color: var(--green);
   font-size: 11px;
   font-weight: 700;
@@ -397,13 +397,13 @@
   white-space: nowrap;
   transition: background 0.15s;
 }
-.afleverKnop:hover { background: rgba(74,222,128,.2); }
+.afleverKnop:hover { background: rgba(22,163,74,.18); }
 
 /* Bewerken link stijl */
 .bewerkLink {
   background: none;
   border: none;
-  color: #60a5fa;
+  color: var(--blue);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -413,7 +413,7 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.bewerkLink:hover { color: #93c5fd; }
+.bewerkLink:hover { color: #1d4ed8; }
 
 /* cbRij (voor popup checkboxes) */
 .cbRij { display: flex; align-items: center; gap: 8px; }
@@ -441,7 +441,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.8);
+  background: rgba(21,28,39,.55);
   z-index: 500;
   display: flex;
   align-items: flex-start;
@@ -486,6 +486,18 @@
 .fg label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .vol { grid-column: 1 / -1; }
 
+.sectieHdr {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
 .modalFooter {
   padding: 14px 22px;
   border-top: 1px solid var(--border);
@@ -505,11 +517,11 @@
   cursor: pointer;
   font-family: inherit;
 }
-.verwijderKnop:hover { background: rgba(248,113,113,.1); }
+.verwijderKnop:hover { background: rgba(220,38,38,.08); }
 
 /* Nalevering — inline status select */
 .statusSelect {
-  background: #1e2029;
+  background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
@@ -523,9 +535,9 @@
 
 /* Nalevering — update count badge */
 .updateBadge {
-  background: #2563eb33;
-  border: 1px solid #2563eb66;
-  color: #60a5fa;
+  background: rgba(37,99,235,.10);
+  border: 1px solid rgba(37,99,235,.25);
+  color: var(--blue);
   border-radius: 20px;
   font-size: 10px;
   font-weight: 700;
@@ -544,15 +556,16 @@
   top: calc(100% + 6px);
   left: 0;
   width: 280px;
-  background: #16181f;
-  border: 1px solid rgba(255,255,255,.15);
+  background: #151c27;
+  border: 1px solid rgba(21,28,39,.15);
   border-radius: 10px;
   padding: 10px 14px;
   font-size: 12px;
+  color: #f0eef8;
   white-space: normal;
   word-break: break-word;
   z-index: 9999;
-  box-shadow: 0 8px 32px rgba(0,0,0,.6);
+  box-shadow: 0 8px 32px rgba(21,28,39,.2);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
@@ -566,7 +579,7 @@
   bottom: 100%;
   left: 14px;
   border: 5px solid transparent;
-  border-bottom-color: rgba(255,255,255,.15);
+  border-bottom-color: rgba(21,28,39,.15);
 }
 .doorWieWrap:hover .doorWieTip { opacity: 1; }
 
@@ -598,7 +611,7 @@
   gap: 8px;
   max-height: 200px;
   overflow-y: auto;
-  background: rgba(255,255,255,.03);
+  background: rgba(21,28,39,.03);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px;
@@ -609,7 +622,7 @@
   flex-direction: column;
   gap: 2px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255,255,255,.06);
+  border-bottom: 1px solid rgba(21,28,39,.06);
 }
 .updateRij:last-child { border-bottom: none; padding-bottom: 0; }
 .updateTekst { font-size: 13px; color: var(--text); }
@@ -621,7 +634,7 @@
   padding: 7px 14px;
   border-radius: 20px;
   border: 1px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
@@ -629,4 +642,4 @@
   transition: all 0.15s;
   font-family: inherit;
 }
-.typeBtn.actief { border-color: var(--accent); background: rgba(146,25,57,.12); color: #e87090; }
+.typeBtn.actief { border-color: var(--accent); background: rgba(146,25,57,.08); color: var(--accent); }

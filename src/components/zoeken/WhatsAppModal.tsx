@@ -1,74 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { KLEUREN, MERKEN_LIJST } from '@/lib/constants';
 import type { Zoekopdracht } from '@/types';
 import styles from './WhatsAppModal.module.css';
 
 type ParseResultaat = Partial<Omit<Zoekopdracht, 'id'>>;
-
-function parseWhatsApp(raw: string): ParseResultaat {
-  const tekst = raw.toLowerCase();
-  const resultaat: ParseResultaat = { kleuren: [], opties: {} };
-
-  // Budget
-  const budgetMatch = tekst.match(/budget[:\s]*[€]?\s*(\d[\d.,\s]*k?)/i)
-    ?? tekst.match(/(\d{2,3})[.,]?(\d{3})?\s*(?:euro|eur|€)/i)
-    ?? tekst.match(/(\d{2,3})k\b/i);
-  if (budgetMatch) {
-    resultaat.budget = budgetMatch[1].replace(/[.,\s]/g, '').replace(/k$/, '000');
-  }
-
-  // Kilometerstand
-  const kmMatch = tekst.match(/(\d{2,3})[.,]?(\d{3})?\s*km/i);
-  if (kmMatch) {
-    const km = kmMatch[0].replace(/\s*km/i, '').trim();
-    resultaat.km = km;
-  }
-
-  // Bouwjaar
-  const jaarMatch = tekst.match(/(20\d{2})\s*[-–]\s*(20\d{2})/i)
-    ?? tekst.match(/\b(20\d{2})\b/);
-  if (jaarMatch) {
-    resultaat.jaar = jaarMatch[0];
-  }
-
-  // Merk + model
-  for (const merk of MERKEN_LIJST) {
-    if (tekst.includes(merk.toLowerCase())) {
-      const regexModel = new RegExp(merk + '\\s+([\\w\\s-]+)', 'i');
-      const modelMatch = raw.match(regexModel);
-      resultaat.auto = modelMatch
-        ? `${merk} ${modelMatch[1].trim().split('\n')[0]}`
-        : merk;
-      break;
-    }
-  }
-
-  // Kleuren
-  const gevondenKleuren: string[] = [];
-  for (const kleur of KLEUREN) {
-    if (tekst.includes(kleur.toLowerCase())) gevondenKleuren.push(kleur);
-  }
-  resultaat.kleuren = gevondenKleuren;
-
-  // BTW / Marge
-  if (tekst.includes('btw')) resultaat.btw = 'BTW';
-  else if (tekst.includes('marge')) resultaat.btw = 'Marge';
-
-  // Klant (laatste niet-lege regel die niet op een bekend veld lijkt)
-  const regels = raw.split('\n').map((r) => r.trim()).filter(Boolean);
-  const klantRegel = regels.findLast(
-    (r) =>
-      r.length > 1 &&
-      r.length < 40 &&
-      !/\d{4}|\bkm\b|budget|euro|benzine|diesel|hybride|elektrisch/i.test(r) &&
-      !MERKEN_LIJST.some((m) => r.toLowerCase().includes(m.toLowerCase()))
-  );
-  if (klantRegel) resultaat.klant = klantRegel;
-
-  return resultaat;
-}
 
 interface Props {
   open: boolean;
@@ -78,18 +14,55 @@ interface Props {
 
 export default function WhatsAppModal({ open, onParse, onSluiten }: Props) {
   const [tekst, setTekst] = useState('');
+  const [laden, setLaden] = useState(false);
   const [fout, setFout] = useState('');
 
-  function verwerk() {
+  async function verwerk() {
     if (!tekst.trim()) return;
+    setLaden(true);
+    setFout('');
+
     try {
-      const resultaat = parseWhatsApp(tekst);
+      const res = await fetch('/api/whatsapp-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tekst }),
+      });
+
+      let data: Record<string, unknown>;
+      try {
+        data = await res.json();
+      } catch {
+        setFout(`Server fout (${res.status}) — herstart de dev server`);
+        return;
+      }
+
+      if (!res.ok) {
+        setFout(data.error as string ?? 'Kon het bericht niet verwerken.');
+        return;
+      }
+
+      const resultaat: ParseResultaat = {};
+      if (data.klant)    resultaat.klant    = data.klant as string;
+      if (data.merk || data.model) {
+        resultaat.auto = `${data.merk ?? ''} ${data.model ?? ''}`.trim();
+      }
+      if (data.km)       resultaat.km       = data.km as string;
+      if (data.jaar)     resultaat.jaar     = data.jaar as string;
+      if (data.budget)   resultaat.budget   = data.budget as string;
+      if (data.btw)      resultaat.btw      = data.btw as string;
+      if (Array.isArray(data.kleuren) && data.kleuren.length)  resultaat.kleuren  = data.kleuren as string[];
+      if (Array.isArray(data.brandstof) && data.brandstof.length) resultaat.brandstof = data.brandstof as string[];
+      if (data.opties && typeof data.opties === 'object')      resultaat.opties   = data.opties as Record<string, boolean>;
+      if (data.details)  resultaat.details  = data.details as string;
+
       onParse(resultaat);
       setTekst('');
-      setFout('');
       onSluiten();
     } catch {
-      setFout('Kon het bericht niet verwerken.');
+      setFout('Netwerkfout — probeer opnieuw.');
+    } finally {
+      setLaden(false);
     }
   }
 
@@ -103,7 +76,7 @@ export default function WhatsAppModal({ open, onParse, onSluiten }: Props) {
           <button className={styles.sluitKnop} onClick={onSluiten}>×</button>
         </div>
         <div className={styles.body}>
-          <p className={styles.uitleg}>Plak het bericht — het formulier wordt automatisch ingevuld.</p>
+          <p className={styles.uitleg}>Plak het bericht — AI vult het formulier automatisch in.</p>
           <div className={styles.voorbeeld}>
             <div className={styles.voorbeeldLabel}>Voorbeeld</div>
             <pre className={styles.voorbeeldTekst}>{`Volkswagen Sharan of Tiguan
@@ -121,11 +94,14 @@ Burhan`}</pre>
             placeholder="Plak hier het WhatsApp bericht..."
             value={tekst}
             onChange={(e) => setTekst(e.target.value)}
+            disabled={laden}
           />
           {fout && <div className={styles.fout}>{fout}</div>}
           <div className={styles.knoppen}>
-            <button className="btn" onClick={onSluiten}>Annuleer</button>
-            <button className="btn btn-a" onClick={verwerk}>✦ Inlezen</button>
+            <button className="btn" onClick={onSluiten} disabled={laden}>Annuleer</button>
+            <button className="btn btn-a" onClick={verwerk} disabled={!tekst.trim() || laden}>
+              {laden ? <span className={styles.laadTekst}><span className={styles.spinner} />Bezig…</span> : '✦ Inlezen met AI'}
+            </button>
           </div>
         </div>
       </div>

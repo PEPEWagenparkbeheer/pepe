@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useLease } from '@/hooks/useLease';
+import { schietConfetti } from '@/lib/confetti';
 import type { LeaseAanvraag, LeaseKlant } from '@/types';
 import LeaseAkkoordModal from './LeaseAkkoordModal';
 import LeaseKlantModal from './LeaseKlantModal';
@@ -47,30 +48,30 @@ function zoekMatchKlant(k: LeaseKlant, q: string): boolean {
 }
 
 // ── KPI strip ─────────────────────────────────────────────────
-function KpiStrip({ aanvragen }: { aanvragen: LeaseAanvraag[] }) {
+function KpiStrip({ aanvragen, onTab }: { aanvragen: LeaseAanvraag[]; onTab: (t: Tab) => void }) {
   const lopend = aanvragen.filter((r) => !r.verkocht);
   const offerte = lopend.filter((r) => r.offerte_verstuurd).length;
   const akkoord = lopend.filter((r) => r.akkoord).length;
-  const totaal = aanvragen.reduce((s, r) => s + (r.verdiensten_lm ?? 0) + (r.verdiensten_dealer ?? 0), 0);
+  const totaal = lopend.reduce((s, r) => s + (r.verdiensten_lm ?? 0) + (r.verdiensten_dealer ?? 0), 0);
 
   return (
     <div className={styles.kpiStrip}>
-      <div className={`${styles.kpiCard} ${lopend.length > 0 ? styles.hot : ''}`}>
+      <div className={`${styles.kpiCard} ${lopend.length > 0 ? styles.hot : ''}`} onClick={() => onTab('aanvragen')}>
         <div className={styles.kpiIcoon}>📋</div>
         <div className={`${styles.kpiGetal} ${lopend.length > 0 ? styles.warn : ''}`}>{lopend.length}</div>
         <div className={styles.kpiLabel}>Lopende aanvragen</div>
       </div>
-      <div className={`${styles.kpiCard} ${offerte > 0 ? styles.warn : ''}`}>
+      <div className={`${styles.kpiCard} ${offerte > 0 ? styles.warn : ''}`} onClick={() => onTab('aanvragen')}>
         <div className={styles.kpiIcoon}>📤</div>
         <div className={`${styles.kpiGetal} ${offerte > 0 ? styles.warn : ''}`}>{offerte}</div>
         <div className={styles.kpiLabel}>Offerte verstuurd</div>
       </div>
-      <div className={`${styles.kpiCard} ${akkoord > 0 ? styles.good : ''}`}>
+      <div className={`${styles.kpiCard} ${akkoord > 0 ? styles.good : ''}`} onClick={() => onTab('aanvragen')}>
         <div className={styles.kpiIcoon}>✅</div>
         <div className={`${styles.kpiGetal} ${akkoord > 0 ? styles.ok : ''}`}>{akkoord}</div>
         <div className={styles.kpiLabel}>Akkoord gegeven</div>
       </div>
-      <div className={styles.kpiCard}>
+      <div className={styles.kpiCard} onClick={() => onTab('aanvragen')}>
         <div className={styles.kpiIcoon}>💶</div>
         <div className={styles.kpiGetal} style={{ fontSize: totaal > 99999 ? 16 : 22 }}>
           {totaal > 0 ? `€ ${totaal.toLocaleString('nl-NL')}` : '—'}
@@ -250,7 +251,7 @@ function TabKlanten({ klanten, zoek, onEdit }: {
               <td>{k.brandstofvoorschot ? <span style={{ color: 'var(--green)', fontWeight: 600 }}>Ja</span> : '—'}</td>
               <td style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 180 }}>{k.notities || '—'}</td>
               <td onClick={(e) => e.stopPropagation()}>
-                <button className={styles.terugzetKnop} style={{ borderColor: 'rgba(96,165,250,.3)', color: '#60a5fa' }} onClick={() => onEdit(k)}>
+                <button className={styles.terugzetKnop} style={{ borderColor: 'rgba(37,99,235,.3)', color: 'var(--blue)' }} onClick={() => onEdit(k)}>
                   ✏ Bewerk
                 </button>
               </td>
@@ -305,6 +306,7 @@ export default function LeasePage() {
       verwachte_leverdatum: verwachteDatum || rec.verwachte_leverdatum,
     };
     await saveAanvraag(bijgewerkt);
+    schietConfetti();
 
     // Automatisch naar BTW/Credit lijst
     const btwRec = {
@@ -366,7 +368,7 @@ export default function LeasePage() {
         </div>
       </div>
 
-      <KpiStrip aanvragen={aanvragen} />
+      <KpiStrip aanvragen={aanvragen} onTab={setTab} />
 
       {loading ? (
         <div className={styles.leeg}>Laden...</div>

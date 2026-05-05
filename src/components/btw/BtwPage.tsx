@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useBtw } from '@/hooks/useBtw';
+import { schietConfetti } from '@/lib/confetti';
 import type { BtwAutoType, BtwRecord } from '@/types';
 import BtwModal from './BtwModal';
 import styles from './BtwPage.module.css';
@@ -17,11 +19,75 @@ function Cb({ aan, onClick }: { aan: boolean; onClick: (e: React.MouseEvent) => 
   );
 }
 
+function metaTijd(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })
+      + ' ' + d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  } catch { return iso; }
+}
+
+function PortalTip({ children, tip }: { children: React.ReactNode; tip: React.ReactNode }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  return (
+    <div
+      style={{ display: 'inline-flex' }}
+      onMouseEnter={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        setPos({ x: r.left, y: r.bottom + 8 });
+      }}
+      onMouseLeave={() => setPos(null)}
+    >
+      {children}
+      {pos && createPortal(
+        <div style={{
+          position: 'fixed', top: pos.y, left: pos.x, zIndex: 9999,
+          background: '#1a1a2e', border: '1px solid rgba(255,255,255,.12)',
+          borderRadius: 8, padding: '8px 12px', fontSize: 12,
+          color: 'var(--text)', pointerEvents: 'none',
+          minWidth: 160, boxShadow: '0 4px 20px rgba(0,0,0,.5)',
+          whiteSpace: 'nowrap',
+        }}>
+          {tip}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+function CbMeta({ aan, meta, onClick }: {
+  aan: boolean;
+  meta?: { op: string; door: string };
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  if (!meta) return <Cb aan={aan} onClick={onClick} />;
+  return (
+    <PortalTip tip={
+      <div>
+        <div style={{ fontWeight: 700 }}>{meta.door}</div>
+        <div style={{ color: 'var(--muted)', marginTop: 2 }}>{metaTijd(meta.op)}</div>
+      </div>
+    }>
+      <Cb aan={aan} onClick={onClick} />
+    </PortalTip>
+  );
+}
+
+function GeldCb({ aan, meta, beschikbaar, onClick }: {
+  aan: boolean;
+  meta?: { op: string; door: string };
+  beschikbaar: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  if (!beschikbaar) return <div className={styles.cbWrap}><span className={styles.nvt}>N.V.T.</span></div>;
+  return <div className={styles.cbWrap}><CbMeta aan={aan} meta={meta} onClick={onClick} /></div>;
+}
+
 const TYPE_CSS: Record<BtwAutoType, string> = {
   btw: styles.tpImport,
   credit: styles.tpNieuw,
 };
-
 const TYPE_LABEL: Record<BtwAutoType, string> = {
   btw: '🌍 BTW',
   credit: '% Credit',
@@ -41,13 +107,25 @@ function datumFmt(d?: string) {
 
 function bedragFmt(b?: number) {
   if (b == null) return '—';
-  return '€ ' + b.toLocaleString('nl-NL', { maximumFractionDigits: 0 });
+  return '€ ' + b.toLocaleString('nl-NL', { maximumFractionDigits: 0 });
 }
 
-function dagenGelden(ingekocht?: string): number | null {
-  if (!ingekocht) return null;
-  const ms = Date.now() - new Date(ingekocht).getTime();
-  return Math.floor(ms / 86_400_000);
+type WachttijdVariant = 'normaal' | 'laat' | 'toekomst' | 'ontbreekt' | 'geen';
+
+function wachttijdInfo(r: BtwRecord, binnenOpMap: Record<string, string>): { label: string; variant: WachttijdVariant } {
+  if (r.type === 'credit') {
+    if (!r.verwachte_leverdatum) return { label: 'Datum?', variant: 'ontbreekt' };
+    const ms = Date.now() - new Date(r.verwachte_leverdatum).getTime();
+    const dagen = Math.floor(ms / 86_400_000);
+    if (dagen < 0) return { label: `over ${-dagen}d`, variant: 'toekomst' };
+    return { label: `${dagen}d`, variant: dagen > 14 ? 'laat' : 'normaal' };
+  }
+  // type === 'btw' (import): wachttijd vanaf binnen_op in AfterSales
+  const binnenOp = r.kenteken ? binnenOpMap[r.kenteken.toUpperCase()] : undefined;
+  if (!binnenOp) return { label: '—', variant: 'geen' };
+  const ms = Date.now() - new Date(binnenOp).getTime();
+  const dagen = Math.floor(ms / 86_400_000);
+  return { label: `${dagen}d`, variant: dagen > 14 ? 'laat' : 'normaal' };
 }
 
 function zoekMatch(r: BtwRecord, q: string): boolean {
@@ -55,50 +133,66 @@ function zoekMatch(r: BtwRecord, q: string): boolean {
 }
 
 // ── KPI strip ─────────────────────────────────────────────────
-function KpiStrip({ records }: { records: BtwRecord[] }) {
+function KpiStrip({ records, onTab }: { records: BtwRecord[]; onTab: (t: Tab) => void }) {
+  const nu = new Date();
   const lopend = records.filter((r) => !r.gearchiveerd);
-  const gelangenbest = lopend.filter((r) => r.gelangenbest_verstuurd).length;
-  const vanLm = lopend.filter((r) => r.geld_van_lm).length;
-  const vanDealer = lopend.filter((r) => r.geld_van_dealer).length;
-  const totaal = lopend.reduce((s, r) => s + (r.bedrag ?? 0), 0);
+  const teOntvangen = lopend.reduce((s, r) => s + (r.bedrag ?? 0) + (r.lm_bedrag ?? 0) + (r.dealer_bedrag ?? 0), 0);
+
+  const importBtw = lopend.filter((r) => r.type === 'btw');
+  const importBtwBedrag = importBtw.reduce((s, r) => s + (r.bedrag ?? 0), 0);
+
+  const creditNaLeverdatum = lopend.filter((r) => {
+    if (!r.verwachte_leverdatum) return false;
+    if (r.geld_van_lm || r.geld_van_dealer) return false;
+    return new Date(r.verwachte_leverdatum) < nu;
+  }).length;
+
+  const ouderDan14 = lopend.filter((r) => {
+    if (r.geld_van_lm || r.geld_van_dealer) return false;
+    if (!r.ingekocht_op) return false;
+    return (nu.getTime() - new Date(r.ingekocht_op).getTime()) > 14 * 86_400_000;
+  }).length;
 
   return (
     <div className={styles.kpiStrip}>
-      <div className={styles.kpiCard}>
-        <div className={styles.kpiIcoon}>💶</div>
+      <div className={`${styles.kpiCard} ${lopend.length > 0 ? styles.warn : ''}`} onClick={() => onTab('lopend')}>
+        <div className={styles.kpiIcoon}>⏳</div>
         <div className={styles.kpiGetal}>{lopend.length}</div>
-        <div className={styles.kpiLabel}>Lopend</div>
+        <div className={styles.kpiLabel}>Openstaande claims</div>
       </div>
-      <div className={styles.kpiCard}>
-        <div className={styles.kpiIcoon}>📄</div>
-        <div className={`${styles.kpiGetal} ${gelangenbest === lopend.length && lopend.length > 0 ? styles.ok : ''}`}>{gelangenbest}</div>
-        <div className={styles.kpiLabel}>Gelangenbest.</div>
+      <div className={`${styles.kpiCard} ${styles.hot}`} onClick={() => onTab('lopend')}>
+        <div className={styles.kpiIcoon}>💶</div>
+        <div className={styles.kpiGetal} style={{ fontSize: teOntvangen > 99999 ? 16 : 22 }}>{bedragFmt(teOntvangen)}</div>
+        <div className={styles.kpiLabel}>Te ontvangen</div>
       </div>
-      <div className={styles.kpiCard}>
-        <div className={styles.kpiIcoon}>🏢</div>
-        <div className={`${styles.kpiGetal} ${vanLm === lopend.length && lopend.length > 0 ? styles.ok : ''}`}>{vanLm}</div>
-        <div className={styles.kpiLabel}>Geld van LM</div>
+      <div className={`${styles.kpiCard} ${importBtw.length > 0 ? styles.warn : ''}`} onClick={() => onTab('lopend')}>
+        <div className={styles.kpiIcoon}>🚚</div>
+        <div className={styles.kpiGetal} style={{ fontSize: importBtwBedrag > 99999 ? 16 : 22 }}>
+          {importBtw.length > 0 ? bedragFmt(importBtwBedrag) : '—'}
+        </div>
+        <div className={styles.kpiLabel}>Openstaand import BTW</div>
       </div>
-      <div className={styles.kpiCard}>
-        <div className={styles.kpiIcoon}>🤝</div>
-        <div className={`${styles.kpiGetal} ${vanDealer === lopend.length && lopend.length > 0 ? styles.ok : ''}`}>{vanDealer}</div>
-        <div className={styles.kpiLabel}>Geld van dealer</div>
+      <div className={`${styles.kpiCard} ${creditNaLeverdatum > 0 ? styles.hot : ''}`} onClick={() => onTab('lopend')}>
+        <div className={styles.kpiIcoon}>📅</div>
+        <div className={`${styles.kpiGetal} ${creditNaLeverdatum > 0 ? styles.warn : ''}`}>{creditNaLeverdatum}</div>
+        <div className={styles.kpiLabel}>Credit na leverdatum</div>
       </div>
-      <div className={styles.kpiCard}>
-        <div className={styles.kpiIcoon}>💰</div>
-        <div className={styles.kpiGetal} style={{ fontSize: totaal > 99999 ? 16 : 22 }}>{bedragFmt(totaal)}</div>
-        <div className={styles.kpiLabel}>Totaal openstaand</div>
+      <div className={`${styles.kpiCard} ${ouderDan14 > 0 ? styles.hot : ''}`} onClick={() => onTab('lopend')}>
+        <div className={styles.kpiIcoon}>🔴</div>
+        <div className={`${styles.kpiGetal} ${ouderDan14 > 0 ? styles.warn : ''}`}>{ouderDan14}</div>
+        <div className={styles.kpiLabel}>+14 dagen open</div>
       </div>
     </div>
   );
 }
 
 // ── Tab: Lopend ───────────────────────────────────────────────
-function TabLopend({ records, zoek, onEdit, onToggle, onArchiveer }: {
+function TabLopend({ records, zoek, binnenOpMap, onEdit, onToggle, onArchiveer }: {
   records: BtwRecord[];
   zoek: string;
+  binnenOpMap: Record<string, string>;
   onEdit: (r: BtwRecord) => void;
-  onToggle: (id: string, veld: keyof BtwRecord) => void;
+  onToggle: (id: string, veld: keyof BtwRecord) => Promise<boolean>;
   onArchiveer: (r: BtwRecord) => void;
 }) {
   const rijen = records.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
@@ -123,8 +217,13 @@ function TabLopend({ records, zoek, onEdit, onToggle, onArchiveer }: {
         </tr></thead>
         <tbody>
           {rijen.map((r) => {
-            const dagen = dagenGelden(r.ingekocht_op);
-            const isLaat = (dagen ?? 0) > 14 && !r.geld_van_lm && !r.geld_van_dealer;
+            const wt = wachttijdInfo(r, binnenOpMap);
+            const isLaat = wt.variant === 'laat' && !r.geld_van_lm && !r.geld_van_dealer;
+            const isImport = r.type === 'btw';
+            const isCredit = r.type === 'credit';
+            const heeftLm = (r.lm_bedrag ?? 0) > 0;
+            const heeftDealer = (r.dealer_bedrag ?? 0) > 0;
+
             return (
               <tr key={r.id} className={isLaat ? styles.laat : ''} onClick={() => onEdit(r)}>
                 <td style={{ fontWeight: 600 }}>{r.auto}</td>
@@ -132,16 +231,59 @@ function TabLopend({ records, zoek, onEdit, onToggle, onArchiveer }: {
                 <td>{r.klant || '—'}</td>
                 <td style={{ fontSize: 12, color: 'var(--muted)' }}>{r.dealer_verkoper || '—'}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>{datumFmt(r.ingekocht_op)}</td>
-                <td className={styles.chk}><Cb aan={!!r.gelangenbest_verstuurd} onClick={() => onToggle(r.id, 'gelangenbest_verstuurd')} /></td>
-                <td className={styles.chk}><Cb aan={!!r.geld_van_lm} onClick={() => onToggle(r.id, 'geld_van_lm')} /></td>
-                <td className={styles.chk}><Cb aan={!!r.geld_van_dealer} onClick={() => onToggle(r.id, 'geld_van_dealer')} /></td>
-                <td style={{ fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap' }}>{bedragFmt(r.bedrag)}</td>
+
+                {/* Gelangenbest: alleen import, credit heeft dit niet */}
+                <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                  {isImport ? (
+                    <div className={styles.cbWrap}>
+                      <CbMeta
+                        aan={!!r.gelangenbest_verstuurd}
+                        meta={r.veld_meta?.['gelangenbest_verstuurd']}
+                        onClick={() => onToggle(r.id, 'gelangenbest_verstuurd')}
+                      />
+                    </div>
+                  ) : (
+                    <div className={styles.cbWrap}><span className={styles.nvt}>N.V.T.</span></div>
+                  )}
+                </td>
+
+                {/* Geld LM: import = N.V.T., credit = checkbaar als lm_bedrag > 0 */}
+                <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                  <GeldCb
+                    aan={!!r.geld_van_lm}
+                    meta={r.veld_meta?.['geld_van_lm']}
+                    beschikbaar={isCredit && heeftLm}
+                    onClick={() => onToggle(r.id, 'geld_van_lm')}
+                  />
+                </td>
+
+                {/* Geld dealer: import altijd checkbaar, credit checkbaar als dealer_bedrag > 0 */}
+                <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                  <GeldCb
+                    aan={!!r.geld_van_dealer}
+                    meta={r.veld_meta?.['geld_van_dealer']}
+                    beschikbaar={isImport || (isCredit && heeftDealer)}
+                    onClick={() => onToggle(r.id, 'geld_van_dealer')}
+                  />
+                </td>
+
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {isCredit && (heeftLm || heeftDealer) ? (
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--green)', lineHeight: 1.6 }}>
+                      {heeftLm && <div>LM: {bedragFmt(r.lm_bedrag)}</div>}
+                      {heeftDealer && <div>Dealer: {bedragFmt(r.dealer_bedrag)}</div>}
+                    </div>
+                  ) : (
+                    <span style={{ fontWeight: 600, color: 'var(--green)' }}>{bedragFmt(r.bedrag)}</span>
+                  )}
+                </td>
+
                 <td>
-                  {dagen !== null ? (
-                    <span className={`${styles.wachttijdChip} ${isLaat ? styles.laat : ''}`}>
-                      {dagen}d
+                  {wt.variant === 'geen' ? '—' : (
+                    <span className={`${styles.wachttijdChip} ${wt.variant === 'laat' ? styles.wachttijdLaat : ''} ${wt.variant === 'toekomst' ? styles.wachttijdToekomst : ''} ${wt.variant === 'ontbreekt' ? styles.wachttijdOntbreekt : ''}`}>
+                      {wt.label}
                     </span>
-                  ) : '—'}
+                  )}
                 </td>
                 <td style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 160 }}>{r.opmerkingen || '—'}</td>
                 <td onClick={(e) => e.stopPropagation()}>
@@ -202,7 +344,7 @@ function TabArchief({ records, zoek, onEdit, onTerugzetten }: {
 
 // ── Hoofdpagina ───────────────────────────────────────────────
 export default function BtwPage() {
-  const { records, loading, add, save, remove, toggle } = useBtw();
+  const { records, loading, binnenOpMap, add, save, remove, toggle } = useBtw();
   const [tab, setTab] = useState<Tab>('lopend');
   const [zoek, setZoek] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -214,6 +356,12 @@ export default function BtwPage() {
   async function handleOpslaan(rec: BtwRecord | Omit<BtwRecord, 'id' | 'created_at'>) {
     if ('id' in rec) await save(rec as BtwRecord);
     else await add(rec);
+  }
+
+  async function handleToggle(id: string, veld: keyof BtwRecord): Promise<boolean> {
+    const archived = await toggle(id, veld);
+    if (archived) schietConfetti();
+    return archived;
   }
 
   async function handleArchiveer(r: BtwRecord) {
@@ -231,13 +379,13 @@ export default function BtwPage() {
         </div>
       </div>
 
-      <KpiStrip records={records} />
+      <KpiStrip records={records} onTab={setTab} />
 
       {loading ? (
         <div className={styles.leeg}>Laden...</div>
       ) : (
         <>
-          {tab === 'lopend'  && <TabLopend  records={records} zoek={zoek} onEdit={openEdit} onToggle={toggle} onArchiveer={handleArchiveer} />}
+          {tab === 'lopend'  && <TabLopend  records={records} zoek={zoek} binnenOpMap={binnenOpMap} onEdit={openEdit} onToggle={handleToggle} onArchiveer={handleArchiveer} />}
           {tab === 'archief' && <TabArchief records={records} zoek={zoek} onEdit={openEdit} onTerugzetten={(r) => save({ ...r, gearchiveerd: false })} />}
         </>
       )}

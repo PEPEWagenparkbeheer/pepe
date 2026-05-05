@@ -29,7 +29,7 @@
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   color: var(--text);
   font-size: 13px;
   width: 200px;
@@ -52,14 +52,16 @@
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
   padding: 12px 14px;
+  cursor: pointer;
   transition: all 0.18s;
 }
 .kpiCard:hover {
-  border-color: rgba(255,255,255,.14);
-  background: rgba(255,255,255,.05);
+  border-color: rgba(21,28,39,.18);
+  background: var(--surface2);
   transform: translateY(-1px);
 }
 .kpiCard.warn { border-color: rgba(251,191,36,.25); background: rgba(251,191,36,.04); }
+.kpiCard.hot  { border-color: rgba(248,113,113,.3);  background: rgba(146,25,57,.05); }
 
 .kpiIcoon { font-size: 16px; margin-bottom: 4px; }
 .kpiGetal {
@@ -70,7 +72,7 @@
   line-height: 1;
 }
 .kpiGetal.ok   { color: var(--green); }
-.kpiGetal.warn { color: #fbbf24; }
+.kpiGetal.warn { color: #b45309; }
 .kpiLabel {
   font-size: 10px;
   font-weight: 700;
@@ -109,13 +111,13 @@
   background: var(--surface);
   padding: 10px 10px;
   vertical-align: middle;
-  border-top: 1px solid rgba(45,40,72,.6);
-  border-bottom: 1px solid rgba(45,40,72,.6);
-  border-right: 1px solid rgba(45,40,72,.4);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
 }
-.tabel tbody tr td:first-child { border-left: 1px solid rgba(45,40,72,.6); border-radius: 10px 0 0 10px; }
-.tabel tbody tr td:last-child  { border-right: 1px solid rgba(45,40,72,.6); border-radius: 0 10px 10px 0; }
-.tabel tbody tr:hover td { background: #1e2029; border-color: rgba(146,25,57,.35); }
+.tabel tbody tr td:first-child { border-left: 1px solid var(--border); border-radius: 10px 0 0 10px; }
+.tabel tbody tr td:last-child  { border-right: 1px solid var(--border); border-radius: 0 10px 10px 0; }
+.tabel tbody tr:hover td { background: var(--row-hover); border-color: rgba(146,25,57,.25); }
 .tabel tbody tr:hover td:first-child { border-left-color: var(--accent); }
 .tabel tbody tr.laat td { border-left-color: rgba(251,191,36,.4); }
 
@@ -125,7 +127,7 @@
   height: 18px;
   border-radius: 5px;
   border: 1.5px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,10 +146,10 @@
   font-size: 11px;
   font-weight: 700;
 }
-.tpImport   { background: rgba(251,191,36,.12);  color: #fbbf24;      border: 1px solid rgba(251,191,36,.2); }
-.tpNl       { background: rgba(74,222,128,.10);  color: var(--green); border: 1px solid rgba(74,222,128,.2); }
-.tpNieuw    { background: rgba(96,165,250,.12);  color: #60a5fa;      border: 1px solid rgba(96,165,250,.2); }
-.tpVoorraad { background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid var(--border); }
+.tpImport   { background: rgba(180,83,9,.10);    color: #b45309;      border: 1px solid rgba(180,83,9,.2); }
+.tpNl       { background: rgba(22,163,74,.10);   color: var(--green); border: 1px solid rgba(22,163,74,.2); }
+.tpNieuw    { background: rgba(37,99,235,.10);   color: var(--blue);  border: 1px solid rgba(37,99,235,.2); }
+.tpVoorraad { background: rgba(21,28,39,.05);    color: var(--muted); border: 1px solid var(--border); }
 
 .wachttijdChip {
   display: inline-block;
@@ -158,7 +160,18 @@
   background: rgba(45,40,72,.6);
   color: var(--muted);
 }
-.wachttijdChip.laat { background: rgba(251,191,36,.12); color: #fbbf24; border: 1px solid rgba(251,191,36,.2); }
+.wachttijdLaat     { background: rgba(251,191,36,.12); color: #fbbf24;  border: 1px solid rgba(251,191,36,.2); }
+.wachttijdToekomst { background: rgba(74,222,128,.08); color: var(--green); border: 1px solid rgba(74,222,128,.18); }
+.wachttijdOntbreekt {
+  background: rgba(251,146,60,.12);
+  color: #fb923c;
+  border: 1px solid rgba(251,146,60,.25);
+  animation: pulseOranje 2s ease-in-out infinite;
+}
+@keyframes pulseOranje {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .55; }
+}
 
 .leeg {
   padding: 60px 20px;
@@ -256,6 +269,21 @@
   font-family: inherit;
 }
 .verwijderKnop:hover { background: rgba(248,113,113,.1); }
+
+/* Checkbox wrap + N.V.T. */
+.cbWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.nvt {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  opacity: 0.5;
+  letter-spacing: 0.04em;
+}
 
 /* Archief */
 .archiefKnop {

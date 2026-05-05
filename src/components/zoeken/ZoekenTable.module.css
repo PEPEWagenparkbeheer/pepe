@@ -52,7 +52,7 @@
 .budget {
   font-weight: 600;
   font-size: 14px;
-  color: #e8a0b0;
+  color: var(--accent);
 }
 
 .btwBadge {
@@ -80,9 +80,9 @@
   border-radius: 20px;
   font-size: 10px;
   font-weight: 600;
-  background: rgba(146, 25, 57, 0.15);
-  border: 1px solid rgba(146, 25, 57, 0.3);
-  color: #e87090;
+  background: rgba(146, 25, 57, 0.08);
+  border: 1px solid rgba(146, 25, 57, 0.2);
+  color: var(--accent);
   white-space: nowrap;
 }
 
@@ -97,7 +97,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(21, 28, 39, 0.15);
   flex-shrink: 0;
 }
 
@@ -136,5 +136,5 @@
 }
 
 .akkoordBtn:hover {
-  background: rgba(146, 25, 57, 0.15);
+  background: rgba(146, 25, 57, 0.08);
 }

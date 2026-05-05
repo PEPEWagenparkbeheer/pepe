@@ -3,14 +3,13 @@
 import { useEffect, useState } from 'react';
 import {
   BRANDSTOF,
-  INKOPERS_DEFAULT,
-  INKOPERS_KEY,
   KLEUR_MAP,
   KLEUREN,
   MERKEN_LIJST,
   OPTIES,
   PROG,
 } from '@/lib/constants';
+import { useMedewerkers } from '@/hooks/useMedewerkers';
 import type { Zoekopdracht } from '@/types';
 import { buildZoekLinks } from '@/lib/zoeklinks';
 import WhatsAppModal from './WhatsAppModal';
@@ -24,13 +23,6 @@ const LEEG: Omit<Zoekopdracht, 'id'> = {
   inkopen: false, contract: false, akkoord: false, uitgesteld: false, prio: false,
 };
 
-function laadInkopers(): string[] {
-  if (typeof window === 'undefined') return INKOPERS_DEFAULT;
-  try {
-    const s = localStorage.getItem(INKOPERS_KEY);
-    return s ? JSON.parse(s) : INKOPERS_DEFAULT;
-  } catch { return INKOPERS_DEFAULT; }
-}
 
 interface Props {
   record: Zoekopdracht | null; // null = nieuw
@@ -46,7 +38,7 @@ export default function ZoekenModal({ record, open, onSluiten, onOpslaan, onVerw
   const [model, setModel] = useState('');
   const [opslaan, setOpslaan] = useState(false);
   const [whatsAppOpen, setWhatsAppOpen] = useState(false);
-  const inkopers = laadInkopers();
+  const { namen: inkopers } = useMedewerkers();
 
   useEffect(() => {
     if (!open) return;
@@ -316,6 +308,7 @@ export default function ZoekenModal({ record, open, onSluiten, onOpslaan, onVerw
           if (resultaat.budget) stelIn('budget', resultaat.budget);
           if (resultaat.btw) stelIn('btw', resultaat.btw);
           if (resultaat.kleuren?.length) stelIn('kleuren', resultaat.kleuren);
+          if (resultaat.brandstof?.length) stelIn('brandstof', resultaat.brandstof);
           if (resultaat.opties) stelIn('opties', resultaat.opties);
         }}
       />

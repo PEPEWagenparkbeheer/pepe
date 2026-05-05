@@ -2,6 +2,9 @@ export const SK = 'asp_v5';
 export const INKOPERS_KEY = 'asp_inkopers';
 export const INKOPERS_DEFAULT = ['Joep', 'Diego', 'Jasper'];
 
+export const WIE_KEY = 'asp_wie';
+export const WIE_DEFAULT = ['JORA', 'KOLE', 'KURDO'];
+
 export const KLEUR_MAP: Record<string, string> = {
   Zwart: '#111',
   Wit: '#e8e8e8',

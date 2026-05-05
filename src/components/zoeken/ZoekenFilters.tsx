@@ -1,7 +1,7 @@
 import type { Zoekopdracht } from '@/types';
 import styles from './ZoekenFilters.module.css';
 
-export type FilterOptie = 'actueel' | 'uitgesteld' | 'akkoord' | 'archief';
+export type FilterOptie = 'actueel' | 'prio' | 'terugkoppeling' | 'uitgesteld' | 'akkoord' | 'archief';
 
 interface Props {
   actief: FilterOptie;

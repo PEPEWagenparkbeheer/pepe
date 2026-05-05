@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import type { LeaseAanvraag, LeaseKlant } from '@/types';
-import { INKOPERS_DEFAULT, INKOPERS_KEY, MERKEN_LIJST } from '@/lib/constants';
+import { MERKEN_LIJST } from '@/lib/constants';
+import { useMedewerkers } from '@/hooks/useMedewerkers';
 import styles from './LeasePage.module.css';
 
 const LOOPTIJD_OPTIES = ['12', '24', '36', '48', '60'];
@@ -38,13 +39,6 @@ const LEEG: Omit<LeaseAanvraag, 'id' | 'created_at'> = {
   in_btw_lijst: false,
 };
 
-function laadInkopers(): string[] {
-  if (typeof window === 'undefined') return INKOPERS_DEFAULT;
-  try {
-    const s = localStorage.getItem(INKOPERS_KEY);
-    return s ? JSON.parse(s) : INKOPERS_DEFAULT;
-  } catch { return INKOPERS_DEFAULT; }
-}
 
 function Cb({ aan, onClick }: { aan: boolean; onClick: () => void }) {
   return (
@@ -81,7 +75,7 @@ interface Props {
 export default function LeaseModal({ record, klanten, open, onSluiten, onOpslaan, onVerwijder }: Props) {
   const [form, setForm] = useState<Omit<LeaseAanvraag, 'id' | 'created_at'>>(LEEG);
   const [opslaan, setOpslaan] = useState(false);
-  const inkopers = laadInkopers();
+  const { namen: inkopers } = useMedewerkers();
 
   useEffect(() => {
     if (!open) return;

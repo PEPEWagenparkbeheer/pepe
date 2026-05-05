@@ -23,7 +23,7 @@
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #1e2029;
+  background: var(--surface2);
   color: var(--text);
   font-size: 13px;
   width: 180px;

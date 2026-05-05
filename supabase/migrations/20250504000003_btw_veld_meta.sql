@@ -1,0 +1,1 @@
+ALTER TABLE btw_records ADD COLUMN IF NOT EXISTS veld_meta JSONB DEFAULT '{}';
