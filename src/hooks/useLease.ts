@@ -8,16 +8,23 @@ const AANVRAAG_SK = 'pepe_lease_v1';
 const KLANT_SK = 'pepe_lease_klanten_v1';
 
 const bool = (v: unknown) => v === true || v === 'TRUE' || v === 'true';
+const num = (v: unknown) => v != null && v !== '' ? Number(v) : undefined;
 
 function deserializeAanvraag(r: Record<string, unknown>): LeaseAanvraag {
   return {
     ...(r as unknown as LeaseAanvraag),
-    offerte_verstuurd: bool(r.offerte_verstuurd),
-    vervangend_vervoer: bool(r.vervangend_vervoer),
-    brandstofvoorschot: bool(r.brandstofvoorschot),
-    akkoord: bool(r.akkoord),
-    verkocht: bool(r.verkocht),
-    in_btw_lijst: bool(r.in_btw_lijst),
+    offerte_verstuurd:    bool(r.offerte_verstuurd),
+    vervangend_vervoer:   bool(r.vervangend_vervoer),
+    brandstofvoorschot:   bool(r.brandstofvoorschot),
+    akkoord:              bool(r.akkoord),
+    verkocht:             bool(r.verkocht),
+    in_btw_lijst:         bool(r.in_btw_lijst),
+    verdiensten_lm:       num(r.verdiensten_lm),
+    verdiensten_dealer:   num(r.verdiensten_dealer),
+    verdiensten_lm_pct:   num(r.verdiensten_lm_pct),
+    verdiensten_dealer_pct: num(r.verdiensten_dealer_pct),
+    leasenormbedrag:      num(r.leasenormbedrag),
+    leasetarief:          num(r.leasetarief),
   };
 }
 
