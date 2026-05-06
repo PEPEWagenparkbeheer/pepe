@@ -9,6 +9,7 @@ function nieuweId() { return crypto.randomUUID(); }
 
 function mapZoeken(r: Record<string, unknown>) {
   return {
+    id:                 (typeof r.id === 'string' && r.id.includes('-')) ? r.id : nieuweId(),
     klant:              r.klant ?? '',
     auto:               r.auto ?? '',
     details:            r.details ?? '',
@@ -130,6 +131,14 @@ export default function MigratiePage() {
       parsed = JSON.parse(invoer);
     } catch {
       setStatussen([{ label: 'JSON fout — controleer de geplakte tekst', ok: 0, fout: 1, overgeslagen: 0 }]);
+      setBezig(false);
+      return;
+    }
+
+    // ── Wis bestaande data ──────────────────────────────────────
+    const resetRes = await fetch('/api/migratie-reset', { method: 'POST' });
+    if (!resetRes.ok) {
+      setStatussen([{ label: 'Kon bestaande data niet wissen — probeer opnieuw', ok: 0, fout: 1, overgeslagen: 0 }]);
       setBezig(false);
       return;
     }
