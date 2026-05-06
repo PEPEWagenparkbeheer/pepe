@@ -8,10 +8,10 @@ export async function POST() {
 
   const admin = createClient(url, key);
 
-  await admin.from('zoekopdrachten').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  await admin.from('after_sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   await admin.from('as_klachten').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  await admin.from('lease_aanvragen').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await admin.from('after_sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await admin.from('zoekopdrachten').delete().gte('id', 0);
+  await admin.from('lease_aanvragen').delete().gte('id', 0);
 
   return NextResponse.json({ ok: true });
 }

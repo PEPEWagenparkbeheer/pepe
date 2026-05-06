@@ -7,9 +7,20 @@ type Status = { label: string; ok: number; fout: number; overgeslagen: number };
 
 function nieuweId() { return crypto.randomUUID(); }
 
+function normDatum(v: unknown): string | null {
+  if (!v || typeof v !== 'string') return null;
+  const s = v.split(/\s+/)[0].trim();
+  const parts = s.split('-');
+  if (parts.length !== 3) return null;
+  const [a, b, c] = parts.map(p => parseInt(p));
+  if (isNaN(a) || isNaN(b) || isNaN(c)) return null;
+  if (a > 1000) return `${a}-${String(b).padStart(2,'0')}-${String(c).padStart(2,'0')}`;
+  if (c > 1000) return `${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`;
+  return null;
+}
+
 function mapZoeken(r: Record<string, unknown>) {
   return {
-    id:                 (typeof r.id === 'string' && r.id.includes('-')) ? r.id : nieuweId(),
     klant:              r.klant ?? '',
     auto:               r.auto ?? '',
     details:            r.details ?? '',
@@ -47,12 +58,12 @@ function mapAfterSales(r: Record<string, unknown>) {
     klant:            r.klant ?? '',
     type:             r.type ?? 'nl',
     wie_levert_af:    r.wie_levert_af ?? null,
-    afleverdatum:     r.gepland_datum ?? r.afleverdatum ?? null,
+    afleverdatum:     normDatum(r.gepland_datum ?? r.afleverdatum),
     binnen:           !!(r.imp_transport_binnen ?? r.binnen),
     aflevercontrole:  !!r.aflevercontrole,
     klaar:            !!(r.as_rijklaar ?? r.klaar),
     gearchiveerd:     !!r.gearchiveerd,
-    afgeleverd_op:    r.afgeleverd_op ?? null,
+    afgeleverd_op:    normDatum(r.afgeleverd_op),
     wie_heeft_afgeleverd: r.wie_heeft_afgeleverd ?? null,
     aangevraagd:      !!r.aangevraagd,
     betaald:          !!r.betaald,
@@ -63,14 +74,14 @@ function mapAfterSales(r: Record<string, unknown>) {
     kentekenbewijzen: !!r.kentekenbewijzen,
     gelangenbest:     !!r.gelangenbest,
     notitie:          r.notitie ?? r.opmerkingen ?? null,
-    apk:              r.rdw_apk_datum ?? r.apk ?? null,
+    apk:              normDatum(r.rdw_apk_datum ?? r.apk),
     terugroep:        r.terugroep ?? (r.rdw_recalls ? String(r.rdw_recalls) : null),
     status:           r.status ?? null,
   };
 }
 
 function mapKlacht(r: Record<string, unknown>, oldIdNieuweId: Record<string, string>) {
-  const oudAutoId = typeof r.auto_id === 'string' ? r.auto_id : '';
+  const oudAutoId = String(r.auto_id ?? '');
   return {
     id:          (typeof r.id === 'string' && r.id.includes('-')) ? r.id : nieuweId(),
     auto_id:     oldIdNieuweId[oudAutoId] ?? oudAutoId,
@@ -87,7 +98,6 @@ function mapKlacht(r: Record<string, unknown>, oldIdNieuweId: Record<string, str
 
 function mapLease(r: Record<string, unknown>) {
   return {
-    id:                    (typeof r.id === 'string' && r.id.includes('-')) ? r.id : nieuweId(),
     klant_naam:            r.klant_naam ?? r.klant ?? '',
     berijder:              r.berijder ?? null,
     merk:                  r.merk ?? '',
