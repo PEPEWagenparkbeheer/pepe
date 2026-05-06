@@ -54,7 +54,7 @@ export function useBtw() {
     if (lokaal.length) { ref.current = lokaal; setRecords(lokaal); }
 
     Promise.all([
-      supabase.from('btw_records').select('*').order('created_at', { ascending: false }),
+      supabase.from('btw_records').select('*').order('created_at', { ascending: true }),
       supabase.from('after_sales').select('kenteken, binnen_op'),
     ]).then(([btwRes, asRes]) => {
       if (!btwRes.error && btwRes.data) update((btwRes.data as Record<string, unknown>[]).map(deserialize));

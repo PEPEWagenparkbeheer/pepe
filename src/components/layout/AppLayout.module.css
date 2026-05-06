@@ -33,7 +33,6 @@
 .content {
   flex: 1;
   min-width: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: auto;
   height: 100%;
 }

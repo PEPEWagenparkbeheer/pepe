@@ -83,7 +83,7 @@
 }
 
 /* Tabel */
-.tabelWrapper { overflow-x: auto; }
+.tabelWrapper { }
 
 .tabel {
   width: 100%;
