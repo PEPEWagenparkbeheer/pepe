@@ -1,0 +1,319 @@
+.pagina {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tab balk */
+.tabBalk {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.tabBalkRechts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.zoekbalk {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  width: 180px;
+  font-family: inherit;
+}
+.zoekbalk::placeholder { color: var(--muted); }
+.zoekbalk:focus { outline: none; border-color: var(--accent); }
+
+.statusFilter {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.statusFilter:focus { outline: none; border-color: var(--accent); }
+
+/* KPI strip */
+.kpiStrip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.kpiCard {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.kpiCard:hover {
+  border-color: rgba(21,28,39,.18);
+  background: var(--surface2);
+  transform: translateY(-1px);
+}
+.kpiCard.nieuw  { border-color: rgba(37,99,235,.2); background: rgba(37,99,235,.04); }
+.kpiCard.hot    { border-color: rgba(248,113,113,.3); background: rgba(146,25,57,.05); }
+.kpiCard.ok     { border-color: rgba(22,163,74,.2); background: rgba(22,163,74,.04); }
+
+.kpiIcoon { font-size: 16px; margin-bottom: 4px; }
+.kpiGetal {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1;
+}
+.kpiGetal.blauw  { color: var(--blue); }
+.kpiGetal.oranje { color: #b45309; }
+.kpiGetal.groen  { color: var(--green); }
+.kpiLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* Tabel */
+.tabelWrapper { }
+
+.tabel {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  min-width: 960px;
+  padding: 8px 20px;
+}
+.tabel thead th {
+  background: var(--surface);
+  padding: 9px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+  text-align: left;
+  position: sticky;
+  top: 44px;
+  z-index: 10;
+}
+
+.tabel tbody tr { cursor: pointer; }
+.tabel tbody tr td {
+  background: var(--surface);
+  padding: 10px 10px;
+  vertical-align: middle;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.tabel tbody tr td:first-child { border-left: 1px solid var(--border); border-radius: 10px 0 0 10px; }
+.tabel tbody tr td:last-child  { border-right: 1px solid var(--border); border-radius: 0 10px 10px 0; }
+.tabel tbody tr:hover td { background: var(--row-hover); border-color: rgba(146,25,57,.25); }
+.tabel tbody tr:hover td:first-child { border-left-color: var(--accent); }
+.tabel tbody tr.nieuwRij td { border-left-color: rgba(37,99,235,.4); }
+.tabel tbody tr.verkochtRij td { border-left-color: rgba(22,163,74,.4); }
+
+/* Badges — Bron */
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.bronAs24      { background: rgba(255,97,0,.10);  color: #f55a00; border: 1px solid rgba(255,97,0,.2); }
+.bronAutowereld{ background: rgba(37,99,235,.10); color: var(--blue); border: 1px solid rgba(37,99,235,.2); }
+.bronMp        { background: rgba(251,191,36,.12); color: #b45309; border: 1px solid rgba(251,191,36,.25); }
+.bronEmail     { background: rgba(21,28,39,.05);  color: var(--muted); border: 1px solid var(--border); }
+.bronAnders    { background: rgba(21,28,39,.05);  color: var(--muted); border: 1px solid var(--border); }
+
+/* Badges — Status */
+.stNieuw          { background: rgba(37,99,235,.10);  color: var(--blue);  border: 1px solid rgba(37,99,235,.2); }
+.stOppepakt       { background: rgba(180,83,9,.10);   color: #b45309;      border: 1px solid rgba(180,83,9,.2); }
+.stGebeld         { background: rgba(124,58,237,.10); color: #7c3aed;      border: 1px solid rgba(124,58,237,.2); }
+.stInteresse      { background: rgba(16,185,129,.10); color: #059669;      border: 1px solid rgba(16,185,129,.2); }
+.stVerkocht       { background: rgba(22,163,74,.10);  color: var(--green); border: 1px solid rgba(22,163,74,.2); }
+.stGeenInteresse  { background: rgba(21,28,39,.05);   color: var(--muted); border: 1px solid var(--border); }
+
+/* Wie-cel */
+.wieLeeg {
+  color: #f97316;
+  font-weight: 600;
+  font-size: 12px;
+}
+.wieName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Oppakken knop */
+.oppakkenKnop {
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(249,115,22,.35);
+  background: transparent;
+  color: #f97316;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.oppakkenKnop:hover { background: rgba(249,115,22,.1); }
+
+.archiefKnop {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.archiefKnop:hover { border-color: var(--accent); color: #e87090; }
+
+.actiesRij {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.leeg {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Modal */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.8);
+  z-index: 500;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px 12px;
+  overflow-y: auto;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 20px;
+  animation: inschuiven 0.2s ease;
+}
+
+@keyframes inschuiven {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.modalHeader {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modalTitel { font-weight: 700; font-size: 17px; }
+.sluitKnop { background: none; border: none; font-size: 24px; color: var(--muted); cursor: pointer; padding: 0 4px; line-height: 1; }
+.sluitKnop:hover { color: var(--text); }
+
+.modalBody {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.vol { grid-column: 1 / -1; }
+
+.sectieKop {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
+  margin-top: 6px;
+}
+
+.advertentieLink {
+  font-size: 11px;
+  color: var(--blue);
+  text-decoration: none;
+  margin-top: 2px;
+  display: inline-block;
+}
+.advertentieLink:hover { text-decoration: underline; }
+
+.berichtBox {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.modalFooter {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.verwijderKnop {
+  margin-right: auto;
+  padding: 8px 15px;
+  border-radius: 10px;
+  border: 1px solid rgba(248,113,113,.3);
+  background: transparent;
+  color: var(--red);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.verwijderKnop:hover { background: rgba(248,113,113,.1); }

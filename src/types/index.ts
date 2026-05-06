@@ -221,6 +221,30 @@ export interface BtwRecord {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
+// ── Leads ────────────────────────────────────────────────────
+
+export type LeadStatus = 'nieuw' | 'opgepakt' | 'gebeld' | 'interesse' | 'verkocht' | 'geen_interesse';
+export type LeadBron = 'autoscout24' | 'autowereld' | 'marktplaats' | 'email' | 'anders';
+
+export interface Lead {
+  id: string;
+  created_at?: string;
+  bron: LeadBron;
+  klant_naam: string;
+  email?: string;
+  telefoon?: string;
+  auto: string;
+  advertentie_url?: string;
+  bericht?: string;
+  status: LeadStatus;
+  wie?: string;
+  notities?: string;
+  vervolgactie?: string;
+  vervolgdatum?: string;
+  gearchiveerd: boolean;
+  veld_meta?: Record<string, { op: string; door: string }>;
+}
+
 // ── Auth ─────────────────────────────────────────────────────
 
 export interface AppUser {
