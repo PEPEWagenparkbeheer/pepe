@@ -62,7 +62,7 @@ export function useLease() {
     if (lokaalK.length) { klantRef.current = lokaalK; setKlanten(lokaalK); }
 
     Promise.all([
-      supabase.from('lease_aanvragen').select('*').order('created_at', { ascending: false }),
+      supabase.from('lease_aanvragen').select('*').order('id', { ascending: false }),
       supabase.from('lease_klanten').select('*').order('naam', { ascending: true }),
     ]).then(([aRes, kRes]) => {
       if (!aRes.error && aRes.data) updateAanvragen((aRes.data as Record<string, unknown>[]).map(deserializeAanvraag));
