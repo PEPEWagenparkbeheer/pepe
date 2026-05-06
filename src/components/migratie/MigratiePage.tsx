@@ -50,6 +50,34 @@ function mapZoeken(r: Record<string, unknown>) {
   };
 }
 
+function mapBtw(r: Record<string, unknown>) {
+  const merk  = String(r.merk  ?? '');
+  const model = String(r.model ?? '');
+  const auto  = [merk, model].filter(Boolean).join(' ') || String(r.auto ?? '');
+  return {
+    id:                    (typeof r.id === 'string' && r.id.includes('-')) ? r.id : nieuweId(),
+    kenteken:              r.kenteken ?? null,
+    auto,
+    berijder:              (r.berijder && r.berijder !== '') ? r.berijder : null,
+    type:                  r.bruto ? 'btw' : 'credit',
+    klant:                 r.klant ?? null,
+    dealer_verkoper:       r.dealer ?? null,
+    ingekocht_op:          normDatum(r.ingekocht_op),
+    bedrag:                r.btw_bedrag ? Number(r.btw_bedrag) : null,
+    lm_pct:                r.credit_lm_pct ? Number(r.credit_lm_pct) : null,
+    lm_bedrag:             r.credit_lm_bedrag ? Number(r.credit_lm_bedrag) : null,
+    dealer_pct:            r.credit_dealer_pct ? Number(r.credit_dealer_pct) : null,
+    dealer_bedrag:         r.credit_dealer_bedrag ? Number(r.credit_dealer_bedrag) : null,
+    verwachte_leverdatum:  normDatum(r.verwachte_leverdatum),
+    gelangenbest_verstuurd: !!(r.gelangen_verstuurd ?? r.gelangenbest_verstuurd),
+    geld_van_lm:           !!r.geld_van_lm,
+    geld_van_dealer:       !!r.geld_van_dealer,
+    opmerkingen:           (r.btw_notitie && r.btw_notitie !== '') ? r.btw_notitie : (r.opmerkingen ?? null),
+    gearchiveerd:          !!(r.gearchiveerd ?? r.btw_gearchiveerd),
+    veld_meta:             {},
+  };
+}
+
 function mapAfterSales(r: Record<string, unknown>) {
   return {
     id:               (typeof r.id === 'string' && r.id.includes('-')) ? r.id : nieuweId(),
@@ -131,7 +159,12 @@ export default function MigratiePage() {
   const [statussen, setStatussen] = useState<Status[]>([]);
   const [klaar, setKlaar] = useState(false);
 
+  const [btwInvoer, setBtwInvoer] = useState('');
+  const [btwBezig, setBtwBezig] = useState(false);
+  const [btwStatus, setBtwStatus] = useState<Status | null>(null);
+
   const EXPORT_SCRIPT = `JSON.stringify({zoeken:JSON.parse(localStorage.getItem('asp_v5')||'[]'),afterSales:JSON.parse(localStorage.getItem('asp_as_v1')||'[]'),klachten:JSON.parse(localStorage.getItem('asp_nal_v1')||'[]'),lease:JSON.parse(localStorage.getItem('asp_lease_v1')||'[]')})`;
+  const BTW_EXPORT_SCRIPT = `copy(JSON.stringify(JSON.parse(localStorage.getItem('asp_as_v1')||'[]').filter(r=>r.btw_only||r.in_btw_lijst)))`;
 
   async function importeer() {
     if (!invoer.trim()) return;
@@ -210,6 +243,35 @@ export default function MigratiePage() {
     setBezig(false);
   }
 
+  async function importeerBtw() {
+    if (!btwInvoer.trim()) return;
+    setBtwBezig(true);
+    setBtwStatus(null);
+
+    let rijen: Record<string, unknown>[];
+    try {
+      rijen = JSON.parse(btwInvoer);
+      if (!Array.isArray(rijen)) throw new Error('Geen array');
+    } catch {
+      setBtwStatus({ label: 'JSON fout — controleer de geplakte tekst', ok: 0, fout: 1, overgeslagen: 0 });
+      setBtwBezig(false);
+      return;
+    }
+
+    // Wis bestaande btw_records
+    await supabase.from('btw_records').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+    let ok = 0; let fout = 0;
+    for (const r of rijen) {
+      const mapped = mapBtw(r);
+      const { error } = await supabase.from('btw_records').insert(mapped);
+      if (error) { fout++; console.error('BTW insert fout:', error.message, JSON.stringify(mapped)); }
+      else ok++;
+    }
+    setBtwStatus({ label: 'BTW / Credit', ok, fout, overgeslagen: 0 });
+    setBtwBezig(false);
+  }
+
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 24px' }}>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Data migratie</h1>
@@ -279,6 +341,63 @@ export default function MigratiePage() {
           )}
         </div>
       )}
+
+      {/* ── BTW / Credit herstel ─────────────────────────────── */}
+      <div style={{ marginTop: 48, borderTop: '1px solid var(--border)', paddingTop: 32 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>BTW / Credit data herstellen</h2>
+        <p style={{ color: 'var(--muted)', marginBottom: 24, fontSize: 13 }}>Alleen BTW/Credit records importeren — raakt andere tabellen niet aan.</p>
+
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Stap 1 — Exporteer BTW data uit de browser</div>
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+            Open <strong>flow.pepewagenparkbeheer.nl</strong> in de browser (of lokaal), druk op <strong>F12</strong> → <strong>Console</strong>, plak dit commando en druk Enter. Het kopieert automatisch naar je klembord:
+          </p>
+          <pre style={{
+            background: '#0f1117', color: '#a5d6a7', borderRadius: 8, padding: '12px 16px',
+            fontSize: 11, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginBottom: 8,
+          }}>{BTW_EXPORT_SCRIPT}</pre>
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Stap 2 — Plak de output hier</div>
+          <textarea
+            style={{
+              width: '100%', minHeight: 120, background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: 8, padding: 12, color: 'var(--text)', fontSize: 12, fontFamily: 'monospace',
+              resize: 'vertical', boxSizing: 'border-box',
+            }}
+            placeholder='[{"kenteken":"...","btw_only":true,...},...]'
+            value={btwInvoer}
+            onChange={(e) => setBtwInvoer(e.target.value)}
+            disabled={btwBezig}
+          />
+        </div>
+
+        <button
+          className="btn btn-a"
+          onClick={importeerBtw}
+          disabled={btwBezig || !btwInvoer.trim()}
+          style={{ marginBottom: 16 }}
+        >
+          {btwBezig ? '⏳ Bezig...' : '💶 Importeer BTW / Credit'}
+        </button>
+
+        {btwStatus && (
+          <div style={{
+            background: btwStatus.fout > 0 ? 'rgba(220,38,38,.08)' : 'rgba(22,163,74,.08)',
+            border: `1px solid ${btwStatus.fout > 0 ? 'rgba(220,38,38,.3)' : 'rgba(22,163,74,.3)'}`,
+            borderRadius: 8, padding: '10px 16px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 600 }}>{btwStatus.label}</span>
+              <span style={{ fontSize: 13 }}>
+                {btwStatus.ok > 0 && <span style={{ color: '#16a34a' }}>✓ {btwStatus.ok} geïmporteerd</span>}
+                {btwStatus.fout > 0 && <span style={{ color: '#dc2626', marginLeft: 8 }}>✗ {btwStatus.fout} mislukt</span>}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
