@@ -194,6 +194,9 @@ thead th {
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
+  position: sticky;
+  top: 44px;
+  z-index: 10;
 }
 thead th:hover {
   color: var(--text);
