@@ -123,16 +123,27 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
               onChange={(e) => stel('auto', e.target.value)} />
           </div>
 
-          <div className={`${styles.fg} ${styles.vol}`}>
-            <label>Advertentie URL</label>
-            <input className="fi" type="url" placeholder="https://..." value={form.advertentie_url ?? ''}
-              onChange={(e) => stel('advertentie_url', e.target.value)} />
-            {form.advertentie_url && (
-              <a className={styles.advertentieLink} href={form.advertentie_url} target="_blank" rel="noopener noreferrer">
-                🔗 Advertentie openen ↗
-              </a>
-            )}
-          </div>
+          {form.advertentie_url ? (
+            <div className={`${styles.fg} ${styles.vol}`}>
+              <label>Advertentie</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <a className="btn" href={form.advertentie_url} target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: 13, padding: '7px 14px', textDecoration: 'none' }}>
+                  🔗 Advertentie openen ↗
+                </a>
+                <button type="button" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}
+                  onClick={() => stel('advertentie_url', '')}>
+                  verwijderen
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={`${styles.fg} ${styles.vol}`}>
+              <label>Advertentie URL <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optioneel)</span></label>
+              <input className="fi" type="url" placeholder="https://..." value=""
+                onChange={(e) => stel('advertentie_url', e.target.value)} />
+            </div>
+          )}
 
           {/* Bron */}
           <div className={`${styles.fg} ${styles.vol}`}>

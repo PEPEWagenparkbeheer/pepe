@@ -15,6 +15,12 @@ export async function POST(req: NextRequest) {
   const telMatch = (bericht as string).match(/(\+31|06|0\d{1,3})[\s\-]?\d[\d\s\-]{6,}/);
   const telefoon = telMatch ? telMatch[0].trim() : null;
 
+  // Zoek advertentielink in body (AutoScout24, Autowereld, Marktplaats)
+  const urlMatch = (bericht as string).match(
+    /https?:\/\/(?:www\.)?(?:autoscout24\.[a-z]+\/[^\s<>"]+|autowereld\.[a-z]+\/[^\s<>"]+|marktplaats\.nl\/[^\s<>"]+|mobile\.de\/[^\s<>"]+)/i,
+  );
+  const advertentie_url = urlMatch ? urlMatch[0].replace(/[,.)]+$/, '') : null;
+
   const van = ((body.From as string) || '').toLowerCase();
   const bron = van.includes('autoscout') ? 'autoscout24'
     : van.includes('autowereld') ? 'autowereld'
@@ -27,7 +33,7 @@ export async function POST(req: NextRequest) {
   );
 
   const { error } = await admin.from('leads').insert({
-    klant_naam, email, telefoon, auto, bericht, bron,
+    klant_naam, email, telefoon, auto, bericht, bron, advertentie_url,
     status: 'nieuw',
     gearchiveerd: false,
   });
