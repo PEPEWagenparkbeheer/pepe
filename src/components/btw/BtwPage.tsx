@@ -226,7 +226,10 @@ function TabLopend({ records, zoek, binnenOpMap, onEdit, onToggle, onArchiveer }
 
             return (
               <tr key={r.id} className={isLaat ? styles.laat : ''} onClick={() => onEdit(r)}>
-                <td style={{ fontWeight: 600 }}>{r.auto}</td>
+                <td>
+                  <div style={{ fontWeight: 600 }}>{r.auto}</div>
+                  {r.kenteken && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{r.kenteken}</div>}
+                </td>
                 <td>{typeBadge(r.type)}</td>
                 <td>{r.klant || '—'}</td>
                 <td style={{ fontSize: 12, color: 'var(--muted)' }}>{r.dealer_verkoper || '—'}</td>
@@ -324,7 +327,10 @@ function TabArchief({ records, zoek, onEdit, onTerugzetten }: {
         <tbody>
           {rijen.map((r) => (
             <tr key={r.id} onClick={() => onEdit(r)}>
-              <td style={{ fontWeight: 600 }}>{r.auto}</td>
+              <td>
+                <div style={{ fontWeight: 600 }}>{r.auto}</div>
+                {r.kenteken && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{r.kenteken}</div>}
+              </td>
               <td>{typeBadge(r.type)}</td>
               <td>{r.klant || '—'}</td>
               <td style={{ fontSize: 12, color: 'var(--muted)' }}>{r.dealer_verkoper || '—'}</td>
