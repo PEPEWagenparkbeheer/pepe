@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-type Status = { label: string; ok: number; fout: number; overgeslagen: number };
+type Status = { label: string; ok: number; fout: number; overgeslagen: number; foutTekst?: string };
 
 function nieuweId() { return crypto.randomUUID(); }
 
@@ -85,7 +85,7 @@ function mapKlacht(r: Record<string, unknown>, oldIdNieuweId: Record<string, str
   const oudAutoId = String(r.auto_id ?? '');
   return {
     id:          (typeof r.id === 'string' && r.id.includes('-')) ? r.id : nieuweId(),
-    auto_id:     oldIdNieuweId[oudAutoId] ?? oudAutoId,
+    auto_id:     oldIdNieuweId[oudAutoId] ?? (oudAutoId.includes('-') ? oudAutoId : null),
     kenteken:    r.kenteken ?? '',
     merk_model:  r.auto ?? r.merk_model ?? '',
     klant:       r.klant ?? '',
@@ -101,26 +101,27 @@ function mapLease(r: Record<string, unknown>) {
   return {
     id:                    r.id != null ? Number(r.id) : undefined,
     klant_naam:            r.klant_naam ?? r.klant ?? '',
-    berijder:              r.berijder ?? null,
     merk:                  r.merk ?? '',
     model:                 r.model ?? '',
-    leasemaatschappij:     r.leasemaatschappij ?? null,
+    leasemaatschappij:     (r.leasemaatschappij && r.leasemaatschappij !== '') ? r.leasemaatschappij : null,
     leasenormbedrag:       r.leasenormbedrag ? Number(r.leasenormbedrag) : null,
     leasetarief:           r.leasetarief ? Number(r.leasetarief) : null,
     verdiensten_lm:        r.verdiensten_lm ? Number(r.verdiensten_lm) : null,
     verdiensten_dealer:    r.verdiensten_dealer ? Number(r.verdiensten_dealer) : null,
-    looptijd:              r.looptijd ?? null,
-    jaarkilometrage:       r.jaarkilometrage ?? null,
-    inkoper:               r.inkoper ?? null,
+    verdiensten:           r.verdiensten ? Number(r.verdiensten) : null,
+    looptijd:              (r.looptijd && r.looptijd !== '') ? r.looptijd : null,
+    jaarkilometrage:       (r.jaarkilometrage && r.jaarkilometrage !== '') ? r.jaarkilometrage : null,
+    inkoper:               (r.inkoper && r.inkoper !== '') ? r.inkoper : null,
     offerte_verstuurd:     !!r.offerte_verstuurd,
     verwachte_leverdatum:  normDatum(r.verwachte_leverdatum),
-    notities:              r.notities ?? null,
+    notities:              (r.notities && r.notities !== '') ? r.notities : null,
     akkoord:               !!r.akkoord,
-    akkoord_door:          (r.akkoord_door && r.akkoord_door !== '') ? r.akkoord_door : null,
-    akkoord_datum:         normDatum(r.akkoord_datum ?? r.akkoord_op),
+    akkoord_op:            normDatum(r.akkoord_op ?? r.akkoord_datum),
     verkocht:              !!r.verkocht,
     verkocht_op:           normDatum(r.verkocht_op),
     in_btw_lijst:          !!r.in_btw_lijst,
+    berijder:              (r.berijder && r.berijder !== '') ? r.berijder : null,
+    status:                (r.status && r.status !== '') ? r.status : 'lopend',
   };
 }
 
@@ -162,7 +163,7 @@ export default function MigratiePage() {
     if (zoekRijen.length) {
       const mapped = zoekRijen.map(mapZoeken);
       const { error } = await supabase.from('zoekopdrachten').insert(mapped);
-      nieuw.push({ label: 'Zoekopdrachten', ok: error ? 0 : mapped.length, fout: error ? mapped.length : 0, overgeslagen: 0 });
+      nieuw.push({ label: 'Zoekopdrachten', ok: error ? 0 : mapped.length, fout: error ? mapped.length : 0, overgeslagen: 0, foutTekst: error?.message });
     }
 
     // ── AfterSales ──────────────────────────────────────────────
@@ -259,13 +260,16 @@ export default function MigratiePage() {
             <div key={s.label} style={{
               background: s.fout > 0 ? 'rgba(220,38,38,.08)' : 'rgba(22,163,74,.08)',
               border: `1px solid ${s.fout > 0 ? 'rgba(220,38,38,.3)' : 'rgba(22,163,74,.3)'}`,
-              borderRadius: 8, padding: '10px 16px', display: 'flex', justifyContent: 'space-between',
+              borderRadius: 8, padding: '10px 16px',
             }}>
-              <span style={{ fontWeight: 600 }}>{s.label}</span>
-              <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-                {s.ok > 0 && <span style={{ color: '#16a34a' }}>✓ {s.ok} geïmporteerd</span>}
-                {s.fout > 0 && <span style={{ color: '#dc2626', marginLeft: 8 }}>✗ {s.fout} mislukt</span>}
-              </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 600 }}>{s.label}</span>
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+                  {s.ok > 0 && <span style={{ color: '#16a34a' }}>✓ {s.ok} geïmporteerd</span>}
+                  {s.fout > 0 && <span style={{ color: '#dc2626', marginLeft: 8 }}>✗ {s.fout} mislukt</span>}
+                </span>
+              </div>
+              {s.foutTekst && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>{s.foutTekst}</div>}
             </div>
           ))}
           {klaar && statussen.every(s => s.fout === 0) && (
