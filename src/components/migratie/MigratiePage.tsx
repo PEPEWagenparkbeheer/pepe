@@ -21,6 +21,7 @@ function normDatum(v: unknown): string | null {
 
 function mapZoeken(r: Record<string, unknown>) {
   return {
+    id:                 r.id != null ? Number(r.id) : undefined,
     klant:              r.klant ?? '',
     auto:               r.auto ?? '',
     details:            r.details ?? '',
@@ -42,8 +43,8 @@ function mapZoeken(r: Record<string, unknown>) {
     inkopen:            !!r.inkopen,
     contract:           !!r.contract,
     akkoord:            !!r.akkoord,
-    akkoord_door:       r.akkoord_door ?? null,
-    akkoord_datum:      r.akkoord_datum ?? null,
+    akkoord_door:       (r.akkoord_door && r.akkoord_door !== '') ? r.akkoord_door : null,
+    akkoord_datum:      normDatum(r.akkoord_datum),
     prio:               !!r.prio,
     uitgesteld:         !!r.uitgesteld,
   };
@@ -98,6 +99,7 @@ function mapKlacht(r: Record<string, unknown>, oldIdNieuweId: Record<string, str
 
 function mapLease(r: Record<string, unknown>) {
   return {
+    id:                    r.id != null ? Number(r.id) : undefined,
     klant_naam:            r.klant_naam ?? r.klant ?? '',
     berijder:              r.berijder ?? null,
     merk:                  r.merk ?? '',
@@ -111,13 +113,13 @@ function mapLease(r: Record<string, unknown>) {
     jaarkilometrage:       r.jaarkilometrage ?? null,
     inkoper:               r.inkoper ?? null,
     offerte_verstuurd:     !!r.offerte_verstuurd,
-    verwachte_leverdatum:  r.verwachte_leverdatum ?? null,
+    verwachte_leverdatum:  normDatum(r.verwachte_leverdatum),
     notities:              r.notities ?? null,
     akkoord:               !!r.akkoord,
-    akkoord_door:          r.akkoord_door ?? null,
-    akkoord_datum:         r.akkoord_datum ?? null,
+    akkoord_door:          (r.akkoord_door && r.akkoord_door !== '') ? r.akkoord_door : null,
+    akkoord_datum:         normDatum(r.akkoord_datum ?? r.akkoord_op),
     verkocht:              !!r.verkocht,
-    verkocht_op:           r.verkocht_op ?? null,
+    verkocht_op:           normDatum(r.verkocht_op),
     in_btw_lijst:          !!r.in_btw_lijst,
   };
 }
