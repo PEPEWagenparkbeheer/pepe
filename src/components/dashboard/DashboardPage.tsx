@@ -19,6 +19,7 @@ interface DashData {
   geplandRijen:   { id: string; kenteken: string; merk?: string; model?: string; klant?: string; afleverdatum: string }[];
   tePlannenRijen: { id: string; kenteken: string; merk?: string; model?: string; klant?: string; type?: string; wie_levert_af?: string; binnen_op?: string }[];
   binnenLang: number;
+  gemStadagen: number | null;
 }
 
 const LEEG: DashData = {
@@ -26,6 +27,7 @@ const LEEG: DashData = {
   prioRijen: [], rijklaarRijen: [], btwRijen: [], leaseRijen: [],
   leadsRijen: [], geplandRijen: [], tePlannenRijen: [],
   binnenLang: 0,
+  gemStadagen: null,
 };
 
 function groet() {
@@ -132,6 +134,11 @@ export default function DashboardPage() {
       !a.gearchiveerd && a.binnen_op && dagenGeleden(a.binnen_op) > 14
     ).length;
 
+    const actiefMetDatum = as.filter(a => !a.gearchiveerd && a.binnen_op);
+    const gemStadagen = actiefMetDatum.length > 0
+      ? Math.round(actiefMetDatum.reduce((som, a) => som + dagenGeleden(a.binnen_op!), 0) / actiefMetDatum.length)
+      : null;
+
     const btwRijen = btw
       .filter(b => !b.gearchiveerd && !b.geld_van_lm && !b.geld_van_dealer && b.ingekocht_op && b.ingekocht_op <= veertienDagenGeleden)
       .slice(0, 6)
@@ -155,12 +162,15 @@ export default function DashboardPage() {
       tePlannen: tePlannenAll.length,
       geplandCount: geplandAll.length,
       prioRijen, rijklaarRijen, btwRijen, leaseRijen,
-      leadsRijen, geplandRijen, tePlannenRijen, binnenLang,
+      leadsRijen, geplandRijen, tePlannenRijen, binnenLang, gemStadagen,
     });
     setLaden(false);
   }
 
   if (laden) return <div className={styles.laden}>Laden…</div>;
+
+  const gem = data.gemStadagen;
+  const gemKleur = gem == null ? '' : gem > 28 ? 'hot' : gem > 21 ? 'warn' : 'good';
 
   const kpiTiles = [
     { icoon: '🚩', getal: data.prio,         label: 'Prio opdrachten',       kleur: data.prio > 0 ? 'hot' : '' },
@@ -170,6 +180,7 @@ export default function DashboardPage() {
     { icoon: '💶', getal: data.btwRijen.length, label: 'BTW > 14 dagen',     kleur: data.btwRijen.length > 0 ? 'hot' : '' },
     { icoon: '✅', getal: data.akkoordMnd,    label: 'Akkoord deze maand',    kleur: '' },
     { icoon: '⏳', getal: data.binnenLang,    label: 'Binnen > 14 dagen',     kleur: data.binnenLang > 0 ? 'warn' : '' },
+    { icoon: '📊', getal: gem ?? '—',         label: 'Gem. stadagen',          kleur: gemKleur },
   ];
 
   return (
@@ -188,7 +199,7 @@ export default function DashboardPage() {
           <div
             key={t.label}
             className={`${styles.kpiCard} ${t.kleur ? styles[t.kleur as 'hot' | 'warn' | 'good'] : ''}`}
-            onClick={() => kaartRefs[i].current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onClick={() => kaartRefs[i]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           >
             <div className={styles.kpiIcoon}>{t.icoon}</div>
             <div className={`${styles.kpiGetal} ${t.kleur === 'warn' ? styles.warn : t.kleur === 'good' ? styles.ok : ''}`}>
