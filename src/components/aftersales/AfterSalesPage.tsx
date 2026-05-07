@@ -211,13 +211,14 @@ function mailAflevering(r: AfterSalesAuto, datum: string, tijdstip: string, fact
 }
 
 // ── Stadagen badge ────────────────────────────────────────────
-function StaDagen({ datum }: { datum?: string }) {
+function StaDagen({ datum, tot }: { datum?: string; tot?: string }) {
   if (!datum) return null;
-  const dagen = Math.floor((Date.now() - new Date(datum).getTime()) / 86_400_000);
-  const kleur = dagen > 21 ? 'var(--red)' : dagen > 14 ? '#f97316' : 'var(--muted)';
+  const eind = tot ? new Date(tot).getTime() : Date.now();
+  const dagen = Math.floor((eind - new Date(datum).getTime()) / 86_400_000);
+  const kleur = tot ? 'var(--muted)' : dagen > 21 ? 'var(--red)' : dagen > 14 ? '#f97316' : 'var(--muted)';
   return (
     <div style={{ fontSize: 11, color: kleur, marginTop: 4, fontWeight: 600 }}>
-      {dagen}dgn
+      {dagen}dgn{tot ? ' ✓' : ''}
     </div>
   );
 }
@@ -297,7 +298,7 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
                       <span className={styles.statusLabel}>Rijklaar</span>
                     </div>
                   </div>
-                  <StaDagen datum={r.binnen_op ?? r.veld_meta?.['binnen']?.op} />
+                  <StaDagen datum={r.binnen_op ?? r.veld_meta?.['binnen']?.op} tot={r.afgeleverd_op} />
                 </td>
 
                 {/* Acties */}
@@ -1133,7 +1134,7 @@ function TabArchief({ autos, zoek, onEdit, onTerugzetten }: {
       <table className={styles.tabel}>
         <thead><tr>
           <th>Kenteken</th><th>Merk / Model</th><th>Klant</th><th>Type</th>
-          <th>Afgeleverd op</th><th>Wie heeft afgeleverd</th><th>Acties</th>
+          <th>Afgeleverd op</th><th>Stadagen</th><th>Wie heeft afgeleverd</th><th>Acties</th>
         </tr></thead>
         <tbody>
           {rijen.map((r) => (
@@ -1143,6 +1144,7 @@ function TabArchief({ autos, zoek, onEdit, onTerugzetten }: {
               <td>{r.klant}</td>
               <td>{r.type || '—'}</td>
               <td>{datumFmt(r.afgeleverd_op)}</td>
+              <td><StaDagen datum={r.binnen_op} tot={r.afgeleverd_op} /></td>
               <td>{r.wie_heeft_afgeleverd || r.wie_levert_af || '—'}</td>
               <td onClick={(e) => e.stopPropagation()}>
                 <button className="btn" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => onTerugzetten(r)}>↩ Terugzetten</button>
