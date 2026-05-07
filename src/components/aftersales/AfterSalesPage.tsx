@@ -163,7 +163,7 @@ function KpiStrip({ autos, klachten, onTab }: { autos: AfterSalesAuto[]; klachte
   const geplandAfl = actief.filter((r) => !!r.afleverdatum).length;
 
   const binnenLang = actief.filter((r) => {
-    const staDag = r.binnen_op ?? r.veld_meta?.['binnen']?.op ?? r.created_at ?? null;
+    const staDag = r.binnen_op ?? r.veld_meta?.['binnen']?.op ?? null;
     return staDag && !r.afleverdatum &&
       Math.floor((Date.now() - new Date(staDag).getTime()) / 86_400_000) > 14;
   }).length;
@@ -237,8 +237,8 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
       const sB = (b.klaar ? 1 : 0) + (b.type === 'import' && b.bin_ontvangen ? 1 : 0);
       if (sA !== sB) return sB - sA;
       // Daarna oudste binnen_op bovenaan
-      const dA = a.binnen_op ?? a.created_at ?? '';
-      const dB = b.binnen_op ?? b.created_at ?? '';
+      const dA = a.binnen_op ?? '';
+      const dB = b.binnen_op ?? '';
       return dA < dB ? -1 : dA > dB ? 1 : 0;
     });
   }, [autos, zoek]);
@@ -299,7 +299,7 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
                       <span className={styles.statusLabel}>Rijklaar</span>
                     </div>
                   </div>
-                  <StaDagen datum={r.binnen_op ?? r.veld_meta?.['binnen']?.op ?? r.created_at} />
+                  <StaDagen datum={r.binnen_op ?? r.veld_meta?.['binnen']?.op} />
                 </td>
 
                 {/* Acties */}
@@ -428,8 +428,8 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
       // BIN ontvangen → onderaan
       if (!!a.bin_ontvangen !== !!b.bin_ontvangen) return a.bin_ontvangen ? 1 : -1;
       // Daarna oudste binnen_op bovenaan
-      const dA = a.binnen_op ?? a.created_at ?? '';
-      const dB = b.binnen_op ?? b.created_at ?? '';
+      const dA = a.binnen_op ?? '';
+      const dB = b.binnen_op ?? '';
       return dA < dB ? -1 : dA > dB ? 1 : 0;
     });
   }, [autos, zoek]);
@@ -581,8 +581,8 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate, onToggleMeta }: {
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
     return [...gefilterd].sort((a, b) => {
-      const dA = a.binnen_op ?? a.created_at ?? '';
-      const dB = b.binnen_op ?? b.created_at ?? '';
+      const dA = a.binnen_op ?? '';
+      const dB = b.binnen_op ?? '';
       return dA < dB ? -1 : dA > dB ? 1 : 0;
     });
   }, [autos, zoek]);
