@@ -162,6 +162,12 @@ function KpiStrip({ autos, klachten, onTab }: { autos: AfterSalesAuto[]; klachte
 
   const geplandAfl = actief.filter((r) => !!r.afleverdatum).length;
 
+  const binnenLang = actief.filter((r) => {
+    const staDag = r.binnen_op ?? r.veld_meta?.['binnen']?.op ?? r.created_at ?? null;
+    return staDag && !r.afleverdatum &&
+      Math.floor((Date.now() - new Date(staDag).getTime()) / 86_400_000) > 14;
+  }).length;
+
   const kaarten: { icoon: string; getal: number; label: string; kleur: string; tab: HoofdTab }[] = [
     { icoon: '📦', getal: binnen, label: "Auto's binnen", kleur: binnen > 0 ? 'ok' : '', tab: 'rijklaar' },
     { icoon: '🚗', getal: rijklaar, label: 'Rijklaar te maken', kleur: '', tab: 'rijklaar' },
@@ -170,6 +176,7 @@ function KpiStrip({ autos, klachten, onTab }: { autos: AfterSalesAuto[]; klachte
     { icoon: '⚠️', getal: openKlachten, label: 'Open klachten', kleur: openKlachten > 0 ? 'warn' : '', tab: 'nalevering' },
     { icoon: '🚗', getal: klaarZonderDatum, label: 'Klaar — datum plan', kleur: klaarZonderDatum > 0 ? 'ok' : '', tab: 'gepland' },
     { icoon: '📅', getal: geplandAfl, label: 'Geplande afleveringen', kleur: geplandAfl > 0 ? 'warn' : '', tab: 'gepland' },
+    { icoon: '⏳', getal: binnenLang, label: 'Binnen > 14 dagen', kleur: binnenLang > 0 ? 'hot' : '', tab: 'lopend' },
   ];
 
   return (
@@ -201,6 +208,18 @@ function mailAflevering(r: AfterSalesAuto, datum: string, tijdstip: string, fact
     `\nMet vriendelijke groet,\nPEPE Flow`
   );
   window.open(`mailto:${to}?subject=${sub}&body=${body}`);
+}
+
+// ── Stadagen badge ────────────────────────────────────────────
+function StaDagen({ datum }: { datum?: string }) {
+  if (!datum) return null;
+  const dagen = Math.floor((Date.now() - new Date(datum).getTime()) / 86_400_000);
+  const kleur = dagen > 21 ? 'var(--red)' : dagen > 14 ? '#f97316' : 'var(--muted)';
+  return (
+    <div style={{ fontSize: 11, color: kleur, marginTop: 4, fontWeight: 600 }}>
+      {dagen}d
+    </div>
+  );
 }
 
 // ── Tab: In behandeling ───────────────────────────────────────
@@ -244,10 +263,10 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
                 <td>{r.type ? <span className={`${styles.badge} ${TYPE_CSS[r.type]}`}>{TYPE_LABEL[r.type]}</span> : '—'}</td>
                 <td><PlatenBadge platen={r.platen} /></td>
                 <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
-                  <Cb aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} />
+                  <CbMeta aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} meta={r.veld_meta?.['binnen']} />
                 </td>
                 <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
-                  <Cb aan={!!r.aflevercontrole} onClick={() => onToggle(r.id, 'aflevercontrole')} />
+                  <CbMeta aan={!!r.aflevercontrole} onClick={() => onToggle(r.id, 'aflevercontrole')} meta={r.veld_meta?.['aflevercontrole']} />
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   {datumFmt(r.afleverdatum) !== '—' ? (
@@ -280,6 +299,7 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
                       <span className={styles.statusLabel}>Rijklaar</span>
                     </div>
                   </div>
+                  <StaDagen datum={r.binnen_op ?? r.veld_meta?.['binnen']?.op ?? r.created_at} />
                 </td>
 
                 {/* Acties */}
@@ -828,7 +848,7 @@ function TabGepland({ autos, zoek, onToggle, onBewerken, onAfgeleverd }: {
               <td style={{ whiteSpace: 'nowrap' }}>{r.wie_levert_af || '—'}</td>
               {AFLEVERING_CHECKS.map((s) => (
                 <td key={s.veld} className={styles.chk}>
-                  <Cb aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} />
+                  <CbMeta aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} meta={r.veld_meta?.[String(s.veld)]} />
                 </td>
               ))}
               <td style={{ maxWidth: 220 }} onClick={(e) => e.stopPropagation()}>

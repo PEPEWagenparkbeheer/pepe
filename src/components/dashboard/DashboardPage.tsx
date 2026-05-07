@@ -17,13 +17,15 @@ interface DashData {
   leaseRijen:     { id: string; klant_naam: string; merk?: string; model?: string; leasemaatschappij?: string }[];
   leadsRijen:     { id: string; klant_naam: string; auto: string; status: string; bron: string; wie?: string }[];
   geplandRijen:   { id: string; kenteken: string; merk?: string; model?: string; klant?: string; afleverdatum: string }[];
-  tePlannenRijen: { id: string; kenteken: string; merk?: string; model?: string; klant?: string; type?: string }[];
+  tePlannenRijen: { id: string; kenteken: string; merk?: string; model?: string; klant?: string; type?: string; wie_levert_af?: string; binnen_op?: string }[];
+  binnenLang: number;
 }
 
 const LEEG: DashData = {
   prio: 0, akkoordMnd: 0, nieuwLeads: 0, tePlannen: 0, geplandCount: 0,
   prioRijen: [], rijklaarRijen: [], btwRijen: [], leaseRijen: [],
   leadsRijen: [], geplandRijen: [], tePlannenRijen: [],
+  binnenLang: 0,
 };
 
 function groet() {
@@ -84,7 +86,7 @@ export default function DashboardPage() {
 
     const [zoekRes, asRes, btwRes, leaseRes, leadsRes] = await Promise.all([
       supabase.from('zoekopdrachten').select('id,klant,auto,wiezoekt,prio,uitgesteld,akkoord,akkoord_datum'),
-      supabase.from('after_sales').select('id,kenteken,merk,model,klant,afleverdatum,binnen,klaar,gearchiveerd,type,bin_ontvangen,binnen_op'),
+      supabase.from('after_sales').select('id,kenteken,merk,model,klant,afleverdatum,binnen,klaar,gearchiveerd,type,bin_ontvangen,binnen_op,wie_levert_af'),
       supabase.from('btw_records').select('id,auto,klant,ingekocht_op,geld_van_lm,geld_van_dealer,gearchiveerd,bedrag'),
       supabase.from('lease_aanvragen').select('id,klant_naam,merk,model,leasemaatschappij,verkocht,akkoord,offerte_verstuurd'),
       supabase.from('leads').select('id,klant_naam,auto,status,bron,wie,gearchiveerd,created_at'),
@@ -124,7 +126,11 @@ export default function DashboardPage() {
       .filter(a => !a.gearchiveerd && !a.afleverdatum && (a.klaar || (a.type === 'import' && a.bin_ontvangen)))
       .sort((a, b) => (a.binnen_op ?? '') < (b.binnen_op ?? '') ? -1 : 1);
     const tePlannenRijen = tePlannenAll.slice(0, 6)
-      .map(a => ({ id: a.id, kenteken: a.kenteken, merk: a.merk, model: a.model, klant: a.klant, type: a.type }));
+      .map(a => ({ id: a.id, kenteken: a.kenteken, merk: a.merk, model: a.model, klant: a.klant, type: a.type, wie_levert_af: a.wie_levert_af, binnen_op: a.binnen_op }));
+
+    const binnenLang = as.filter(a =>
+      !a.gearchiveerd && a.binnen_op && dagenGeleden(a.binnen_op) > 14
+    ).length;
 
     const btwRijen = btw
       .filter(b => !b.gearchiveerd && !b.geld_van_lm && !b.geld_van_dealer && b.ingekocht_op && b.ingekocht_op <= veertienDagenGeleden)
@@ -149,7 +155,7 @@ export default function DashboardPage() {
       tePlannen: tePlannenAll.length,
       geplandCount: geplandAll.length,
       prioRijen, rijklaarRijen, btwRijen, leaseRijen,
-      leadsRijen, geplandRijen, tePlannenRijen,
+      leadsRijen, geplandRijen, tePlannenRijen, binnenLang,
     });
     setLaden(false);
   }
@@ -163,6 +169,7 @@ export default function DashboardPage() {
     { icoon: '📅', getal: data.geplandCount,  label: 'Geplande afleveringen', kleur: data.geplandCount > 0 ? 'good' : '' },
     { icoon: '💶', getal: data.btwRijen.length, label: 'BTW > 14 dagen',     kleur: data.btwRijen.length > 0 ? 'hot' : '' },
     { icoon: '✅', getal: data.akkoordMnd,    label: 'Akkoord deze maand',    kleur: '' },
+    { icoon: '⏳', getal: data.binnenLang,    label: 'Binnen > 14 dagen',     kleur: data.binnenLang > 0 ? 'warn' : '' },
   ];
 
   return (
@@ -296,7 +303,15 @@ export default function DashboardPage() {
                   <div className={styles.rijHoofd}>{r.kenteken} — {r.merk} {r.model}</div>
                   <div className={styles.rijSub}>{r.klant}</div>
                 </div>
-                {r.type === 'import' && <div className={styles.rijInfo}>Import</div>}
+                {r.wie_levert_af && <div className={styles.rijInfo}>{r.wie_levert_af}</div>}
+                {r.binnen_op && (
+                  <div
+                    className={styles.rijWarn}
+                    title={new Date(r.binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  >
+                    {dagenGeleden(r.binnen_op)}d
+                  </div>
+                )}
               </div>
             ))}
           </div>

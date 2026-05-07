@@ -52,7 +52,7 @@
 /* KPI strip */
 .kpiStrip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
@@ -136,6 +136,8 @@
 .tabel tbody tr:hover td:first-child { border-left-color: var(--accent); }
 .tabel tbody tr.nieuwRij td { border-left-color: rgba(37,99,235,.4); }
 .tabel tbody tr.verkochtRij td { border-left-color: rgba(22,163,74,.4); }
+.tabel thead th:nth-child(6),
+.tabel tbody td:nth-child(6) { min-width: 200px; }
 
 /* Badges — Bron */
 .badge {
@@ -317,3 +319,28 @@
   font-family: inherit;
 }
 .verwijderKnop:hover { background: rgba(248,113,113,.1); }
+
+/* Contactmomenten */
+.updateLijst {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.updateLeeg { font-size: 12px; color: var(--muted); }
+.updateRij {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(21,28,39,.06);
+  margin-bottom: 8px;
+}
+.updateRij:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+.updateMeta { font-size: 11px; color: var(--muted); }
+.updateTekst { font-size: 13px; color: var(--text); }

@@ -234,6 +234,7 @@ export interface Lead {
   email?: string;
   telefoon?: string;
   auto: string;
+  prijs?: string;
   advertentie_url?: string;
   bericht?: string;
   status: LeadStatus;
@@ -242,6 +243,7 @@ export interface Lead {
   vervolgactie?: string;
   vervolgdatum?: string;
   gearchiveerd: boolean;
+  contactmomenten?: KlachtUpdate[];
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 

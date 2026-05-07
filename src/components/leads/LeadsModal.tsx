@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Lead, LeadBron, LeadStatus } from '@/types';
+import type { KlachtUpdate, Lead, LeadBron, LeadStatus } from '@/types';
 import styles from './LeadsPage.module.css';
 
 const LEEG: Omit<Lead, 'id' | 'created_at'> = {
@@ -10,6 +10,7 @@ const LEEG: Omit<Lead, 'id' | 'created_at'> = {
   email: '',
   telefoon: '',
   auto: '',
+  prijs: '',
   advertentie_url: '',
   bericht: '',
   status: 'nieuw',
@@ -18,7 +19,10 @@ const LEEG: Omit<Lead, 'id' | 'created_at'> = {
   vervolgactie: '',
   vervolgdatum: '',
   gearchiveerd: false,
+  contactmomenten: [],
 };
+
+const MEDEWERKERS = ['Joep', 'Diego', 'Jasper', 'Roger', 'Kevin', 'Lorenzo', 'Perke'];
 
 const BRON_LABELS: Record<LeadBron, string> = {
   autoscout24: '🔴 AutoScout24',
@@ -37,6 +41,15 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
   geen_interesse: '⬜ Geen interesse',
 };
 
+function momentTijd(iso: string) {
+  try {
+    return new Date(iso).toLocaleString('nl-NL', {
+      day: '2-digit', month: '2-digit', year: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return iso; }
+}
+
 interface Props {
   lead: Lead | null;
   open: boolean;
@@ -49,14 +62,27 @@ interface Props {
 export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan, onVerwijder }: Props) {
   const [form, setForm] = useState<Omit<Lead, 'id' | 'created_at'>>(LEEG);
   const [bezig, setBezig] = useState(false);
+  const [nieuwMoment, setNieuwMoment] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setForm(lead ? { ...LEEG, ...lead } : { ...LEEG, wie: gebruiker });
+    setNieuwMoment('');
   }, [open, lead, gebruiker]);
 
   function stel<K extends keyof typeof form>(veld: K, waarde: (typeof form)[K]) {
     setForm((f) => ({ ...f, [veld]: waarde }));
+  }
+
+  function voegMomentToe() {
+    if (!nieuwMoment.trim()) return;
+    const moment: KlachtUpdate = {
+      tekst: nieuwMoment.trim(),
+      op: new Date().toISOString(),
+      door: gebruiker || '?',
+    };
+    stel('contactmomenten', [...(form.contactmomenten ?? []), moment]);
+    setNieuwMoment('');
   }
 
   async function handleOpslaan() {
@@ -80,6 +106,8 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
   }
 
   if (!open) return null;
+
+  const momenten = form.contactmomenten ?? [];
 
   return (
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
@@ -119,31 +147,38 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
 
           <div className={`${styles.fg} ${styles.vol}`}>
             <label>Auto omschrijving *</label>
-            <input className="fi" placeholder="bijv. Audi A4 2.0 TDI" value={form.auto}
-              onChange={(e) => stel('auto', e.target.value)} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <input className="fi" placeholder="bijv. Audi A4 2.0 TDI" value={form.auto}
+                onChange={(e) => stel('auto', e.target.value)} style={{ flex: 1 }} />
+              {form.prijs && (
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--green)', whiteSpace: 'nowrap' }}>
+                  {form.prijs}
+                </span>
+              )}
+            </div>
           </div>
 
-          {form.advertentie_url ? (
-            <div className={`${styles.fg} ${styles.vol}`}>
-              <label>Advertentie</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <a className="btn" href={form.advertentie_url} target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: 13, padding: '7px 14px', textDecoration: 'none' }}>
-                  🔗 Advertentie openen ↗
-                </a>
-                <button type="button" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}
-                  onClick={() => stel('advertentie_url', '')}>
-                  verwijderen
-                </button>
-              </div>
+          <div className={`${styles.fg} ${styles.vol}`}>
+            <label>Advertentie URL <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optioneel)</span></label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="fi" type="url" placeholder="https://..." value={form.advertentie_url ?? ''}
+                onChange={(e) => stel('advertentie_url', e.target.value)}
+                style={{ flex: 1 }} />
+              <a
+                className="btn"
+                href={form.advertentie_url || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => { if (!form.advertentie_url) e.preventDefault(); }}
+                style={{
+                  fontSize: 13, padding: '7px 14px', textDecoration: 'none', whiteSpace: 'nowrap',
+                  opacity: form.advertentie_url ? 1 : 0.35, pointerEvents: form.advertentie_url ? 'auto' : 'none',
+                }}
+              >
+                🔗 Ga naar advertentie
+              </a>
             </div>
-          ) : (
-            <div className={`${styles.fg} ${styles.vol}`}>
-              <label>Advertentie URL <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optioneel)</span></label>
-              <input className="fi" type="url" placeholder="https://..." value=""
-                onChange={(e) => stel('advertentie_url', e.target.value)} />
-            </div>
-          )}
+          </div>
 
           {/* Bron */}
           <div className={`${styles.fg} ${styles.vol}`}>
@@ -175,8 +210,10 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
 
           <div className={styles.fg}>
             <label>Behandeld door (wie)</label>
-            <input className="fi" placeholder="Naam collega" value={form.wie ?? ''}
-              onChange={(e) => stel('wie', e.target.value)} />
+            <select className="fi" value={form.wie ?? ''} onChange={(e) => stel('wie', e.target.value)}>
+              <option value="">— selecteer —</option>
+              {MEDEWERKERS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
           </div>
 
           <div className={styles.fg}>
@@ -191,11 +228,11 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
               onChange={(e) => stel('vervolgdatum', e.target.value)} />
           </div>
 
-          {/* Origineel bericht (readonly als het gevuld is) */}
+          {/* Origineel bericht */}
           {form.bericht && (
             <>
               <div className={styles.sectieKop}>Origineel bericht</div>
-              <div className={`${styles.vol}`}>
+              <div className={styles.vol}>
                 <div className={styles.berichtBox}>{form.bericht}</div>
               </div>
             </>
@@ -206,6 +243,34 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
             <label>Notities</label>
             <textarea className="fi" rows={3} placeholder="Interne aantekeningen..."
               value={form.notities ?? ''} onChange={(e) => stel('notities', e.target.value)} />
+          </div>
+
+          {/* Contactmomenten */}
+          <div className={styles.sectieKop}>Contactmomenten</div>
+          <div className={styles.vol}>
+            <div className={styles.updateLijst}>
+              {momenten.length === 0 ? (
+                <span className={styles.updateLeeg}>Nog geen contactmomenten</span>
+              ) : (
+                momenten.map((u, i) => (
+                  <div key={i} className={styles.updateRij}>
+                    <div className={styles.updateMeta}>{u.door} · {momentTijd(u.op)}</div>
+                    <div className={styles.updateTekst}>{u.tekst}</div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <input
+                className="fi"
+                style={{ flex: 1 }}
+                placeholder="Noteer contactmoment..."
+                value={nieuwMoment}
+                onChange={(e) => setNieuwMoment(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); voegMomentToe(); } }}
+              />
+              <button className="btn" type="button" onClick={voegMomentToe}>+ Toevoegen</button>
+            </div>
           </div>
 
         </div>

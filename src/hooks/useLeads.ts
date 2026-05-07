@@ -40,7 +40,8 @@ export function useLeads() {
     supabase.auth.getUser().then(({ data }) => {
       const u = data.user;
       if (!u) return;
-      const naam = u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split('@')[0] ?? '?';
+      const rawNaam = u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split('@')[0] ?? '?';
+      const naam = rawNaam.charAt(0).toUpperCase() + rawNaam.slice(1);
       gebruikerRef.current = naam;
       setGebruiker(naam);
     });

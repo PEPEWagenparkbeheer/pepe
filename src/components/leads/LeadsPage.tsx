@@ -56,10 +56,9 @@ function KpiStrip({ leads }: { leads: Lead[] }) {
   const nu = new Date();
   const dezeM = `${nu.getFullYear()}-${String(nu.getMonth() + 1).padStart(2, '0')}`;
 
-  const nieuw       = actief.filter((r) => r.status === 'nieuw').length;
-  const inBeh       = actief.filter((r) => r.status === 'opgepakt' || r.status === 'gebeld').length;
-  const interesse   = actief.filter((r) => r.status === 'interesse').length;
-  const verkochtM   = leads.filter((r) => r.status === 'verkocht' && (r.veld_meta?.verkocht?.op ?? r.created_at ?? '').startsWith(dezeM)).length;
+  const nieuw     = actief.filter((r) => r.status === 'nieuw').length;
+  const inBeh     = actief.filter((r) => r.status === 'opgepakt' || r.status === 'gebeld').length;
+  const verkochtM = leads.filter((r) => r.status === 'verkocht' && (r.veld_meta?.verkocht?.op ?? r.created_at ?? '').startsWith(dezeM)).length;
 
   return (
     <div className={styles.kpiStrip}>
@@ -68,15 +67,10 @@ function KpiStrip({ leads }: { leads: Lead[] }) {
         <div className={`${styles.kpiGetal} ${nieuw > 0 ? styles.blauw : ''}`}>{nieuw}</div>
         <div className={styles.kpiLabel}>Nieuw</div>
       </div>
-      <div className={`${styles.kpiCard} ${inBeh > 0 ? '' : ''}`}>
+      <div className={styles.kpiCard}>
         <div className={styles.kpiIcoon}>📞</div>
         <div className={styles.kpiGetal}>{inBeh}</div>
         <div className={styles.kpiLabel}>In behandeling</div>
-      </div>
-      <div className={`${styles.kpiCard} ${interesse > 0 ? styles.ok : ''}`}>
-        <div className={styles.kpiIcoon}>⭐</div>
-        <div className={`${styles.kpiGetal} ${interesse > 0 ? styles.groen : ''}`}>{interesse}</div>
-        <div className={styles.kpiLabel}>Interesse</div>
       </div>
       <div className={`${styles.kpiCard} ${verkochtM > 0 ? styles.ok : ''}`}>
         <div className={styles.kpiIcoon}>✅</div>
@@ -156,6 +150,11 @@ function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer 
               </td>
               <td>
                 <span className={`${styles.badge} ${STATUS_CSS[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                {(r.status === 'opgepakt' || r.status === 'gebeld') && r.created_at && (
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                    {Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86_400_000)}d
+                  </div>
+                )}
               </td>
               <td style={{ fontSize: 12 }}>
                 {r.vervolgactie ? (
