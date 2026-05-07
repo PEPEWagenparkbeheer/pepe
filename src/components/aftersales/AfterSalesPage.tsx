@@ -232,11 +232,9 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
     return [...gefilterd].sort((a, b) => {
-      // Meeste groene bollen = klaar om te leveren = bovenaan
-      const sA = (a.klaar ? 1 : 0) + (a.type === 'import' && a.bin_ontvangen ? 1 : 0);
-      const sB = (b.klaar ? 1 : 0) + (b.type === 'import' && b.bin_ontvangen ? 1 : 0);
-      if (sA !== sB) return sB - sA;
-      // Daarna oudste binnen_op bovenaan
+      // Binnen=true bovenaan
+      if (!!a.binnen !== !!b.binnen) return a.binnen ? -1 : 1;
+      // Daarna oudste binnen_op eerst
       const dA = a.binnen_op ?? '';
       const dB = b.binnen_op ?? '';
       return dA < dB ? -1 : dA > dB ? 1 : 0;
