@@ -179,7 +179,6 @@ export default function DashboardPage() {
     { icoon: '📅', getal: data.geplandCount,  label: 'Geplande afleveringen', kleur: data.geplandCount > 0 ? 'good' : '' },
     { icoon: '💶', getal: data.btwRijen.length, label: 'BTW > 14 dagen',     kleur: data.btwRijen.length > 0 ? 'hot' : '' },
     { icoon: '✅', getal: data.akkoordMnd,    label: 'Akkoord deze maand',    kleur: '' },
-    { icoon: '⏳', getal: data.binnenLang,    label: 'Binnen > 14 dagen',     kleur: data.binnenLang > 0 ? 'warn' : '' },
     { icoon: '📊', getal: gem ?? '—',         label: 'Gem. stadagen',          kleur: gemKleur },
   ];
 
