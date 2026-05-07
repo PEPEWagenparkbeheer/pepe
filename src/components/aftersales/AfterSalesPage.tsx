@@ -210,7 +210,19 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
   onToggle: (id: string, veld: keyof AfterSalesAuto) => void;
   onAfleveren: (r: AfterSalesAuto) => void;
 }) {
-  const rijen = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
+  const rijen = useMemo(() => {
+    const gefilterd = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
+    return [...gefilterd].sort((a, b) => {
+      // Groene bollen: klaar=1pt, import+bin=1pt extra — niet groen = bovenaan
+      const sA = (a.klaar ? 1 : 0) + (a.type === 'import' && a.bin_ontvangen ? 1 : 0);
+      const sB = (b.klaar ? 1 : 0) + (b.type === 'import' && b.bin_ontvangen ? 1 : 0);
+      if (sA !== sB) return sA - sB;
+      // Daarna oudste binnen_op bovenaan
+      const dA = a.binnen_op ?? a.created_at ?? '';
+      const dB = b.binnen_op ?? b.created_at ?? '';
+      return dA < dB ? -1 : dA > dB ? 1 : 0;
+    });
+  }, [autos, zoek]);
   if (!rijen.length) return <div className={styles.leeg}>Geen auto's in behandeling</div>;
   return (
     <div className={styles.tabelWrapper}>
@@ -392,7 +404,14 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
 
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => r.type === 'import' && !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
-    return [...gefilterd].sort((a, b) => (a.bin_ontvangen === b.bin_ontvangen ? 0 : a.bin_ontvangen ? 1 : -1));
+    return [...gefilterd].sort((a, b) => {
+      // BIN ontvangen → onderaan
+      if (!!a.bin_ontvangen !== !!b.bin_ontvangen) return a.bin_ontvangen ? 1 : -1;
+      // Daarna oudste binnen_op bovenaan
+      const dA = a.binnen_op ?? a.created_at ?? '';
+      const dB = b.binnen_op ?? b.created_at ?? '';
+      return dA < dB ? -1 : dA > dB ? 1 : 0;
+    });
   }, [autos, zoek]);
 
   async function handleBinBevestig() {
@@ -539,7 +558,14 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate, onToggleMeta }: {
   const [rdwLaden, setRdwLaden] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  const rijen = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
+  const rijen = useMemo(() => {
+    const gefilterd = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
+    return [...gefilterd].sort((a, b) => {
+      const dA = a.binnen_op ?? a.created_at ?? '';
+      const dB = b.binnen_op ?? b.created_at ?? '';
+      return dA < dB ? -1 : dA > dB ? 1 : 0;
+    });
+  }, [autos, zoek]);
   if (!rijen.length) return <div className={styles.leeg}>Geen auto's</div>;
 
   function toggleBool(r: AfterSalesAuto, veld: keyof AfterSalesAuto) {
