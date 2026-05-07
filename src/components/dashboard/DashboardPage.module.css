@@ -36,7 +36,7 @@
 /* KPI strip */
 .kpiStrip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
 }
 
@@ -46,7 +46,7 @@
   border-radius: var(--radius);
   padding: 16px 18px;
   transition: all 0.18s;
-  cursor: default;
+  cursor: pointer;
 }
 .kpiCard:hover {
   border-color: rgba(21,28,39,.18);
@@ -76,7 +76,7 @@
   margin-top: 4px;
 }
 
-/* Grid 4 kaarten */
+/* Grid 6 kaarten (3×2) */
 .kaartenGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -172,6 +172,62 @@
   color: var(--red);
   flex-shrink: 0;
 }
+
+/* Bedrag in BTW rij */
+.rijBedrag {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Datum in geplande afleveringen */
+.rijDatum {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Bron chip (leads) */
+.bronChip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(21,28,39,.07);
+  color: var(--muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* "Onbeh." badge bij lead zonder wie */
+.rijLeadLeeg {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f97316;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Status chip leads */
+.statusChip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: rgba(21,28,39,.06);
+  color: var(--muted);
+}
+.st_nieuw       { background: rgba(37,99,235,.10);  color: var(--blue); }
+.st_opgepakt    { background: rgba(180,83,9,.10);   color: #b45309; }
+.st_gebeld      { background: rgba(124,58,237,.10); color: #7c3aed; }
+.st_interesse   { background: rgba(16,185,129,.10); color: #059669; }
+.st_verkocht    { background: rgba(22,163,74,.10);  color: var(--green); }
 
 .leegKaart {
   padding: 28px 18px;
