@@ -25,7 +25,7 @@ const TYPE_OPTIES: { k: ASAutoType; l: string }[] = [
 const LEEG: Omit<AfterSalesAuto, 'id' | 'created_at'> = {
   kenteken: '', merk: '', model: '', klant: '', email_klant: '', type: 'nl',
   platen: '', wie_levert_af: '', wie_rijklaar: '', klaarmaker_naam: '',
-  afleverdatum: '', tijdstip_levering: '', transportdatum: '',
+  afleverdatum: '', tijdstip_levering: '', transportdatum: '', binnen_op: '',
   notitie: '', accessoires: '', extra_accessoires: '', btw_credit: false,
 };
 
@@ -173,6 +173,11 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
               <input className="fi" type="date" value={form.transportdatum ?? ''} onChange={(e) => stel('transportdatum', e.target.value)} />
             </div>
           )}
+
+          <div className={styles.fg}>
+            <label>Datum binnenkomst</label>
+            <input className="fi" type="date" value={form.binnen_op ?? ''} onChange={(e) => stel('binnen_op', e.target.value)} />
+          </div>
 
           {/* ── KLANT GEGEVENS ── */}
           <div className={styles.sectieHdr}>Klant gegevens</div>
