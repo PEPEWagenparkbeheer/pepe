@@ -213,10 +213,10 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
     return [...gefilterd].sort((a, b) => {
-      // Groene bollen: klaar=1pt, import+bin=1pt extra — niet groen = bovenaan
+      // Meeste groene bollen = klaar om te leveren = bovenaan
       const sA = (a.klaar ? 1 : 0) + (a.type === 'import' && a.bin_ontvangen ? 1 : 0);
       const sB = (b.klaar ? 1 : 0) + (b.type === 'import' && b.bin_ontvangen ? 1 : 0);
-      if (sA !== sB) return sA - sB;
+      if (sA !== sB) return sB - sA;
       // Daarna oudste binnen_op bovenaan
       const dA = a.binnen_op ?? a.created_at ?? '';
       const dB = b.binnen_op ?? b.created_at ?? '';
