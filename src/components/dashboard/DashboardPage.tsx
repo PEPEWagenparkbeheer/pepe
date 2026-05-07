@@ -309,7 +309,7 @@ export default function DashboardPage() {
                     className={styles.rijWarn}
                     title={new Date(r.binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' })}
                   >
-                    {dagenGeleden(r.binnen_op)}d
+                    {dagenGeleden(r.binnen_op)}dgn
                   </div>
                 )}
               </div>
@@ -339,7 +339,7 @@ export default function DashboardPage() {
                 {r.bedrag != null && (
                   <div className={styles.rijBedrag}>{bedragFmt(r.bedrag)}</div>
                 )}
-                <div className={styles.rijWarn}>{dagenGeleden(r.ingekocht_op)}d</div>
+                <div className={styles.rijWarn}>{dagenGeleden(r.ingekocht_op)}dgn</div>
               </div>
             ))}
           </div>

@@ -117,15 +117,15 @@ function wachttijdInfo(r: BtwRecord, binnenOpMap: Record<string, string>): { lab
     if (!r.verwachte_leverdatum) return { label: 'Datum?', variant: 'ontbreekt' };
     const ms = Date.now() - new Date(r.verwachte_leverdatum).getTime();
     const dagen = Math.floor(ms / 86_400_000);
-    if (dagen < 0) return { label: `over ${-dagen}d`, variant: 'toekomst' };
-    return { label: `${dagen}d`, variant: dagen > 14 ? 'laat' : 'normaal' };
+    if (dagen < 0) return { label: `over ${-dagen}dgn`, variant: 'toekomst' };
+    return { label: `${dagen}dgn`, variant: dagen > 14 ? 'laat' : 'normaal' };
   }
   // type === 'btw' (import): wachttijd vanaf binnen_op in AfterSales
   const binnenOp = r.kenteken ? binnenOpMap[r.kenteken.toUpperCase()] : undefined;
   if (!binnenOp) return { label: '—', variant: 'geen' };
   const ms = Date.now() - new Date(binnenOp).getTime();
   const dagen = Math.floor(ms / 86_400_000);
-  return { label: `${dagen}d`, variant: dagen > 14 ? 'laat' : 'normaal' };
+  return { label: `${dagen}dgn`, variant: dagen > 14 ? 'laat' : 'normaal' };
 }
 
 function zoekMatch(r: BtwRecord, q: string): boolean {

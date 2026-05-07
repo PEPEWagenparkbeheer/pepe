@@ -217,7 +217,7 @@ function StaDagen({ datum }: { datum?: string }) {
   const kleur = dagen > 21 ? 'var(--red)' : dagen > 14 ? '#f97316' : 'var(--muted)';
   return (
     <div style={{ fontSize: 11, color: kleur, marginTop: 4, fontWeight: 600 }}>
-      {dagen}d
+      {dagen}dgn
     </div>
   );
 }

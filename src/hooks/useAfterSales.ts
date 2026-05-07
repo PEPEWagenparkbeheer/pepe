@@ -138,12 +138,15 @@ export function useAfterSales() {
     if (!rec) return;
     const nieuweWaarde = !rec[veld];
     const meta = { ...(rec.veld_meta ?? {}) };
+    const extra: Partial<AfterSalesAuto> = {};
     if (nieuweWaarde) {
       meta[String(veld)] = { op: new Date().toISOString(), door: gebruikerRef.current || '?' };
+      if (veld === 'binnen') extra.binnen_op = new Date().toISOString().slice(0, 10);
     } else {
       delete meta[String(veld)];
+      if (veld === 'binnen') extra.binnen_op = undefined;
     }
-    await updateAuto({ ...rec, [veld]: nieuweWaarde, veld_meta: meta });
+    await updateAuto({ ...rec, [veld]: nieuweWaarde, veld_meta: meta, ...extra });
   }, [updateAuto]);
 
   // Hulpfunctie voor rijklaar-tab: update met metadata in één aanroep
