@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useBtw } from '@/hooks/useBtw';
 import { useZoekopdrachten } from '@/hooks/useZoekopdrachten';
@@ -34,7 +35,10 @@ export default function ZoekenPage() {
   const { add: addBtw } = useBtw();
   const { user } = useAuth();
 
-  const [filter, setFilter] = useState<FilterOptie>('actueel');
+  const searchParams = useSearchParams();
+  const [filter, setFilter] = useState<FilterOptie>(
+    (searchParams.get('filter') as FilterOptie) || 'actueel'
+  );
   const [zoekterm, setZoekterm] = useState('');
   const [sortVeld, setSortVeld] = useState<SortVeld>(null);
   const [sortRichting, setSortRichting] = useState<'asc' | 'desc'>('asc');

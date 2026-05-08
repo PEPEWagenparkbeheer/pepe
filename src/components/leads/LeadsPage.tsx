@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLeads } from '@/hooks/useLeads';
 import type { Lead, LeadBron, LeadStatus } from '@/types';
 import LeadsModal from './LeadsModal';
@@ -255,9 +256,10 @@ function TabArchief({ leads, zoek, onEdit, onTerugzetten }: {
 // ── Hoofdpagina ───────────────────────────────────────────────
 export default function LeadsPage() {
   const { leads, loading, gebruiker, add, save, remove, archiveer, oppakken } = useLeads();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>('actief');
   const [zoek, setZoek] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('filter') ?? '');
   const [modalOpen, setModalOpen] = useState(false);
   const [editLead, setEditLead] = useState<Lead | null>(null);
 

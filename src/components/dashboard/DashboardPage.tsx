@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import styles from './DashboardPage.module.css';
 
@@ -59,6 +60,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [data, setData] = useState<DashData>(LEEG);
   const [laden, setLaden] = useState(true);
   const [naam, setNaam] = useState('');
@@ -173,13 +175,13 @@ export default function DashboardPage() {
   const gemKleur = gem == null ? '' : gem > 28 ? 'hot' : gem > 21 ? 'warn' : 'good';
 
   const kpiTiles = [
-    { icoon: '🚩', getal: data.prio,         label: 'Prio opdrachten',       kleur: data.prio > 0 ? 'hot' : '' },
-    { icoon: '📞', getal: data.nieuwLeads,    label: 'Nieuwe leads',          kleur: data.nieuwLeads > 0 ? 'hot' : '' },
-    { icoon: '🚗', getal: data.tePlannen,     label: 'Te plannen',            kleur: data.tePlannen > 0 ? 'warn' : '' },
-    { icoon: '📅', getal: data.geplandCount,  label: 'Geplande afleveringen', kleur: data.geplandCount > 0 ? 'good' : '' },
-    { icoon: '💶', getal: data.btwRijen.length, label: 'BTW > 14 dagen',     kleur: data.btwRijen.length > 0 ? 'hot' : '' },
-    { icoon: '✅', getal: data.akkoordMnd,    label: 'Akkoord deze maand',    kleur: '' },
-    { icoon: '📊', getal: gem ?? '—',         label: 'Gem. stadagen',          kleur: gemKleur },
+    { icoon: '🚩', getal: data.prio,              label: 'Prio opdrachten',       kleur: data.prio > 0 ? 'hot' : '',              href: '/zoeken?filter=prio' },
+    { icoon: '📞', getal: data.nieuwLeads,         label: 'Nieuwe leads',          kleur: data.nieuwLeads > 0 ? 'hot' : '',         href: '/leads?filter=nieuw' },
+    { icoon: '🚗', getal: data.tePlannen,          label: 'Te plannen',            kleur: data.tePlannen > 0 ? 'warn' : '',         href: '/aftersales?tab=rijklaar' },
+    { icoon: '📅', getal: data.geplandCount,       label: 'Geplande afleveringen', kleur: data.geplandCount > 0 ? 'good' : '',      href: '/aftersales?tab=gepland' },
+    { icoon: '💶', getal: data.btwRijen.length,    label: 'BTW > 14 dagen',        kleur: data.btwRijen.length > 0 ? 'hot' : '',    href: '/btw' },
+    { icoon: '✅', getal: data.akkoordMnd,         label: 'Akkoord deze maand',    kleur: '',                                       href: '/zoeken?filter=akkoord' },
+    { icoon: '📊', getal: gem ?? '—',              label: 'Gem. stadagen',         kleur: gemKleur,                                 href: '/aftersales' },
   ];
 
   return (
@@ -198,7 +200,7 @@ export default function DashboardPage() {
           <div
             key={t.label}
             className={`${styles.kpiCard} ${t.kleur ? styles[t.kleur as 'hot' | 'warn' | 'good'] : ''}`}
-            onClick={() => kaartRefs[i]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onClick={() => router.push(t.href)}
           >
             <div className={styles.kpiIcoon}>{t.icoon}</div>
             <div className={`${styles.kpiGetal} ${t.kleur === 'warn' ? styles.warn : t.kleur === 'good' ? styles.ok : ''}`}>

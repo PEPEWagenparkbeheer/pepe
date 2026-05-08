@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { useAfterSales } from '@/hooks/useAfterSales';
@@ -1220,7 +1221,10 @@ function zoekMatch(r: AfterSalesAuto, q: string): boolean {
 // ── Hoofdpagina ───────────────────────────────────────────────
 export default function AfterSalesPage() {
   const { autos, klachten, loading, gebruiker, addAuto, updateAuto, removeAuto, toggleAuto, toggleAutoMeta, addKlacht, updateKlacht, removeKlacht } = useAfterSales();
-  const [tab, setTab] = useState<HoofdTab>('lopend');
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<HoofdTab>(
+    (searchParams.get('tab') as HoofdTab) || 'lopend'
+  );
   const [zoek, setZoek] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<AfterSalesAuto | null>(null);
