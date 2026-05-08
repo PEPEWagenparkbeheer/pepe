@@ -91,7 +91,7 @@ export default function ZoekenPage() {
       ...rec,
       akkoord: true,
       akkoord_door: naam,
-      akkoord_datum: new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }),
+      akkoord_datum: new Date().toISOString().slice(0, 10),
     });
 
     if (autoType === 'import' && brutoNetto === 'bruto') {

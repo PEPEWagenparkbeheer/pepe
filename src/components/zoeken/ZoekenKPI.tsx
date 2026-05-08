@@ -8,16 +8,23 @@ interface Props {
 }
 
 export default function ZoekenKPI({ records, onFilter }: Props) {
+  const nu = new Date();
   const actief = records.filter((r) => !r.akkoord && !r.uitgesteld).length;
   const prio = records.filter((r) => !!r.prio && !r.akkoord && !r.uitgesteld).length;
   const terugkoppeling = records.filter((r) => r.uitgewerkt && !r.terugkoppeling && !r.akkoord && !r.uitgesteld).length;
   const uitgesteld = records.filter((r) => !!r.uitgesteld && !r.akkoord).length;
+  const akkoordMnd = records.filter((r) => {
+    if (!r.akkoord || !r.akkoord_datum) return false;
+    const d = new Date(r.akkoord_datum);
+    return d.getMonth() === nu.getMonth() && d.getFullYear() === nu.getFullYear();
+  }).length;
 
   const kaarten: { label: string; waarde: number; kleur: string; filter: FilterOptie }[] = [
     { label: 'Actieve opdrachten', waarde: actief, kleur: 'blauw', filter: 'actueel' },
     { label: 'Prio', waarde: prio, kleur: prio > 0 ? 'rood' : 'grijs', filter: 'prio' },
     { label: 'Nog geen terugkoppeling', waarde: terugkoppeling, kleur: terugkoppeling > 0 ? 'geel' : 'grijs', filter: 'terugkoppeling' },
     { label: 'Uitgesteld', waarde: uitgesteld, kleur: uitgesteld > 0 ? 'geel' : 'grijs', filter: 'uitgesteld' },
+    { label: 'Akkoord deze maand', waarde: akkoordMnd, kleur: akkoordMnd > 0 ? 'groen' : 'grijs', filter: 'akkoord' },
   ];
 
   return (

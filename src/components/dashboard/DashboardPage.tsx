@@ -8,7 +8,9 @@ import styles from './DashboardPage.module.css';
 
 interface DashData {
   prio: number;
-  akkoordMnd: number;
+  akkoordZoek: number;
+  akkoordLease: number;
+  akkoordLead: number;
   nieuwLeads: number;
   tePlannen: number;
   geplandCount: number;
@@ -24,7 +26,7 @@ interface DashData {
 }
 
 const LEEG: DashData = {
-  prio: 0, akkoordMnd: 0, nieuwLeads: 0, tePlannen: 0, geplandCount: 0,
+  prio: 0, akkoordZoek: 0, akkoordLease: 0, akkoordLead: 0, nieuwLeads: 0, tePlannen: 0, geplandCount: 0,
   prioRijen: [], rijklaarRijen: [], btwRijen: [], leaseRijen: [],
   leadsRijen: [], geplandRijen: [], tePlannenRijen: [],
   binnenLang: 0,
@@ -92,8 +94,8 @@ export default function DashboardPage() {
       supabase.from('zoekopdrachten').select('id,klant,auto,wiezoekt,prio,uitgesteld,akkoord,akkoord_datum'),
       supabase.from('after_sales').select('id,kenteken,merk,model,klant,afleverdatum,binnen,klaar,gearchiveerd,type,bin_ontvangen,binnen_op,wie_levert_af'),
       supabase.from('btw_records').select('id,auto,klant,ingekocht_op,geld_van_lm,geld_van_dealer,gearchiveerd,bedrag'),
-      supabase.from('lease_aanvragen').select('id,klant_naam,merk,model,leasemaatschappij,verkocht,akkoord,offerte_verstuurd'),
-      supabase.from('leads').select('id,klant_naam,auto,status,bron,wie,gearchiveerd,created_at'),
+      supabase.from('lease_aanvragen').select('id,klant_naam,merk,model,leasemaatschappij,verkocht,akkoord,offerte_verstuurd,verkocht_op'),
+      supabase.from('leads').select('id,klant_naam,auto,status,bron,wie,gearchiveerd,created_at,veld_meta'),
     ]);
 
     const zoek  = zoekRes.data  ?? [];
@@ -103,11 +105,19 @@ export default function DashboardPage() {
     const leads = leadsRes.data ?? [];
 
     const nu = new Date();
-    const prio = zoek.filter(z => z.prio && !z.akkoord && !z.uitgesteld).length;
-    const akkoordMnd = zoek.filter(z => {
-      if (!z.akkoord || !z.akkoord_datum) return false;
-      const d = new Date(z.akkoord_datum);
+    const dezeMaand = (datum?: string | null) => {
+      if (!datum) return false;
+      const d = new Date(datum);
       return d.getMonth() === nu.getMonth() && d.getFullYear() === nu.getFullYear();
+    };
+
+    const prio = zoek.filter(z => z.prio && !z.akkoord && !z.uitgesteld).length;
+    const akkoordZoek = zoek.filter(z => z.akkoord && dezeMaand(z.akkoord_datum)).length;
+    const akkoordLease = lease.filter(l => l.verkocht && dezeMaand(l.verkocht_op)).length;
+    const akkoordLead = leads.filter(l => {
+      if (l.status !== 'verkocht') return false;
+      const meta = l.veld_meta as Record<string, { op: string }> | null;
+      return dezeMaand(meta?.verkocht?.op);
     }).length;
 
     const prioRijen = zoek
@@ -160,7 +170,7 @@ export default function DashboardPage() {
     const nieuwLeads = leads.filter(l => !l.gearchiveerd && l.status === 'nieuw').length;
 
     setData({
-      prio, akkoordMnd, nieuwLeads,
+      prio, akkoordZoek, akkoordLease, akkoordLead, nieuwLeads,
       tePlannen: tePlannenAll.length,
       geplandCount: geplandAll.length,
       prioRijen, rijklaarRijen, btwRijen, leaseRijen,
@@ -174,14 +184,17 @@ export default function DashboardPage() {
   const gem = data.gemStadagen;
   const gemKleur = gem == null ? '' : gem > 28 ? 'hot' : gem > 21 ? 'warn' : 'good';
 
+  const akkoordTotaal = data.akkoordZoek + data.akkoordLease + data.akkoordLead;
+  const akkoordSub = `Z:${data.akkoordZoek} · L:${data.akkoordLease} · Ld:${data.akkoordLead}`;
+
   const kpiTiles = [
-    { icoon: '🚩', getal: data.prio,              label: 'Prio opdrachten',       kleur: data.prio > 0 ? 'hot' : '',              href: '/zoeken?filter=prio' },
-    { icoon: '📞', getal: data.nieuwLeads,         label: 'Nieuwe leads',          kleur: data.nieuwLeads > 0 ? 'hot' : '',         href: '/leads?filter=nieuw' },
-    { icoon: '🚗', getal: data.tePlannen,          label: 'Te plannen',            kleur: data.tePlannen > 0 ? 'warn' : '',         href: '/aftersales?tab=rijklaar' },
-    { icoon: '📅', getal: data.geplandCount,       label: 'Geplande afleveringen', kleur: data.geplandCount > 0 ? 'good' : '',      href: '/aftersales?tab=gepland' },
-    { icoon: '💶', getal: data.btwRijen.length,    label: 'BTW > 14 dagen',        kleur: data.btwRijen.length > 0 ? 'hot' : '',    href: '/btw' },
-    { icoon: '✅', getal: data.akkoordMnd,         label: 'Akkoord deze maand',    kleur: '',                                       href: '/zoeken?filter=akkoord' },
-    { icoon: '📊', getal: gem ?? '—',              label: 'Gem. stadagen',         kleur: gemKleur,                                 href: '/aftersales' },
+    { icoon: '🚩', getal: data.prio,              label: 'Prio opdrachten',       sub: null,         kleur: data.prio > 0 ? 'hot' : '',              href: '/zoeken?filter=prio' },
+    { icoon: '📞', getal: data.nieuwLeads,         label: 'Nieuwe leads',          sub: null,         kleur: data.nieuwLeads > 0 ? 'hot' : '',         href: '/leads?filter=nieuw' },
+    { icoon: '🚗', getal: data.tePlannen,          label: 'Te plannen',            sub: null,         kleur: data.tePlannen > 0 ? 'warn' : '',         href: '/aftersales?tab=rijklaar' },
+    { icoon: '📅', getal: data.geplandCount,       label: 'Geplande afleveringen', sub: null,         kleur: data.geplandCount > 0 ? 'good' : '',      href: '/aftersales?tab=gepland' },
+    { icoon: '💶', getal: data.btwRijen.length,    label: 'BTW > 14 dagen',        sub: null,         kleur: data.btwRijen.length > 0 ? 'hot' : '',    href: '/btw' },
+    { icoon: '✅', getal: akkoordTotaal,           label: 'Akkoord deze maand',    sub: akkoordSub,   kleur: '',                                       href: '/zoeken?filter=akkoord' },
+    { icoon: '📊', getal: gem ?? '—',              label: 'Gem. stadagen',         sub: null,         kleur: gemKleur,                                 href: '/aftersales' },
   ];
 
   return (
@@ -207,6 +220,7 @@ export default function DashboardPage() {
               {t.getal}
             </div>
             <div className={styles.kpiLabel}>{t.label}</div>
+            {t.sub && <div className={styles.kpiSub}>{t.sub}</div>}
           </div>
         ))}
       </div>
