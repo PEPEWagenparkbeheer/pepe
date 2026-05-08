@@ -67,6 +67,20 @@ export function useBtw() {
       }
       setLoading(false);
     });
+
+    const ch = supabase.channel('btw_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'btw_records' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const rec = deserialize(payload.new as Record<string, unknown>);
+          update(ref.current.some(r => r.id === rec.id)
+            ? ref.current.map(r => r.id === rec.id ? rec : r)
+            : [rec, ...ref.current]);
+        } else if (payload.eventType === 'DELETE') {
+          update(ref.current.filter(r => r.id !== (payload.old as { id: string }).id));
+        }
+      }).subscribe();
+
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const add = useCallback(async (rec: Omit<BtwRecord, 'id' | 'created_at'>) => {

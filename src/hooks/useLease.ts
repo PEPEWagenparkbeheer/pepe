@@ -76,6 +76,32 @@ export function useLease() {
       if (!kRes.error && kRes.data) updateKlanten((kRes.data as Record<string, unknown>[]).map(deserializeKlant));
       setLoading(false);
     });
+
+    const ch1 = supabase.channel('lease_a_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lease_aanvragen' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const rec = deserializeAanvraag(payload.new as Record<string, unknown>);
+          updateAanvragen(aanvraagRef.current.some(r => r.id === rec.id)
+            ? aanvraagRef.current.map(r => r.id === rec.id ? rec : r)
+            : [rec, ...aanvraagRef.current]);
+        } else if (payload.eventType === 'DELETE') {
+          updateAanvragen(aanvraagRef.current.filter(r => r.id !== (payload.old as { id: string }).id));
+        }
+      }).subscribe();
+
+    const ch2 = supabase.channel('lease_k_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lease_klanten' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const rec = deserializeKlant(payload.new as Record<string, unknown>);
+          updateKlanten(klantRef.current.some(r => r.id === rec.id)
+            ? klantRef.current.map(r => r.id === rec.id ? rec : r)
+            : [rec, ...klantRef.current]);
+        } else if (payload.eventType === 'DELETE') {
+          updateKlanten(klantRef.current.filter(r => r.id !== (payload.old as { id: string }).id));
+        }
+      }).subscribe();
+
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
   }, []);
 
   // ── Aanvragen ─────────────────────────────────────────────

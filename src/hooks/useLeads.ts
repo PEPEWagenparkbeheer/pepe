@@ -54,6 +54,20 @@ export function useLeads() {
         if (!error && data) update((data as Record<string, unknown>[]).map(deserialize));
         setLoading(false);
       });
+
+    const ch = supabase.channel('leads_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const rec = deserialize(payload.new as Record<string, unknown>);
+          update(ref.current.some(r => r.id === rec.id)
+            ? ref.current.map(r => r.id === rec.id ? rec : r)
+            : [rec, ...ref.current]);
+        } else if (payload.eventType === 'DELETE') {
+          update(ref.current.filter(r => r.id !== (payload.old as { id: string }).id));
+        }
+      }).subscribe();
+
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const add = useCallback(async (rec: Omit<Lead, 'id' | 'created_at'>) => {

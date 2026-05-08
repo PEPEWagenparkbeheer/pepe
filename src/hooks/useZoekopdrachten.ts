@@ -85,6 +85,20 @@ export function useZoekopdrachten() {
         }
         setLoading(false);
       });
+
+    const ch = supabase.channel('zoek_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'zoekopdrachten' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const rec = deserialize(payload.new as Record<string, unknown>);
+          updateRecords(recordsRef.current.some(r => r.id === rec.id)
+            ? recordsRef.current.map(r => r.id === rec.id ? rec : r)
+            : [...recordsRef.current, rec]);
+        } else if (payload.eventType === 'DELETE') {
+          updateRecords(recordsRef.current.filter(r => r.id !== (payload.old as { id: number }).id));
+        }
+      }).subscribe();
+
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const add = useCallback(async (rec: Omit<Zoekopdracht, 'id'>) => {

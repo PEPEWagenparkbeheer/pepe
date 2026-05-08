@@ -110,6 +110,32 @@ export function useAfterSales() {
       }
       setLoading(false);
     });
+
+    const ch1 = supabase.channel('as_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'after_sales' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const rec = deserializeAuto(payload.new as Record<string, unknown>);
+          updateAutos(autosRef.current.some(r => r.id === rec.id)
+            ? autosRef.current.map(r => r.id === rec.id ? rec : r)
+            : [rec, ...autosRef.current]);
+        } else if (payload.eventType === 'DELETE') {
+          updateAutos(autosRef.current.filter(r => r.id !== (payload.old as { id: string }).id));
+        }
+      }).subscribe();
+
+    const ch2 = supabase.channel('nal_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'as_klachten' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const rec = payload.new as ASKlacht;
+          updateKlachten(klachtenRef.current.some(r => r.id === rec.id)
+            ? klachtenRef.current.map(r => r.id === rec.id ? rec : r)
+            : [rec, ...klachtenRef.current]);
+        } else if (payload.eventType === 'DELETE') {
+          updateKlachten(klachtenRef.current.filter(r => r.id !== (payload.old as { id: string }).id));
+        }
+      }).subscribe();
+
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
   }, []);
 
   // ── Autos ─────────────────────────────────────────────────
