@@ -1,6 +1,34 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
+// Probeert een advertentielink te vinden uit HTML + tekst van de e-mail.
+// Volgorde: href in HTML → plain URL in tekst → advertentienummer opbouwen.
+function extractAdUrl(html: string, text: string): string | null {
+  const combined = html + ' ' + text;
+
+  // 1. href-attributen uit HTML (knoppen zoals "Naar de advertentie")
+  const hrefMatch = html.match(
+    /href=["']([^"']*(?:autoscout24\.[a-z]{1,6}|autowereld\.[a-z]{1,6}|marktplaats\.nl|mobile\.de|autotrack\.nl)[^"']*)["']/i,
+  );
+  if (hrefMatch) return hrefMatch[1].replace(/&amp;/g, '&');
+
+  // 2. Volledige URL in platte tekst
+  const urlMatch = combined.match(
+    /https?:\/\/(?:www\.)?(?:autoscout24\.[a-z]+\/[^\s<>"&]+|autowereld\.[a-z]+\/[^\s<>"&]+|marktplaats\.nl\/[^\s<>"&]+|mobile\.de\/[^\s<>"&]+|autotrack\.nl\/[^\s<>"&]+)/i,
+  );
+  if (urlMatch) return urlMatch[0].replace(/[,.)]+$/, '');
+
+  // 3. Mobile.de "Ad number: 445530743" → URL opbouwen
+  const mobileNr = combined.match(/(?:Ad number|Inserat)[:\s#]+(\d{6,})/i);
+  if (mobileNr) return `https://www.mobile.de/auto-inserat/id/${mobileNr[1]}`;
+
+  // 4. "Advertentienr. 4326756" zonder href → marktplaats URL opbouwen
+  const mpNr = combined.match(/Advertentienr[.:\s]+(\d{5,})/i);
+  if (mpNr) return `https://www.marktplaats.nl/v/a${mpNr[1]}.html`;
+
+  return null;
+}
+
 async function groqExtract(subject: string, body: string) {
   if (!process.env.GROQ_API_KEY) return null;
   try {
@@ -44,6 +72,7 @@ export async function POST(req: NextRequest) {
   const fromLow = fromRaw.toLowerCase();
   const subject: string = body.Subject || '';
   const textBody: string = body.StrippedTextReply || body.TextBody || '';
+  const htmlBody: string = body.HtmlBody || '';
 
   const isForwarded =
     fromLow.includes('info@pepewagen') ||
@@ -69,7 +98,7 @@ export async function POST(req: NextRequest) {
       auto           = ext.auto           || subject.replace(/^fwd?:\s*/i, '');
       bron           = GELDIGE_BRON.includes(ext.bron) ? ext.bron : 'email';
       bericht        = ext.bericht        || textBody;
-      advertentie_url = ext.advertentie_url || null;
+      advertentie_url = extractAdUrl(htmlBody, textBody) || ext.advertentie_url || null;
       prijs          = ext.prijs          || null;
     } else {
       klant_naam = 'Onbekend';
@@ -90,10 +119,7 @@ export async function POST(req: NextRequest) {
                : fromLow.includes('marktplaats') ? 'marktplaats'
                : 'email';
     bericht    = textBody;
-    const urlMatch = textBody.match(
-      /https?:\/\/(?:www\.)?(?:autoscout24\.[a-z]+\/[^\s<>"]+|autowereld\.[a-z]+\/[^\s<>"]+|marktplaats\.nl\/[^\s<>"]+|mobile\.de\/[^\s<>"]+)/i,
-    );
-    advertentie_url = urlMatch ? urlMatch[0].replace(/[,.)]+$/, '') : null;
+    advertentie_url = extractAdUrl(htmlBody, textBody);
   }
 
   const admin = createClient(
