@@ -47,6 +47,23 @@ function datumFmt(d?: string) {
   try { return new Date(d).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }); } catch { return d; }
 }
 
+function mailAkkoordLead(r: Lead) {
+  const to = 'roger@pepewagenparkbeheer.nl;lorenzo@pepewagenparkbeheer.nl';
+  const sub = encodeURIComponent(`Lead verkocht – ${r.klant_naam} / ${r.auto}`);
+  const body = encodeURIComponent(
+    `Hallo Roger en Lorenzo,\n\n` +
+    `Er is een lead akkoord gegaan:\n\n` +
+    `Klant: ${r.klant_naam}\n` +
+    `Auto: ${r.auto}\n` +
+    (r.prijs ? `Prijs: ${r.prijs}\n` : '') +
+    (r.email ? `E-mail: ${r.email}\n` : '') +
+    (r.telefoon ? `Telefoon: ${r.telefoon}\n` : '') +
+    (r.wie ? `Behandeld door: ${r.wie}\n` : '') +
+    `\nDe auto is aangemaakt als Voorraad in After Sales.\n\nMet vriendelijke groet,\nPEPE Flow`
+  );
+  window.open(`mailto:${to}?subject=${sub}&body=${body}`);
+}
+
 function zoekMatch(r: Lead, q: string): boolean {
   return `${r.klant_naam} ${r.email ?? ''} ${r.auto} ${r.wie ?? ''} ${r.vervolgactie ?? ''}`.toLowerCase().includes(q.toLowerCase());
 }
@@ -175,8 +192,10 @@ function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer,
                     <button
                       className={styles.akkoordKnop}
                       onClick={() => {
-                        if (window.confirm(`Akkoord zetten voor ${r.klant_naam} — ${r.auto}?\n\nDit maakt een AfterSales record aan als type Voorraad.`))
+                        if (window.confirm(`Akkoord zetten voor ${r.klant_naam} — ${r.auto}?\n\nDit maakt een AfterSales record aan als type Voorraad.`)) {
                           onAkkoord(r.id);
+                          mailAkkoordLead(r);
+                        }
                       }}
                     >
                       ✅ Akkoord
