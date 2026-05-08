@@ -289,10 +289,34 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
                 <td onClick={(e) => e.stopPropagation()}>
                   <div className={styles.statusRij}>
                     {r.type === 'import' && (
-                      <div className={styles.statusItem}>
-                        <div className={`${styles.dot} ${importDot}`} title={r.bin_ontvangen ? 'BIN ontvangen — kenteken bekend' : 'Import nog niet afgerond'} />
-                        <span className={styles.statusLabel}>Import</span>
-                      </div>
+                      <PortalTip tip={
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ fontWeight: 700, color: '#f0eef8', marginBottom: 2 }}>Import status</div>
+                          {[
+                            { lbl: 'Aangevraagd',     aan: !!r.aangevraagd,      meta: r.veld_meta?.['aangevraagd'] },
+                            { lbl: 'Betaald',         aan: !!r.betaald,          meta: r.veld_meta?.['betaald'] },
+                            { lbl: 'Transport',       aan: !!r.transportdatum,   extra: r.transportdatum ? datumFmt(r.transportdatum) : undefined },
+                            { lbl: 'RDW ingeschreven',aan: !!r.rdw_ingeschreven, meta: r.veld_meta?.['rdw_ingeschreven'] },
+                            { lbl: 'BPM ingediend',   aan: !!r.bpm_ingediend,    meta: r.veld_meta?.['bpm_ingediend'] },
+                            { lbl: 'BPM goedgekeurd', aan: !!r.bpm_goedgekeurd,  meta: r.veld_meta?.['bpm_goedgekeurd'] },
+                            { lbl: 'BIN ontvangen',   aan: !!r.bin_ontvangen,    meta: r.veld_meta?.['bin_ontvangen'] },
+                            { lbl: 'Kentekenbewijzen',aan: !!r.kentekenbewijzen, meta: r.veld_meta?.['kentekenbewijzen'] },
+                            { lbl: 'Gelangenbest.',   aan: !!r.gelangenbest,     meta: r.veld_meta?.['gelangenbest'] },
+                          ].map(({ lbl, aan, meta, extra }) => (
+                            <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                              <span style={{ color: aan ? '#4ade80' : '#f87171', fontWeight: 700, minWidth: 14 }}>{aan ? '✓' : '✗'}</span>
+                              <span style={{ color: aan ? '#c8f7c5' : 'rgba(255,255,255,.55)' }}>{lbl}</span>
+                              {extra && <span style={{ color: 'var(--muted)', fontSize: 11 }}>— {extra}</span>}
+                              {meta && <span style={{ color: 'var(--muted)', fontSize: 10, marginLeft: 'auto' }}>{meta.door} {metaTijd(meta.op)}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      }>
+                        <div className={styles.statusItem}>
+                          <div className={`${styles.dot} ${importDot}`} />
+                          <span className={styles.statusLabel}>Import</span>
+                        </div>
+                      </PortalTip>
                     )}
                     <PortalTip tip={
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
