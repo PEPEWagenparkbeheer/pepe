@@ -203,6 +203,20 @@
 }
 .archiefKnop:hover { border-color: var(--accent); color: #e87090; }
 
+.akkoordKnop {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(74,222,128,.4);
+  background: rgba(74,222,128,.08);
+  color: #16a34a;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.akkoordKnop:hover { background: rgba(74,222,128,.18); border-color: #16a34a; }
+
 .actiesRij {
   display: flex;
   gap: 5px;

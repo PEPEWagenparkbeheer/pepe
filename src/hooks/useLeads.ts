@@ -97,5 +97,31 @@ export function useLeads() {
     await save({ ...rec, status: 'opgepakt', wie: rec.wie || naam });
   }, [save]);
 
-  return { leads, loading, gebruiker, add, save, remove, archiveer, setStatus, oppakken };
+  const akkoord = useCallback(async (id: string) => {
+    const rec = ref.current.find((r) => r.id === id);
+    if (!rec) return;
+
+    // Lead op verkocht zetten
+    const nu = new Date().toISOString();
+    const naam = gebruikerRef.current || '?';
+    const meta = { ...(rec.veld_meta ?? {}), verkocht: { op: nu, door: naam } };
+    await save({ ...rec, status: 'verkocht', veld_meta: meta });
+
+    // AfterSales record aanmaken als type 'voorraad'
+    const autoDelen = rec.auto.trim().split(/\s+/);
+    const merk  = autoDelen[0] ?? '';
+    const model = autoDelen.slice(1).join(' ');
+    await supabase.from('after_sales').insert({
+      kenteken: '',
+      merk,
+      model,
+      klant: rec.klant_naam,
+      email_klant: rec.email ?? null,
+      type: 'voorraad',
+      binnen: false,
+      gearchiveerd: false,
+    });
+  }, [save]);
+
+  return { leads, loading, gebruiker, add, save, remove, archiveer, setStatus, oppakken, akkoord };
 }

@@ -83,13 +83,14 @@ function KpiStrip({ leads }: { leads: Lead[] }) {
 }
 
 // ── Tabel: Actief ─────────────────────────────────────────────
-function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer }: {
+function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer, onAkkoord }: {
   leads: Lead[];
   zoek: string;
   statusFilter: string;
   onEdit: (r: Lead) => void;
   onOppakken: (id: string) => void;
   onArchiveer: (id: string) => void;
+  onAkkoord: (id: string) => void;
 }) {
   const rijen = leads
     .filter((r) => !r.gearchiveerd)
@@ -170,6 +171,17 @@ function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer 
               </td>
               <td onClick={(e) => e.stopPropagation()}>
                 <div className={styles.actiesRij}>
+                  {r.status !== 'verkocht' && (
+                    <button
+                      className={styles.akkoordKnop}
+                      onClick={() => {
+                        if (window.confirm(`Akkoord zetten voor ${r.klant_naam} — ${r.auto}?\n\nDit maakt een AfterSales record aan als type Voorraad.`))
+                          onAkkoord(r.id);
+                      }}
+                    >
+                      ✅ Akkoord
+                    </button>
+                  )}
                   <button className={styles.archiefKnop} onClick={() => onArchiveer(r.id)}>
                     ✓ Archief
                   </button>
@@ -255,7 +267,7 @@ function TabArchief({ leads, zoek, onEdit, onTerugzetten }: {
 
 // ── Hoofdpagina ───────────────────────────────────────────────
 export default function LeadsPage() {
-  const { leads, loading, gebruiker, add, save, remove, archiveer, oppakken } = useLeads();
+  const { leads, loading, gebruiker, add, save, remove, archiveer, oppakken, akkoord } = useLeads();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>('actief');
   const [zoek, setZoek] = useState('');
@@ -310,6 +322,7 @@ export default function LeadsPage() {
               onEdit={openEdit}
               onOppakken={oppakken}
               onArchiveer={archiveer}
+              onAkkoord={akkoord}
             />
           )}
           {tab === 'archief' && (
