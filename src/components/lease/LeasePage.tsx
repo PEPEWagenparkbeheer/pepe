@@ -52,7 +52,6 @@ function KpiStrip({ aanvragen, onTab }: { aanvragen: LeaseAanvraag[]; onTab: (t:
   const nu = new Date();
   const lopend = aanvragen.filter((r) => !r.verkocht);
   const offerte = lopend.filter((r) => r.offerte_verstuurd).length;
-  const akkoord = lopend.filter((r) => r.akkoord).length;
   const totaal = lopend.reduce((s, r) => s + (r.verdiensten_lm ?? 0) + (r.verdiensten_dealer ?? 0), 0);
   const verkochtMnd = aanvragen.filter((r) => {
     if (!r.verkocht || !r.verkocht_op) return false;
@@ -72,13 +71,8 @@ function KpiStrip({ aanvragen, onTab }: { aanvragen: LeaseAanvraag[]; onTab: (t:
         <div className={`${styles.kpiGetal} ${offerte > 0 ? styles.warn : ''}`}>{offerte}</div>
         <div className={styles.kpiLabel}>Offerte verstuurd</div>
       </div>
-      <div className={`${styles.kpiCard} ${akkoord > 0 ? styles.good : ''}`} onClick={() => onTab('aanvragen')}>
-        <div className={styles.kpiIcoon}>✅</div>
-        <div className={`${styles.kpiGetal} ${akkoord > 0 ? styles.ok : ''}`}>{akkoord}</div>
-        <div className={styles.kpiLabel}>Akkoord gegeven</div>
-      </div>
       <div className={`${styles.kpiCard} ${verkochtMnd > 0 ? styles.good : ''}`} onClick={() => onTab('verkocht')}>
-        <div className={styles.kpiIcoon}>🏁</div>
+        <div className={styles.kpiIcoon}>✅</div>
         <div className={`${styles.kpiGetal} ${verkochtMnd > 0 ? styles.ok : ''}`}>{verkochtMnd}</div>
         <div className={styles.kpiLabel}>Verkocht deze maand</div>
       </div>
