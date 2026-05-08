@@ -294,12 +294,32 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
                         <span className={styles.statusLabel}>Import</span>
                       </div>
                     )}
-                    <div className={styles.statusItem}>
-                      <div className={`${styles.dot} ${rijklaarDot}`} title={r.klaar ? 'Rijklaar' : (r.binnen && r.proefrit) ? 'Binnen + proef OK' : 'Niet rijklaar'} />
-                      <span className={styles.statusLabel}>Rijklaar</span>
-                    </div>
+                    <PortalTip tip={
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ fontWeight: 700, color: '#f0eef8', marginBottom: 2 }}>Rijklaar status</div>
+                        {[
+                          { lbl: 'Proefrit',      aan: !!r.proefrit,           meta: r.veld_meta?.['proefrit'] },
+                          { lbl: 'APK',           aan: !!r.apk,                extra: r.apk && r.apk !== 'geen' ? r.apk : undefined },
+                          { lbl: 'Terugroep',     aan: r.terugroep === 'geen', extra: r.terugroep && r.terugroep !== 'geen' ? r.terugroep : undefined },
+                          { lbl: 'Accessoires',   aan: !r.accessoires || r.accessoires.split(',').every(a => (r.accessoires_klaar ?? '').split(',').includes(a.trim())) },
+                          { lbl: 'Klaar',         aan: !!r.klaar,              meta: r.veld_meta?.['klaar'] },
+                        ].map(({ lbl, aan, meta, extra }) => (
+                          <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                            <span style={{ color: aan ? '#4ade80' : '#f87171', fontWeight: 700, minWidth: 14 }}>{aan ? '✓' : '✗'}</span>
+                            <span style={{ color: aan ? '#c8f7c5' : 'var(--muted)' }}>{lbl}</span>
+                            {extra && <span style={{ color: 'var(--muted)', fontSize: 11 }}>— {extra}</span>}
+                            {meta && <span style={{ color: 'var(--muted)', fontSize: 10, marginLeft: 'auto' }}>{meta.door} {metaTijd(meta.op)}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    }>
+                      <div className={styles.statusItem}>
+                        <div className={`${styles.dot} ${rijklaarDot}`} />
+                        <span className={styles.statusLabel}>Rijklaar</span>
+                      </div>
+                    </PortalTip>
                   </div>
-                  <StaDagen datum={r.binnen_op ?? r.veld_meta?.['binnen']?.op} tot={r.afgeleverd_op} />
+                  <StaDagen datum={r.binnen_op ?? r.veld_meta?.['binnen']?.op ?? (r.binnen ? vandaagStr() : undefined)} tot={r.afgeleverd_op} />
                 </td>
 
                 {/* Acties */}
@@ -581,6 +601,9 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate, onToggleMeta }: {
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
     return [...gefilterd].sort((a, b) => {
+      // Klaar onderaan
+      if (!!a.klaar !== !!b.klaar) return a.klaar ? 1 : -1;
+      // Oudste binnen_op bovenaan
       const dA = a.binnen_op ?? '';
       const dB = b.binnen_op ?? '';
       return dA < dB ? -1 : dA > dB ? 1 : 0;
