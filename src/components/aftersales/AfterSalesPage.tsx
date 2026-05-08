@@ -306,7 +306,7 @@ function TabLopend({ autos, zoek, onEdit, onToggle, onAfleveren }: {
                         ].map(({ lbl, aan, meta, extra }) => (
                           <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
                             <span style={{ color: aan ? '#4ade80' : '#f87171', fontWeight: 700, minWidth: 14 }}>{aan ? '✓' : '✗'}</span>
-                            <span style={{ color: aan ? '#c8f7c5' : 'var(--muted)' }}>{lbl}</span>
+                            <span style={{ color: aan ? '#c8f7c5' : 'rgba(255,255,255,.55)' }}>{lbl}</span>
                             {extra && <span style={{ color: 'var(--muted)', fontSize: 11 }}>— {extra}</span>}
                             {meta && <span style={{ color: 'var(--muted)', fontSize: 10, marginLeft: 'auto' }}>{meta.door} {metaTijd(meta.op)}</span>}
                           </div>
