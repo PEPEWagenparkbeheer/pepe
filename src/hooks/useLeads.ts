@@ -119,7 +119,7 @@ export function useLeads() {
     const nu = new Date().toISOString();
     const naam = gebruikerRef.current || '?';
     const meta = { ...(rec.veld_meta ?? {}), verkocht: { op: nu, door: naam } };
-    await save({ ...rec, status: 'verkocht', veld_meta: meta });
+    await save({ ...rec, status: 'verkocht', gearchiveerd: true, veld_meta: meta });
 
     // AfterSales record aanmaken als type 'voorraad'
     const autoDelen = rec.auto.trim().split(/\s+/);
