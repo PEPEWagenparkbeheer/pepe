@@ -186,6 +186,7 @@ export default function ZoekenPage() {
       />
 
       <AkkoordModal
+        key={akkoordRecord?.id}
         record={akkoordRecord}
         open={!!akkoordRecord}
         onBevestig={handleAkkoordBevestig}
