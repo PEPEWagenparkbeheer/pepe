@@ -55,7 +55,7 @@ export function useLeads() {
         setLoading(false);
       });
 
-    const ch = supabase.channel('leads_realtime')
+    const ch = supabase.channel(`leads_realtime_${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const rec = deserialize(payload.new as Record<string, unknown>);

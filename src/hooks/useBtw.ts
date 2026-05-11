@@ -68,7 +68,7 @@ export function useBtw() {
       setLoading(false);
     });
 
-    const ch = supabase.channel('btw_realtime')
+    const ch = supabase.channel(`btw_realtime_${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'btw_records' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const rec = deserialize(payload.new as Record<string, unknown>);

@@ -86,7 +86,7 @@ export function useZoekopdrachten() {
         setLoading(false);
       });
 
-    const ch = supabase.channel('zoek_realtime')
+    const ch = supabase.channel(`zoek_realtime_${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'zoekopdrachten' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const rec = deserialize(payload.new as Record<string, unknown>);

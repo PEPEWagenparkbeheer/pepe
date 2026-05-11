@@ -111,7 +111,7 @@ export function useAfterSales() {
       setLoading(false);
     });
 
-    const ch1 = supabase.channel('as_realtime')
+    const ch1 = supabase.channel(`as_realtime_${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'after_sales' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const rec = deserializeAuto(payload.new as Record<string, unknown>);
@@ -123,7 +123,7 @@ export function useAfterSales() {
         }
       }).subscribe();
 
-    const ch2 = supabase.channel('nal_realtime')
+    const ch2 = supabase.channel(`nal_realtime_${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'as_klachten' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const rec = payload.new as ASKlacht;

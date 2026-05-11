@@ -77,7 +77,7 @@ export function useLease() {
       setLoading(false);
     });
 
-    const ch1 = supabase.channel('lease_a_realtime')
+    const ch1 = supabase.channel(`lease_a_realtime_${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lease_aanvragen' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const rec = deserializeAanvraag(payload.new as Record<string, unknown>);
@@ -89,7 +89,7 @@ export function useLease() {
         }
       }).subscribe();
 
-    const ch2 = supabase.channel('lease_k_realtime')
+    const ch2 = supabase.channel(`lease_k_realtime_${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lease_klanten' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const rec = deserializeKlant(payload.new as Record<string, unknown>);
