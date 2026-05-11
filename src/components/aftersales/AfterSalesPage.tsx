@@ -1372,6 +1372,7 @@ export default function AfterSalesPage() {
         onSluiten={() => setModalOpen(false)}
         onOpslaan={handleOpslaan}
         onVerwijder={removeAuto}
+        onAfleveren={(r) => { setModalOpen(false); setAfleverAuto({ auto: r, bewerken: false }); }}
       />
 
       {/* Aflevering plannen popup */}

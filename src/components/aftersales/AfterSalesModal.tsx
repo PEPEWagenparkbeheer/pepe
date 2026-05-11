@@ -35,9 +35,10 @@ interface Props {
   onSluiten: () => void;
   onOpslaan: (rec: AfterSalesAuto | Omit<AfterSalesAuto, 'id' | 'created_at'>) => Promise<void>;
   onVerwijder: (id: string) => Promise<void>;
+  onAfleveren?: (rec: AfterSalesAuto) => void;
 }
 
-export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, onVerwijder }: Props) {
+export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, onVerwijder, onAfleveren }: Props) {
   const wieLijst = leesWie();
   const { namen: medewerkers } = useMedewerkers();
   const [form, setForm] = useState<Omit<AfterSalesAuto, 'id' | 'created_at'>>(LEEG);
@@ -280,6 +281,11 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
         <div className={styles.modalFooter}>
           {record && <button className={styles.verwijderKnop} onClick={handleVerwijder}>🗑 Verwijder</button>}
           <button className="btn" onClick={onSluiten}>Annuleer</button>
+          {record && onAfleveren && (
+            <button className={styles.afleverKnop} onClick={() => { onSluiten(); onAfleveren(record); }}>
+              ✅ Afleveren
+            </button>
+          )}
           <button className="btn btn-a" onClick={handleOpslaan} disabled={opslaan}>{opslaan ? 'Opslaan...' : 'Opslaan'}</button>
         </div>
       </div>
