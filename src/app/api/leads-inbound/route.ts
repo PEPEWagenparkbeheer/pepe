@@ -88,25 +88,42 @@ export async function POST(req: NextRequest) {
   let prijs: string | null = null;
 
   if (isForwarded) {
-    const ext = await groqExtract(subject, textBody);
-    if (ext?.geen_lead) return NextResponse.json({ ok: true, skipped: 'geen_lead' });
-
-    if (ext) {
-      klant_naam     = ext.klant_naam     || 'Onbekend';
-      email          = ext.email          || null;
-      telefoon       = ext.telefoon       || null;
-      auto           = ext.auto           || subject.replace(/^fwd?:\s*/i, '');
-      bron           = GELDIGE_BRON.includes(ext.bron) ? ext.bron : 'email';
-      bericht        = ext.bericht        || textBody;
-      advertentie_url = extractAdUrl(htmlBody, textBody) || ext.advertentie_url || null;
-      prijs          = ext.prijs          || null;
-    } else {
-      klant_naam = 'Onbekend';
+    // AutoScout24 oproepmelding: "Aangenomen oproep" / "Gemiste oproep"
+    // Bevat geen klantnaam/bericht, alleen telefoonnummer — Groq zou dit als geen_lead markeren.
+    const isOproep = /(?:aangenomen|gemiste)\s+oproep/i.test(subject);
+    if (isOproep) {
+      const combinedBody = textBody + ' ' + htmlBody;
+      const telMatch = combinedBody.match(/(?:Telefoonnummer|Telefoon|Tel\.?)[:\s]+(\+?[\d][\d\s\-]{6,})/i)
+                    || combinedBody.match(/(\+31[\d\s\-]{8,}|06[\d\s\-]{8,})/);
+      telefoon   = telMatch ? telMatch[1].replace(/\s+/g, '').trim() : null;
+      klant_naam = telefoon || 'Onbekend';
       email      = null;
-      telefoon   = null;
-      auto       = subject.replace(/^fwd?:\s*/i, '');
-      bron       = 'email';
-      bericht    = textBody;
+      const autoMatch = subject.match(/voor\s+(.+?)(?:\s*[€,]|$)/i);
+      auto       = autoMatch ? autoMatch[1].trim() : subject.replace(/^fwd?:\s*/i, '').replace(/autoscout24[^:]*:\s*/i, '');
+      bron       = 'autoscout24';
+      bericht    = `Oproep via AutoScout24`;
+      prijs      = null;
+    } else {
+      const ext = await groqExtract(subject, textBody);
+      if (ext?.geen_lead) return NextResponse.json({ ok: true, skipped: 'geen_lead' });
+
+      if (ext) {
+        klant_naam     = ext.klant_naam     || 'Onbekend';
+        email          = ext.email          || null;
+        telefoon       = ext.telefoon       || null;
+        auto           = ext.auto           || subject.replace(/^fwd?:\s*/i, '');
+        bron           = GELDIGE_BRON.includes(ext.bron) ? ext.bron : 'email';
+        bericht        = ext.bericht        || textBody;
+        advertentie_url = extractAdUrl(htmlBody, textBody) || ext.advertentie_url || null;
+        prijs          = ext.prijs          || null;
+      } else {
+        klant_naam = 'Onbekend';
+        email      = null;
+        telefoon   = null;
+        auto       = subject.replace(/^fwd?:\s*/i, '');
+        bron       = 'email';
+        bericht    = textBody;
+      }
     }
   } else {
     klant_naam = body.FromName || fromRaw.split('@')[0] || 'Onbekend';
