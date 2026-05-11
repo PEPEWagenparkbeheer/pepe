@@ -9,8 +9,16 @@ export default function InnameLayout({ children }: { children: React.ReactNode }
 
   // Overschrijf de globale overflow:hidden van de body (die voor de sidebar-layout is)
   useEffect(() => {
+    document.documentElement.style.overflowY = 'auto';
     document.body.style.overflowY = 'auto';
-    return () => { document.body.style.overflowY = ''; };
+    document.body.style.height = 'auto';
+    document.documentElement.style.height = 'auto';
+    return () => {
+      document.documentElement.style.overflowY = '';
+      document.body.style.overflowY = '';
+      document.body.style.height = '';
+      document.documentElement.style.height = '';
+    };
   }, []);
 
   if (loading) {

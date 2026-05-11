@@ -2,6 +2,7 @@
   max-width: 540px;
   margin: 0 auto;
   padding: 16px 16px 80px;
+  touch-action: pan-y;
 }
 
 .header {
@@ -200,6 +201,7 @@
   height: auto;
   cursor: crosshair;
   user-select: none;
+  touch-action: manipulation;
   border-radius: 8px;
   background: #fff;
 }
