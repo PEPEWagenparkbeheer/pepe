@@ -56,80 +56,88 @@ export default function SchadeDiagram({ punten, onChange }: Props) {
       >
         {/* ── Auto bovenaanzicht ── */}
 
-        {/* Wielen (achterste laag) */}
-        <rect x="8"   y="56" width="20" height="40" rx="6" fill="none" stroke="currentColor" strokeWidth="2.5" />
-        <rect x="152" y="56" width="20" height="40" rx="6" fill="none" stroke="currentColor" strokeWidth="2.5" />
-        <rect x="8"   y="264" width="20" height="40" rx="6" fill="none" stroke="currentColor" strokeWidth="2.5" />
-        <rect x="152" y="264" width="20" height="40" rx="6" fill="none" stroke="currentColor" strokeWidth="2.5" />
-        {/* Velgen */}
-        <circle cx="18" cy="76"  r="7" fill="none" stroke="currentColor" strokeWidth="1.2" />
-        <circle cx="162" cy="76" r="7" fill="none" stroke="currentColor" strokeWidth="1.2" />
-        <circle cx="18"  cy="284" r="7" fill="none" stroke="currentColor" strokeWidth="1.2" />
-        <circle cx="162" cy="284" r="7" fill="none" stroke="currentColor" strokeWidth="1.2" />
+        {/* Wielen — ronde banden + velg */}
+        <circle cx="18"  cy="80"  r="18" fill="none" stroke="currentColor" strokeWidth="2.5" />
+        <circle cx="162" cy="80"  r="18" fill="none" stroke="currentColor" strokeWidth="2.5" />
+        <circle cx="18"  cy="294" r="18" fill="none" stroke="currentColor" strokeWidth="2.5" />
+        <circle cx="162" cy="294" r="18" fill="none" stroke="currentColor" strokeWidth="2.5" />
+        {/* Velgen (binnenring) */}
+        <circle cx="18"  cy="80"  r="9"  fill="none" stroke="currentColor" strokeWidth="1.2" />
+        <circle cx="162" cy="80"  r="9"  fill="none" stroke="currentColor" strokeWidth="1.2" />
+        <circle cx="18"  cy="294" r="9"  fill="none" stroke="currentColor" strokeWidth="1.2" />
+        <circle cx="162" cy="294" r="9"  fill="none" stroke="currentColor" strokeWidth="1.2" />
 
-        {/* Carrosserie buitenlijn */}
+        {/* Carrosserie buitenlijn — met wielkasten */}
         <path
-          d="M 66,14 Q 90,8 114,14
-             L 140,27 L 157,56
-             Q 163,68 163,82 L 163,98
-             Q 163,108 154,110
-             L 154,180
-             Q 163,184 163,196 L 163,268
-             Q 163,280 154,282
-             L 144,334 Q 116,352 90,354 Q 64,352 36,334
-             L 26,282
-             Q 17,280 17,268 L 17,196
-             Q 17,184 26,180
-             L 26,110
-             Q 17,108 17,98 L 17,82
-             Q 17,68 23,56
-             L 40,27 Z"
+          d="M 68,14 Q 90,8 112,14
+             L 136,26
+             C 150,34 158,50 160,66
+             C 162,72 162,76 160,82
+             C 158,90 152,100 142,104
+             L 142,188
+             C 152,192 160,202 162,212
+             C 164,222 162,256 160,270
+             C 158,282 150,294 136,300
+             L 118,336 Q 90,350 62,336
+             L 44,300
+             C 30,294 22,282 20,270
+             C 18,256 16,222 18,212
+             C 20,202 28,192 38,188
+             L 38,104
+             C 28,100 22,90 20,82
+             C 18,76 18,72 20,66
+             C 22,50 30,34 44,26 Z"
           fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"
         />
 
         {/* Voorbumper */}
-        <path d="M 54,16 Q 90,10 126,16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-        {/* Bumper detail lijn */}
-        <path d="M 48,24 Q 90,19 132,24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-
-        {/* Motorkap */}
-        <path d="M 27,110 Q 90,103 153,110" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="5 2.5" />
-        {/* Motorkap middenlijn */}
-        <line x1="90" y1="18" x2="90" y2="110" stroke="currentColor" strokeWidth="0.8" strokeDasharray="5 4" opacity="0.45" />
+        <path d="M 54,15 Q 90,9 126,15" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        <path d="M 46,24 Q 90,18 134,24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
 
         {/* Koplampen */}
-        <rect x="38" y="17" width="22" height="10" rx="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="120" y="17" width="22" height="10" rx="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="40" y="16" width="20" height="9" rx="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="120" y="16" width="20" height="9" rx="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
+
+        {/* Motorkap scheidingslijn */}
+        <path d="M 28,104 Q 90,97 152,104" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="5 2.5" />
+        {/* Motorkap V-plooilijnen */}
+        <line x1="90" y1="18"  x2="90"  y2="104" stroke="currentColor" strokeWidth="1"   opacity="0.4" />
+        <line x1="44" y1="28"  x2="90"  y2="104" stroke="currentColor" strokeWidth="0.8" opacity="0.3" />
+        <line x1="136" y1="28" x2="90"  y2="104" stroke="currentColor" strokeWidth="0.8" opacity="0.3" />
 
         {/* Voorruit */}
-        <path d="M 34,110 L 43,148 L 137,148 L 146,110" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M 34,104 L 44,146 L 136,146 L 146,104" fill="none" stroke="currentColor" strokeWidth="1.5" />
 
         {/* Dak */}
-        <rect x="43" y="148" width="94" height="108" rx="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        {/* Zonnedak lijn */}
-        <rect x="56" y="158" width="68" height="72" rx="5" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="3 2" opacity="0.5" />
+        <rect x="44" y="146" width="92" height="110" rx="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        {/* Zonnedak */}
+        <rect x="58" y="157" width="64" height="74" rx="5" fill="none" stroke="currentColor" strokeWidth="0.9" strokeDasharray="3 2" opacity="0.55" />
 
         {/* Achterruit */}
-        <path d="M 34,256 L 43,294 L 137,294 L 146,256" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M 34,256 L 44,298 L 136,298 L 146,256" fill="none" stroke="currentColor" strokeWidth="1.5" />
 
-        {/* Kofferbak */}
-        <path d="M 27,294 Q 90,287 153,294" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="5 2.5" />
+        {/* Kofferbak scheidingslijn */}
+        <path d="M 28,298 Q 90,291 152,298" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="5 2.5" />
+        {/* Kofferbak V-lijn */}
+        <line x1="90" y1="298" x2="90"  y2="336" stroke="currentColor" strokeWidth="0.8" opacity="0.3" />
+        <line x1="44" y1="300" x2="90"  y2="336" stroke="currentColor" strokeWidth="0.7" opacity="0.25" />
+        <line x1="136" y1="300" x2="90" y2="336" stroke="currentColor" strokeWidth="0.7" opacity="0.25" />
 
         {/* Achterlichten */}
-        <rect x="38" y="330" width="22" height="10" rx="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="120" y="330" width="22" height="10" rx="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="40" y="332" width="20" height="9" rx="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="120" y="332" width="20" height="9" rx="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
 
         {/* Achterbumper */}
-        <path d="M 48,340 Q 90,347 132,340" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-        <path d="M 42,346 Q 90,354 138,346" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        <path d="M 46,342 Q 90,348 134,342" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        <path d="M 62,348 Q 90,352 118,348" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
 
         {/* B-stijl deurscheiding */}
-        <line x1="17" y1="202" x2="34" y2="202" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="146" y1="202" x2="163" y2="202" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="18"  y1="200" x2="36"  y2="200" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="144" y1="200" x2="162" y2="200" stroke="currentColor" strokeWidth="1.5" />
 
         {/* Buitenspiegels */}
-        <path d="M 40,140 L 28,136 L 28,150 L 40,150" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-        <path d="M 140,140 L 152,136 L 152,150 L 140,150" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M 38,138 L 26,134 L 26,148 L 38,148" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M 142,138 L 154,134 L 154,148 L 142,148" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
 
         {/* Schade markers */}
         {punten.map((p, i) => (
