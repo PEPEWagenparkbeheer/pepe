@@ -1,10 +1,17 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import LoginScreen from '@/components/layout/LoginScreen';
 
 export default function InnameLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+
+  // Overschrijf de globale overflow:hidden van de body (die voor de sidebar-layout is)
+  useEffect(() => {
+    document.body.style.overflowY = 'auto';
+    return () => { document.body.style.overflowY = ''; };
+  }, []);
 
   if (loading) {
     return (
