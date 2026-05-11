@@ -319,9 +319,7 @@ export default function InnamePage() {
 
       </form>
 
-      {ongekoppeld.length > 0 && (
-        <OngekoppeldLijst lijst={ongekoppeld} onKoppel={koppelAan} />
-      )}
+      {/* Ongekoppeld bak alleen tonen via succes-scherm */}
     </div>
   );
 }

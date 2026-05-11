@@ -16,7 +16,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'PEPE Flow',
   description: 'Wagenparkbeheer',
-  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg' },
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/pepe-logo-rgb.png',
+  },
 };
 
 export default function RootLayout({

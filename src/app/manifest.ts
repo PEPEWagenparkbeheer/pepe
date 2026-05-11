@@ -3,14 +3,15 @@ import type { MetadataRoute } from 'next';
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'PEPE Flow',
-    short_name: 'PEPE Inname',
+    short_name: 'PEPE',
     description: 'PEPE Wagenparkbeheer — Innameformulier',
     start_url: '/inname',
     display: 'standalone',
-    background_color: '#0f1117',
-    theme_color: '#0f1117',
+    background_color: '#ffffff',
+    theme_color: '#921939',
     icons: [
-      { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' },
+      { src: '/pepe-logo-rgb.png', sizes: '192x192', type: 'image/png' },
+      { src: '/pepe-logo-rgb.png', sizes: '512x512', type: 'image/png' },
     ],
   };
 }
