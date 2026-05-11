@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useBtw } from '@/hooks/useBtw';
 import { useZoekopdrachten } from '@/hooks/useZoekopdrachten';
+import { supabase } from '@/lib/supabase';
 import { schietConfetti } from '@/lib/confetti';
 import type { Zoekopdracht } from '@/types';
 import type { AutoType, BrutoNetto } from './AkkoordModal';
@@ -85,6 +86,7 @@ export default function ZoekenPage() {
     dealer: string,
     btwBedrag: string,
     brutoNetto: BrutoNetto,
+    ookAfterSales: boolean,
   ) {
     const naam = user?.email?.split('@')[0] ?? user?.email ?? '';
     await update({
@@ -113,6 +115,20 @@ export default function ZoekenPage() {
         dealer_verkoper: dealer || undefined,
         ingekocht_op: new Date().toISOString().slice(0, 10),
         inkoper: naam || undefined,
+        gearchiveerd: false,
+      });
+    }
+
+    if (ookAfterSales) {
+      const delen = rec.auto.trim().split(/\s+/);
+      await supabase.from('after_sales').insert({
+        kenteken: '',
+        merk: delen[0] ?? '',
+        model: delen.slice(1).join(' '),
+        klant: rec.klant,
+        email_klant: rec.email_klant ?? null,
+        type: autoType === 'voorraad' ? 'voorraad' : autoType === 'import' ? 'import' : 'nl',
+        binnen: false,
         gearchiveerd: false,
       });
     }

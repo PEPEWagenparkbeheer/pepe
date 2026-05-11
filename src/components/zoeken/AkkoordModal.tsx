@@ -10,7 +10,7 @@ export type BrutoNetto = 'bruto' | 'netto';
 interface Props {
   record: Zoekopdracht | null;
   open: boolean;
-  onBevestig: (record: Zoekopdracht, bijzonderheden: string, autoType: AutoType, dealer: string, btwBedrag: string, brutoNetto: BrutoNetto) => void;
+  onBevestig: (record: Zoekopdracht, bijzonderheden: string, autoType: AutoType, dealer: string, btwBedrag: string, brutoNetto: BrutoNetto, ookAfterSales: boolean) => void;
   onSluiten: () => void;
 }
 
@@ -46,6 +46,7 @@ export default function AkkoordModal({ record, open, onBevestig, onSluiten }: Pr
   const [dealerBedrag, setDealerBedrag] = useState('');
   const [dealer, setDealer] = useState('');
   const [bijzonderheden, setBijzonderheden] = useState('');
+  const [ookAfterSales, setOokAfterSales] = useState(true);
 
   if (!open || !record) return null;
 
@@ -55,7 +56,7 @@ export default function AkkoordModal({ record, open, onBevestig, onSluiten }: Pr
   function handleBevestig() {
     if (!record) return;
     mailAkkoord(record, bijzonderheden);
-    onBevestig(record, bijzonderheden, autoType, dealer, btwBedrag, brutoNetto);
+    onBevestig(record, bijzonderheden, autoType, dealer, btwBedrag, brutoNetto, ookAfterSales);
   }
 
   return (
@@ -149,6 +150,17 @@ export default function AkkoordModal({ record, open, onBevestig, onSluiten }: Pr
         <div className={styles.sectie}>
           <div className={styles.sectieTitel}>Dealer / Verkoper (voor BTW-lijst)</div>
           <input className="fi" placeholder="bijv. Audi Zentrum Regensburg" value={dealer} onChange={(e) => setDealer(e.target.value)} />
+        </div>
+
+        {/* After Sales */}
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 12 }}
+          onClick={() => setOokAfterSales(!ookAfterSales)}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${ookAfterSales ? 'var(--green)' : 'var(--border)'}`, background: ookAfterSales ? 'var(--green)' : '#1e2029', flexShrink: 0 }}>
+            {ookAfterSales && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+          </div>
+          <span style={{ fontSize: 13 }}>🚗 Zet in After Sales bord</span>
         </div>
 
         {/* Bijzonderheden */}
