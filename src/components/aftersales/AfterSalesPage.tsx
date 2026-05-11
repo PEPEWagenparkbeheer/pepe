@@ -622,6 +622,8 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate, onToggleMeta }: {
     return [...gefilterd].sort((a, b) => {
       // Klaar onderaan
       if (!!a.klaar !== !!b.klaar) return a.klaar ? 1 : -1;
+      // Niet binnen onderaan (boven klaar)
+      if (!!a.binnen !== !!b.binnen) return a.binnen ? -1 : 1;
       // Oudste binnen_op bovenaan
       const dA = a.binnen_op ?? '';
       const dB = b.binnen_op ?? '';
