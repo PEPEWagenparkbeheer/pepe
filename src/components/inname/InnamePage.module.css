@@ -54,28 +54,37 @@
   display: block;
 }
 
-/* Kenteken row met RDW knop */
-.kentekenRij {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
+/* Kenteken + Meldcode op één rij */
+.kentMeldRij {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   margin-bottom: 10px;
 }
 
-.kentekenRij > div { flex: 1; }
+.kentMeldVeld { min-width: 0; }
+
+.kentInputRij {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.kentInputRij .fi { flex: 1; min-width: 0; }
 
 .rdwKnop {
   flex-shrink: 0;
   height: 38px;
-  padding: 0 14px;
-  font-size: 12px;
-  font-weight: 600;
+  width: 38px;
+  font-size: 14px;
   background: var(--card);
   border: 1.5px solid var(--accent);
   color: var(--accent);
   border-radius: var(--radius);
   cursor: pointer;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .rdwKnop:hover { background: rgba(220,38,38,.08); }
 .rdwKnop:disabled { opacity: .5; cursor: default; }
@@ -311,6 +320,85 @@
 .succesIcoon { font-size: 56px; }
 .succesTitel { font-size: 22px; font-weight: 800; color: var(--text); }
 .succesSub { font-size: 14px; color: var(--muted); }
+
+/* Responsive: smalle telefoons → veldRij single column */
+@media (max-width: 400px) {
+  .veldRij {
+    grid-template-columns: 1fr;
+  }
+  .kentMeldRij {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ongekoppelde innames */
+.ongekoppeldSectie {
+  margin-top: 24px;
+  margin-bottom: 80px;
+  border: 1.5px solid rgba(234,179,8,.3);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: rgba(234,179,8,.04);
+}
+
+.ongekoppeldTitel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ca8a04;
+  margin-bottom: 2px;
+}
+
+.ongekoppeldSub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.ongekoppeldItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--card-border);
+}
+
+.ongekoppeldInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ongekoppeldKenteken {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+.ongekoppeldMeta {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.koppelKnop {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--card);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.koppelKnop:hover { background: rgba(220,38,38,.08); }
+.koppelKnop:disabled { opacity: .5; cursor: default; }
 
 /* Auto info chip */
 .autoChip {

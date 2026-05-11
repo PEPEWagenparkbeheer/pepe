@@ -14,8 +14,18 @@ function localSave(data: InnameFormulier[]) {
   try { localStorage.setItem(SK, JSON.stringify(data)); } catch { /* leeg */ }
 }
 
+function sanitizeDates(form: Omit<InnameFormulier, 'id' | 'created_at'>) {
+  return {
+    ...form,
+    datum:               form.datum               || null,
+    apk_geldig_tot:      form.apk_geldig_tot      || null,
+    laatste_beurt_datum: form.laatste_beurt_datum  || null,
+  };
+}
+
 export function useInname(afterSalesId?: string) {
   const [formulieren, setFormulieren] = useState<InnameFormulier[]>([]);
+  const [ongekoppeld, setOngekoppeld] = useState<InnameFormulier[]>([]);
   const [loading, setLoading] = useState(true);
   const ref = useRef<InnameFormulier[]>([]);
 
@@ -26,25 +36,35 @@ export function useInname(afterSalesId?: string) {
   }
 
   useEffect(() => {
-    if (!afterSalesId) { setLoading(false); return; }
-
-    const lokaal = localLoad().filter(f => f.after_sales_id === afterSalesId);
-    if (lokaal.length) { ref.current = lokaal; setFormulieren(lokaal); }
-
-    supabase
-      .from('inname_formulieren')
-      .select('*')
-      .eq('after_sales_id', afterSalesId)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) update(data as InnameFormulier[]);
-        setLoading(false);
-      });
+    if (afterSalesId) {
+      const lokaal = localLoad().filter(f => f.after_sales_id === afterSalesId);
+      if (lokaal.length) { ref.current = lokaal; setFormulieren(lokaal); }
+      supabase
+        .from('inname_formulieren')
+        .select('*')
+        .eq('after_sales_id', afterSalesId)
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (!error && data) update(data as InnameFormulier[]);
+          setLoading(false);
+        });
+    } else {
+      // Laad ongekoppelde innames (after_sales_id IS NULL)
+      supabase
+        .from('inname_formulieren')
+        .select('*')
+        .is('after_sales_id', null)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => {
+          setOngekoppeld((data ?? []) as InnameFormulier[]);
+          setLoading(false);
+        });
+    }
   }, [afterSalesId]);
 
   const submit = useCallback(async (
     form: Omit<InnameFormulier, 'id' | 'created_at'>,
-  ): Promise<{ ok: boolean; after_sales_id?: string; error?: string }> => {
+  ): Promise<{ ok: boolean; after_sales_id?: string; ongekoppeld?: boolean; error?: string }> => {
     const kenteken = (form.kenteken ?? '').trim().toUpperCase().replace(/-/g, '');
     const meldcode = (form.meldcode ?? '').trim();
 
@@ -59,7 +79,6 @@ export function useInname(afterSalesId?: string) {
         .limit(1);
       if (asRecs?.[0]) {
         asId = asRecs[0].id;
-        // Zet binnen + binnen_op
         await supabase.from('after_sales').update({
           binnen: true,
           binnen_op: form.datum ?? new Date().toISOString().slice(0, 10),
@@ -67,27 +86,7 @@ export function useInname(afterSalesId?: string) {
       }
     }
 
-    // Als niet gevonden: maak nieuw after_sales record
-    if (!asId) {
-      const merkModel = (form.merk_type ?? '').trim().split(' ');
-      const { data: nieuw, error: asErr } = await supabase
-        .from('after_sales')
-        .insert({
-          kenteken: kenteken || meldcode || '',
-          merk: merkModel[0] ?? '',
-          model: merkModel.slice(1).join(' ') ?? '',
-          type: 'nl',
-          binnen: true,
-          binnen_op: form.datum ?? new Date().toISOString().slice(0, 10),
-          gearchiveerd: false,
-        })
-        .select('id')
-        .single();
-      if (asErr) return { ok: false, error: asErr.message };
-      asId = nieuw.id;
-    }
-
-    // APK terugschrijven naar after_sales als gevuld
+    // APK terugschrijven als gekoppeld en gevuld
     if (asId && form.apk_geldig_tot) {
       const d = form.apk_geldig_tot;
       const apkFmt = d.length === 10
@@ -96,20 +95,58 @@ export function useInname(afterSalesId?: string) {
       await supabase.from('after_sales').update({ apk: apkFmt }).eq('id', asId);
     }
 
-    // Upsert inname formulier
+    // Sla inname op — zonder after_sales_id als niet gevonden (ongekoppeld)
+    const cleaned = sanitizeDates(form);
     const { data: result, error } = await supabase
       .from('inname_formulieren')
-      .insert({ ...form, after_sales_id: asId })
+      .insert({ ...cleaned, after_sales_id: asId ?? null })
       .select('*')
       .single();
 
     if (error) return { ok: false, error: error.message };
 
-    update([result as InnameFormulier, ...ref.current]);
-    return { ok: true, after_sales_id: asId };
+    const rec = result as InnameFormulier;
+    if (!asId) {
+      setOngekoppeld(prev => [rec, ...prev]);
+    }
+    update([rec, ...ref.current]);
+    return { ok: true, after_sales_id: asId, ongekoppeld: !asId };
+  }, []);
+
+  // Maak een nieuw AfterSales record aan voor een ongekoppelde inname
+  const koppelAan = useCallback(async (inname: InnameFormulier): Promise<{ ok: boolean; error?: string }> => {
+    const kenteken = (inname.kenteken ?? '').trim().toUpperCase().replace(/-/g, '');
+    const meldcode = (inname.meldcode ?? '').trim();
+    const merkModel = (inname.merk_type ?? '').trim().split(' ');
+
+    const { data: nieuw, error: asErr } = await supabase
+      .from('after_sales')
+      .insert({
+        kenteken: kenteken || meldcode || '',
+        merk: merkModel[0] ?? '',
+        model: merkModel.slice(1).join(' ') ?? '',
+        type: 'nl',
+        binnen: true,
+        binnen_op: inname.datum ?? new Date().toISOString().slice(0, 10),
+        gearchiveerd: false,
+      })
+      .select('id')
+      .single();
+
+    if (asErr) return { ok: false, error: asErr.message };
+
+    const { error: linkErr } = await supabase
+      .from('inname_formulieren')
+      .update({ after_sales_id: nieuw.id })
+      .eq('id', inname.id);
+
+    if (linkErr) return { ok: false, error: linkErr.message };
+
+    setOngekoppeld(prev => prev.filter(f => f.id !== inname.id));
+    return { ok: true };
   }, []);
 
   const latest = formulieren[0] ?? null;
 
-  return { formulieren, latest, loading, submit };
+  return { formulieren, latest, ongekoppeld, loading, submit, koppelAan };
 }

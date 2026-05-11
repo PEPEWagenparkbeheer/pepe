@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useInname } from '@/hooks/useInname';
+import { useMedewerkers } from '@/hooks/useMedewerkers';
 import { rdwOpzoeken } from '@/lib/rdw';
 import type { InnameFormulier } from '@/types';
-import SchadeDiagram, { type SchadePunt } from './SchadeDiagram';
+import SchadeDiagram from './SchadeDiagram';
 import styles from './InnamePage.module.css';
 
 const TANK_OPTIES = ['leeg', 'kwart', 'half', 'driekwart', 'vol'] as const;
@@ -29,7 +30,8 @@ const LEEG: Omit<InnameFormulier, 'id' | 'created_at'> = {
 
 export default function InnamePage() {
   const { user } = useAuth();
-  const { submit } = useInname();
+  const { submit, ongekoppeld, koppelAan } = useInname();
+  const { namen: medewerkersLijst } = useMedewerkers();
 
   const gebruikerNaam = user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? '';
 
@@ -40,7 +42,7 @@ export default function InnamePage() {
   const [rdwLaden, setRdwLaden] = useState(false);
   const [rdwInfo, setRdwInfo] = useState('');
   const [bezig, setBezig] = useState(false);
-  const [succes, setSucces] = useState<{ after_sales_id: string } | null>(null);
+  const [succes, setSucces] = useState<{ after_sales_id?: string; ongekoppeld?: boolean } | null>(null);
 
   function stel<K extends keyof typeof form>(veld: K, waarde: typeof form[K]) {
     setForm(f => ({ ...f, [veld]: waarde }));
@@ -68,7 +70,6 @@ export default function InnamePage() {
         ...f,
         merk_type: f.merk_type || merkType,
         apk_geldig_tot: f.apk_geldig_tot || (data.apkDatum
-          // convert "DD-MM-YYYY" → "YYYY-MM-DD" for date input
           ? data.apkDatum.split('-').reverse().join('-')
           : ''),
       }));
@@ -89,15 +90,15 @@ export default function InnamePage() {
     setBezig(true);
     const result = await submit({ ...form, inname_door: form.inname_door || gebruikerNaam });
     setBezig(false);
-    if (result.ok && result.after_sales_id) {
-      setSucces({ after_sales_id: result.after_sales_id });
+    if (result.ok) {
+      setSucces({ after_sales_id: result.after_sales_id, ongekoppeld: result.ongekoppeld });
     } else {
       alert('Opslaan mislukt: ' + (result.error ?? 'onbekende fout'));
     }
   }
 
   function nieuwFormulier() {
-    setForm({ ...LEEG, inname_door: gebruikerNaam });
+    setForm({ ...LEEG, inname_door: form.inname_door });
     setSucces(null);
     setRdwInfo('');
   }
@@ -106,11 +107,22 @@ export default function InnamePage() {
     return (
       <div className={styles.pagina}>
         <div className={styles.succes}>
-          <div className={styles.succesIcoon}>✅</div>
-          <div className={styles.succesTitel}>Inname opgeslagen!</div>
-          <div className={styles.succesSub}>Het formulier is gekoppeld aan de AfterSales kaart.</div>
+          <div className={styles.succesIcoon}>{succes.ongekoppeld ? '⚠️' : '✅'}</div>
+          <div className={styles.succesTitel}>
+            {succes.ongekoppeld ? 'Inname opgeslagen' : 'Inname opgeslagen!'}
+          </div>
+          <div className={styles.succesSub}>
+            {succes.ongekoppeld
+              ? 'Kenteken niet gevonden in AfterSales. De inname staat in de lijst hieronder — koppel hem handmatig.'
+              : 'Het formulier is gekoppeld aan de AfterSales kaart.'
+            }
+          </div>
           <button className="btn btn-a" onClick={nieuwFormulier}>+ Nieuwe inname</button>
         </div>
+
+        {succes.ongekoppeld && ongekoppeld.length > 0 && (
+          <OngekoppeldLijst lijst={ongekoppeld} onKoppel={koppelAan} />
+        )}
       </div>
     );
   }
@@ -129,30 +141,32 @@ export default function InnamePage() {
         <div className={styles.sectie}>
           <div className={styles.sectieTitel}>Voertuiggegevens</div>
 
-          <div className={styles.kentekenRij}>
-            <div>
+          {/* Kenteken + Meldcode op één rij */}
+          <div className={styles.kentMeldRij}>
+            <div className={styles.kentMeldVeld}>
               <label className={styles.veldLabel}>Kenteken</label>
-              <input
-                className="fi"
-                placeholder="bijv. KGT38Z"
-                value={form.kenteken}
-                onChange={e => stel('kenteken', e.target.value.toUpperCase())}
-                style={{ textTransform: 'uppercase' }}
-              />
+              <div className={styles.kentInputRij}>
+                <input
+                  className="fi"
+                  placeholder="bijv. KGT38Z"
+                  value={form.kenteken}
+                  onChange={e => stel('kenteken', e.target.value.toUpperCase())}
+                  style={{ textTransform: 'uppercase' }}
+                />
+                <button type="button" className={styles.rdwKnop} onClick={rdwHalen} disabled={rdwLaden}>
+                  {rdwLaden ? '…' : '🔍'}
+                </button>
+              </div>
             </div>
-            <button type="button" className={styles.rdwKnop} onClick={rdwHalen} disabled={rdwLaden}>
-              {rdwLaden ? '…' : '🔍 RDW'}
-            </button>
+            <div className={styles.kentMeldVeld}>
+              <label className={styles.veldLabel}>Meldcode</label>
+              <input className="fi" placeholder="bijv. M-2024-001" value={form.meldcode ?? ''} onChange={e => stel('meldcode', e.target.value)} />
+            </div>
           </div>
 
           {rdwInfo && <div className={styles.autoChip}>✓ {rdwInfo}</div>}
 
-          <div className={styles.veldRij1} style={{ marginTop: rdwInfo ? 10 : 0 }}>
-            <label className={styles.veldLabel}>Meldcode (bij import zonder kenteken)</label>
-            <input className="fi" placeholder="bijv. M-2024-001" value={form.meldcode ?? ''} onChange={e => stel('meldcode', e.target.value)} />
-          </div>
-
-          <div className={styles.veldRij}>
+          <div className={styles.veldRij} style={{ marginTop: 10 }}>
             <div>
               <label className={styles.veldLabel}>Merk &amp; type</label>
               <input className="fi" placeholder="bijv. Audi Q3" value={form.merk_type ?? ''} onChange={e => stel('merk_type', e.target.value)} />
@@ -174,7 +188,10 @@ export default function InnamePage() {
             </div>
             <div>
               <label className={styles.veldLabel}>Inname door</label>
-              <input className="fi" placeholder="Naam" value={form.inname_door ?? ''} onChange={e => stel('inname_door', e.target.value)} />
+              <select className="fi" value={form.inname_door ?? ''} onChange={e => stel('inname_door', e.target.value)}>
+                <option value="">— kies —</option>
+                {medewerkersLijst.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
           </div>
         </div>
@@ -194,11 +211,11 @@ export default function InnamePage() {
           </div>
           <div className={styles.veldRij}>
             <div>
-              <label className={styles.veldLabel}>Laatste beurt (datum)</label>
+              <label className={styles.veldLabel}>Laatste beurt datum</label>
               <input className="fi" type="date" value={form.laatste_beurt_datum ?? ''} onChange={e => stel('laatste_beurt_datum', e.target.value)} />
             </div>
             <div>
-              <label className={styles.veldLabel}>Laatste beurt (km)</label>
+              <label className={styles.veldLabel}>Laatste beurt km</label>
               <input className="fi" type="number" placeholder="bijv. 80000" value={form.laatste_beurt_km ?? ''} onChange={e => stel('laatste_beurt_km', e.target.value ? parseInt(e.target.value) : undefined)} />
             </div>
           </div>
@@ -301,6 +318,51 @@ export default function InnamePage() {
         </button>
 
       </form>
+
+      {ongekoppeld.length > 0 && (
+        <OngekoppeldLijst lijst={ongekoppeld} onKoppel={koppelAan} />
+      )}
+    </div>
+  );
+}
+
+function OngekoppeldLijst({
+  lijst,
+  onKoppel,
+}: {
+  lijst: InnameFormulier[];
+  onKoppel: (inname: InnameFormulier) => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [bezig, setBezig] = useState<string | null>(null);
+
+  async function handleKoppel(inname: InnameFormulier) {
+    setBezig(inname.id);
+    const result = await onKoppel(inname);
+    setBezig(null);
+    if (!result.ok) alert('Koppelen mislukt: ' + result.error);
+  }
+
+  return (
+    <div className={styles.ongekoppeldSectie}>
+      <div className={styles.ongekoppeldTitel}>⚠️ Niet gekoppeld aan AfterSales</div>
+      <div className={styles.ongekoppeldSub}>Kenteken niet gevonden — controleer en koppel handmatig</div>
+      {lijst.map(f => (
+        <div key={f.id} className={styles.ongekoppeldItem}>
+          <div className={styles.ongekoppeldInfo}>
+            <span className={styles.ongekoppeldKenteken}>{f.kenteken || f.meldcode || '—'}</span>
+            <span className={styles.ongekoppeldMeta}>
+              {f.datum} · {f.merk_type || 'onbekend'} · {f.km_stand ? `${f.km_stand.toLocaleString('nl-NL')} km` : ''}
+            </span>
+          </div>
+          <button
+            className={styles.koppelKnop}
+            onClick={() => handleKoppel(f)}
+            disabled={bezig === f.id}
+          >
+            {bezig === f.id ? '…' : '+ AfterSales'}
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
