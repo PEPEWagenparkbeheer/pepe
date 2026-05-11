@@ -1,12 +1,16 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
+import { usePathname } from 'next/navigation';
 import LoginScreen from './LoginScreen';
 import Sidebar from './Sidebar';
 import styles from './AppLayout.module.css';
 
+const SIDEBAR_HIDDEN = ['/inname'];
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const pathname = usePathname();
 
   if (loading) {
     return (
@@ -14,6 +18,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className={styles.spinner} />
       </div>
     );
+  }
+
+  const hideSidebar = SIDEBAR_HIDDEN.some(p => pathname === p || pathname.startsWith(p + '/'));
+
+  if (hideSidebar) {
+    return <>{children}</>;
   }
 
   if (!user) {
