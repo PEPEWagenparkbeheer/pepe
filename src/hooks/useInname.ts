@@ -68,23 +68,36 @@ export function useInname(afterSalesId?: string) {
     const kenteken = (form.kenteken ?? '').trim().toUpperCase().replace(/-/g, '');
     const meldcode = (form.meldcode ?? '').trim();
 
-    // Zoek bestaande after_sales kaart via genormaliseerde kenteken_clean kolom
-    let asId: string | undefined;
-    if (kenteken) {
-      const { data: asRecs } = await supabase
+    // Zoek bestaande after_sales kaart — eerst op kenteken, daarna op meldcode
+    // kenteken_clean is een DB-kolom: UPPER(REPLACE(kenteken, '-', ''))
+    const meldcodeClean = meldcode.toUpperCase().replace(/[-\s]/g, '');
+
+    async function zoekAfterSales(zoekterm: string) {
+      if (!zoekterm) return undefined;
+      const { data } = await supabase
         .from('after_sales')
         .select('id')
-        .ilike('kenteken_clean', `%${kenteken}%`)
+        .ilike('kenteken_clean', `%${zoekterm}%`)
         .eq('gearchiveerd', false)
         .order('created_at', { ascending: false })
         .limit(1);
-      if (asRecs?.[0]) {
-        asId = asRecs[0].id;
-        await supabase.from('after_sales').update({
-          binnen: true,
-          binnen_op: form.datum ?? new Date().toISOString().slice(0, 10),
-        }).eq('id', asId);
-      }
+      return data?.[0]?.id as string | undefined;
+    }
+
+    let asId: string | undefined;
+    if (kenteken) {
+      asId = await zoekAfterSales(kenteken);
+    }
+    // Als kenteken geen match gaf, probeer meldcode
+    if (!asId && meldcodeClean) {
+      asId = await zoekAfterSales(meldcodeClean);
+    }
+
+    if (asId) {
+      await supabase.from('after_sales').update({
+        binnen: true,
+        binnen_op: form.datum ?? new Date().toISOString().slice(0, 10),
+      }).eq('id', asId);
     }
 
     // APK terugschrijven als gekoppeld en gevuld
