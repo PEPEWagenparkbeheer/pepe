@@ -221,6 +221,34 @@ export interface BtwRecord {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
+// ── Inname formulier ─────────────────────────────────────────
+
+export interface InnameFormulier {
+  id: string;
+  created_at?: string;
+  kenteken: string;
+  meldcode?: string;
+  after_sales_id?: string;
+  datum?: string;
+  inname_door?: string;
+  merk_type?: string;
+  brandstof?: string;
+  km_stand?: number;
+  laatste_beurt_datum?: string;
+  laatste_beurt_km?: number;
+  apk_geldig_tot?: string;
+  tankinhoud?: string;
+  band_lv?: string;
+  band_rv?: string;
+  band_la?: string;
+  band_ra?: string;
+  band_seizoen?: string;
+  bandenmaat?: string;
+  items?: Record<string, boolean>;
+  schade_diagram?: { x: number; y: number; type: string; symbol: string }[];
+  schade_omschrijving?: string;
+}
+
 // ── Leads ────────────────────────────────────────────────────
 
 export type LeadStatus = 'nieuw' | 'opgepakt' | 'gebeld' | 'interesse' | 'verkocht' | 'geen_interesse';

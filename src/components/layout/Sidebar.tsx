@@ -14,6 +14,7 @@ const NAV_ITEMS = [
     section: 'Operations',
     items: [
       { href: '/aftersales', label: 'After Sales', icon: '🚗' },
+      { href: '/inname', label: 'Inname', icon: '📋' },
       { href: '/btw', label: 'BTW / Credit', icon: '💶' },
     ],
   },

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { AfterSalesAuto, ASAutoType } from '@/types';
 import { MERKEN_LIJST, WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
 import { useMedewerkers } from '@/hooks/useMedewerkers';
+import { useInname } from '@/hooks/useInname';
 
 function leesWie(): string[] {
   if (typeof window === 'undefined') return WIE_DEFAULT;
@@ -41,6 +42,7 @@ interface Props {
 export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, onVerwijder, onAfleveren }: Props) {
   const wieLijst = leesWie();
   const { namen: medewerkers } = useMedewerkers();
+  const { latest: inname } = useInname(record?.id);
   const [form, setForm] = useState<Omit<AfterSalesAuto, 'id' | 'created_at'>>(LEEG);
   const [opslaan, setOpslaan] = useState(false);
   const [rdwLaden, setRdwLaden] = useState(false);
@@ -260,6 +262,32 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
           <div className={`${styles.fg} ${styles.vol}`}>
             <textarea className="fi" rows={3} placeholder="bijv. staat bij VDU, wacht op onderdeel..." value={form.notitie ?? ''} onChange={(e) => stel('notitie', e.target.value)} />
           </div>
+
+          {/* ── INNAME FORMULIER ── */}
+          {inname && (
+            <>
+              <div className={styles.sectieHdr}>📋 Inname formulier</div>
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
+                  {inname.datum && <span>📅 {inname.datum}</span>}
+                  {inname.inname_door && <span>👤 {inname.inname_door}</span>}
+                  {inname.km_stand && <span>🔢 {inname.km_stand.toLocaleString('nl-NL')} km</span>}
+                  {inname.tankinhoud && <span>⛽ Tank: {inname.tankinhoud}</span>}
+                  {inname.apk_geldig_tot && <span>🔧 APK: {inname.apk_geldig_tot}</span>}
+                  {inname.band_seizoen && <span>🔄 Banden: {inname.band_seizoen}</span>}
+                  {inname.bandenmaat && <span>📐 {inname.bandenmaat}</span>}
+                  {(inname.band_lv || inname.band_rv) && (
+                    <span>Profiel LV/RV: {inname.band_lv ?? '–'}/{inname.band_rv ?? '–'} mm</span>
+                  )}
+                </div>
+                {inname.schade_omschrijving && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', background: 'var(--bg)', borderRadius: 6, padding: '6px 10px' }}>
+                    {inname.schade_omschrijving}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* ── BTW / CREDIT ── */}
           <div className={styles.sectieHdr}>BTW / Credit</div>

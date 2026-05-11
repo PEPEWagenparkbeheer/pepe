@@ -1,0 +1,327 @@
+.pagina {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 16px 16px 80px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.titel {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.03em;
+}
+
+.sectie {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.sectieTitel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.veldRij {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.veldRij1 {
+  margin-bottom: 10px;
+}
+
+.veldLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+  display: block;
+}
+
+/* Kenteken row met RDW knop */
+.kentekenRij {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.kentekenRij > div { flex: 1; }
+
+.rdwKnop {
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--card);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rdwKnop:hover { background: rgba(220,38,38,.08); }
+.rdwKnop:disabled { opacity: .5; cursor: default; }
+
+/* Tankinhoud radio */
+.tankRij {
+  display: flex;
+  gap: 6px;
+}
+
+.tankOptie {
+  flex: 1;
+  padding: 10px 4px;
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tankOptie.actief {
+  border-color: var(--accent);
+  background: rgba(220,38,38,.08);
+  color: var(--accent);
+}
+
+/* Banden grid */
+.bandenGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.seizoenRij {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.seizoenOptie {
+  flex: 1;
+  padding: 9px 6px;
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all .15s;
+}
+.seizoenOptie.actief {
+  border-color: var(--accent);
+  background: rgba(220,38,38,.08);
+  color: var(--accent);
+}
+
+/* Checkboxen */
+.checkGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.checkItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  transition: all .15s;
+}
+.checkItem.actief {
+  border-color: var(--green);
+  background: rgba(22,163,74,.07);
+}
+
+.checkBox {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--card-border);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.checkItem.actief .checkBox {
+  border-color: var(--green);
+  background: var(--green);
+}
+
+/* Schadediagram */
+.diagramWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.carSvg {
+  width: 160px;
+  height: auto;
+  color: var(--text);
+  cursor: crosshair;
+  user-select: none;
+}
+
+.diagramHint {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: center;
+}
+
+.legendaItem {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legendaSymbol {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Popup */
+.popupOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+.schadePopup {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 101;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 16px;
+  width: min(320px, calc(100vw - 32px));
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+
+.schadePopupTitel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.schadeOptie {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 6px;
+  text-align: left;
+}
+.schadeOptie:hover { border-color: var(--accent); background: rgba(220,38,38,.06); }
+
+.schadeSymbol {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--accent);
+  min-width: 20px;
+  text-align: center;
+}
+
+.schadeAnnuleer {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Submit */
+.submitKnop {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 32px), 508px);
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  z-index: 50;
+}
+
+/* Succes scherm */
+.succes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 60vh;
+  text-align: center;
+}
+
+.succesIcoon { font-size: 56px; }
+.succesTitel { font-size: 22px; font-weight: 800; color: var(--text); }
+.succesSub { font-size: 14px; color: var(--muted); }
+
+/* Auto info chip */
+.autoChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(22,163,74,.07);
+  border: 1px solid rgba(22,163,74,.2);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--green);
+  margin-top: 6px;
+}
