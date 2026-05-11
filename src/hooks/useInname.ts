@@ -68,14 +68,15 @@ export function useInname(afterSalesId?: string) {
     const kenteken = (form.kenteken ?? '').trim().toUpperCase().replace(/-/g, '');
     const meldcode = (form.meldcode ?? '').trim();
 
-    // Zoek bestaande after_sales kaart
+    // Zoek bestaande after_sales kaart via genormaliseerde kenteken_clean kolom
     let asId: string | undefined;
     if (kenteken) {
       const { data: asRecs } = await supabase
         .from('after_sales')
         .select('id')
-        .ilike('kenteken', kenteken)
+        .ilike('kenteken_clean', `%${kenteken}%`)
         .eq('gearchiveerd', false)
+        .order('created_at', { ascending: false })
         .limit(1);
       if (asRecs?.[0]) {
         asId = asRecs[0].id;

@@ -5,6 +5,13 @@
   touch-action: pan-y;
 }
 
+/* iOS auto-zoom fix: voorkom inzoomen bij focus op input (vereist font-size >= 16px) */
+.pagina input,
+.pagina select,
+.pagina textarea {
+  font-size: 16px !important;
+}
+
 .header {
   display: flex;
   align-items: center;
