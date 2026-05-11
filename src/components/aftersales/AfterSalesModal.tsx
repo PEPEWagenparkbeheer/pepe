@@ -5,6 +5,7 @@ import type { AfterSalesAuto, ASAutoType } from '@/types';
 import { MERKEN_LIJST, WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
 import { useMedewerkers } from '@/hooks/useMedewerkers';
 import { useInname } from '@/hooks/useInname';
+import InnameDetailModal from './InnameDetailModal';
 
 function leesWie(): string[] {
   if (typeof window === 'undefined') return WIE_DEFAULT;
@@ -43,6 +44,7 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
   const wieLijst = leesWie();
   const { namen: medewerkers } = useMedewerkers();
   const { latest: inname } = useInname(record?.id);
+  const [innameOpen, setInnameOpen] = useState(false);
   const [form, setForm] = useState<Omit<AfterSalesAuto, 'id' | 'created_at'>>(LEEG);
   const [opslaan, setOpslaan] = useState(false);
   const [rdwLaden, setRdwLaden] = useState(false);
@@ -105,6 +107,10 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
   }
 
   if (!open) return null;
+
+  if (innameOpen && inname) {
+    return <InnameDetailModal inname={inname} onSluiten={() => setInnameOpen(false)} />;
+  }
 
   const isImport = form.type === 'import';
 
@@ -268,23 +274,14 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             <>
               <div className={styles.sectieHdr}>📋 Inname formulier</div>
               <div className={`${styles.fg} ${styles.vol}`}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
-                  {inname.datum && <span>📅 {inname.datum}</span>}
-                  {inname.inname_door && <span>👤 {inname.inname_door}</span>}
-                  {inname.km_stand && <span>🔢 {inname.km_stand.toLocaleString('nl-NL')} km</span>}
-                  {inname.tankinhoud && <span>⛽ Tank: {inname.tankinhoud}</span>}
-                  {inname.apk_geldig_tot && <span>🔧 APK: {inname.apk_geldig_tot}</span>}
-                  {inname.band_seizoen && <span>🔄 Banden: {inname.band_seizoen}</span>}
-                  {inname.bandenmaat && <span>📐 {inname.bandenmaat}</span>}
-                  {(inname.band_lv || inname.band_rv) && (
-                    <span>Profiel LV/RV: {inname.band_lv ?? '–'}/{inname.band_rv ?? '–'} mm</span>
-                  )}
-                </div>
-                {inname.schade_omschrijving && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', background: 'var(--bg)', borderRadius: 6, padding: '6px 10px' }}>
-                    {inname.schade_omschrijving}
-                  </div>
-                )}
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ width: '100%', justifyContent: 'center', gap: 8 }}
+                  onClick={() => setInnameOpen(true)}
+                >
+                  📋 Bekijk innameformulier ({inname.datum ?? '—'})
+                </button>
               </div>
             </>
           )}
