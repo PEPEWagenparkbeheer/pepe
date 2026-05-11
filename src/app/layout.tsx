@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
-    apple: '/pepe-logo-rgb.png',
+    apple: '/apple-touch-icon.png',
   },
 };
 

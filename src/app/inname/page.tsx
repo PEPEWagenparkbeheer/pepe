@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   icons: {
     icon: '/pepe-beeldmerk-rgb.svg',
     shortcut: '/pepe-beeldmerk-rgb.svg',
-    apple: '/pepe-beeldmerk-rgb.svg',
+    apple: '/apple-touch-icon.png',
   },
 };
 
