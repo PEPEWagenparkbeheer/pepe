@@ -195,11 +195,13 @@
 }
 
 .carSvg {
-  width: 200px;
+  width: 100%;
+  max-width: 508px;
   height: auto;
-  color: var(--text);
   cursor: crosshair;
   user-select: none;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .diagramHint {
