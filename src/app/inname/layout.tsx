@@ -7,10 +7,16 @@ import LoginScreen from '@/components/layout/LoginScreen';
 export default function InnameLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
-  // Overschrijf de globale overflow:hidden van de body (die voor de sidebar-layout is)
   useEffect(() => {
+    // Overschrijf de globale overflow:hidden van de body
     document.body.style.overflow = 'auto';
-    return () => { document.body.style.overflow = ''; };
+    document.body.style.overflowX = 'hidden';
+    // Zorg dat de pagina altijd bovenaan links begint bij openen
+    window.scrollTo(0, 0);
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.overflowX = '';
+    };
   }, []);
 
   if (loading) {

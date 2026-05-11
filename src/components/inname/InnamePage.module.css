@@ -3,6 +3,7 @@
   margin: 0 auto;
   padding: 16px 16px 80px;
   touch-action: pan-y;
+  overflow-x: hidden;
 }
 
 /* iOS auto-zoom fix: voorkom inzoomen bij focus op input (vereist font-size >= 16px) */
