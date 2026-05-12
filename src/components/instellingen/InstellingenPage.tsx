@@ -224,6 +224,62 @@ function MedewerkersBeheer() {
   );
 }
 
+// ── TransConnect webhook ──────────────────────────────────────────────────────
+function TransConnectBeheer() {
+  const [status, setStatus] = useState<'idle' | 'bezig' | 'ok' | 'fout'>('idle');
+  const [melding, setMelding] = useState('');
+
+  async function registreer() {
+    setStatus('bezig');
+    setMelding('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/transconnect/register-webhook', {
+        method: 'POST',
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus('fout');
+        setMelding(data.error ?? `Fout ${res.status}`);
+      } else {
+        setStatus('ok');
+        setMelding(`Webhook geregistreerd: ${data.callbackUrl}`);
+      }
+    } catch (e) {
+      setStatus('fout');
+      setMelding(String(e));
+    }
+  }
+
+  return (
+    <div className={styles.kaart}>
+      <div className={styles.kaartHeader}>
+        <span className={styles.kaartIcon}>🚗</span>
+        <div style={{ flex: 1 }}>
+          <div className={styles.kaartTitel}>TransConnect</div>
+          <div className={styles.kaartSub}>Eenmalig webhook registreren zodat transport-updates automatisch binnenkomen</div>
+        </div>
+      </div>
+      <div style={{ padding: '12px 0 4px' }}>
+        <button
+          className={styles.toevoegKnop}
+          onClick={registreer}
+          disabled={status === 'bezig' || status === 'ok'}
+        >
+          {status === 'bezig' ? 'Bezig...' : status === 'ok' ? '✓ Geregistreerd' : 'Webhook registreren'}
+        </button>
+        {melding && (
+          <div className={`${styles.melding} ${status === 'fout' ? styles.meldingFout : styles.meldingOk}`}
+            style={{ marginTop: 10 }}>
+            {melding}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Pagina ────────────────────────────────────────────────────────────────────
 export default function InstellingenPage() {
   return (
@@ -234,6 +290,7 @@ export default function InstellingenPage() {
 
       <div className={styles.grid}>
         <MedewerkersBeheer />
+        <TransConnectBeheer />
 
         <LijstBeheer
           titel="Wie maakt klaar"
