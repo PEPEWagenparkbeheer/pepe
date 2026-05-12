@@ -6,62 +6,83 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-// TransConnect stuurt status-updates via POST naar deze URL.
-// Stel in het TransConnect portaal in als webhook-URL:
-// https://<jouw-domein>/api/transconnect/webhook
-//
-// TODO na ontvangst sandbox-docs: vul exacte payload-structuur en handtekening-validatie in.
+// TransConnect stuurt status-updates via POST naar:
+// https://<domein>/api/transconnect/webhook
+// Registreren via POST /api/transconnect/register-webhook
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Geen geldig JSON' }, { status: 400 });
 
-  // TODO: valideer webhook-handtekening zodra TransConnect dat specificeert
-  // const sig = req.headers.get('x-transconnect-signature');
-  // if (!valideerHandtekening(sig, body)) return NextResponse.json({ error: 'Ongeldige handtekening' }, { status: 401 });
-
-  const orderId: string = body.order_id ?? body.orderId ?? body.id;
-  const status: string  = body.status ?? body.state ?? '';
-  const geplandeDatum: string | undefined = body.planned_date ?? body.geplande_datum;
-  const aankomstDatum: string | undefined = body.delivery_date ?? body.aankomst_datum;
+  // TC order-ID en chassisnummer uit de payload halen
+  const orderId: string = String(body.order_id ?? body.orderId ?? body.id ?? '');
+  const chassis: string = String(body.vehicle_chassis_number ?? body.chassis_number ?? body.vin ?? '').toUpperCase().replace(/\s/g, '');
+  const status: string  = String(body.status ?? body.state ?? '').toLowerCase();
+  const geplandeDatum: string | undefined = body.planned_date ?? body.pickup_date;
+  const aankomstDatum: string | undefined = body.delivery_date ?? body.delivered_date;
 
   if (!orderId) return NextResponse.json({ error: 'Geen order_id' }, { status: 400 });
 
-  // Zoek het after_sales record op via het TransConnect order-ID
-  const { data: record, error: zoekFout } = await supabase
-    .from('after_sales')
-    .select('id, binnen')
-    .eq('transport_order_id', orderId)
-    .single();
+  // ── Stap 1: zoek record op via transport_order_id (snelste pad na eerste koppeling) ──
+  let recordId: string | null = null;
 
-  if (zoekFout || !record) {
-    console.warn('TransConnect webhook: order_id niet gevonden:', orderId);
+  const { data: bestaand } = await supabase
+    .from('after_sales')
+    .select('id')
+    .eq('transport_order_id', orderId)
+    .eq('gearchiveerd', false)
+    .maybeSingle();
+
+  if (bestaand) {
+    recordId = bestaand.id;
+  } else if (chassis.length >= 4) {
+    // ── Stap 2: eerste keer — koppelen via laatste 4 cijfers chassisnummer = meldcode ──
+    const chassis4 = chassis.slice(-4);
+
+    const { data: gevonden } = await supabase
+      .from('after_sales')
+      .select('id')
+      .ilike('kenteken_clean', `%${chassis4}%`)
+      .eq('gearchiveerd', false)
+      .eq('type', 'import')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (gevonden) {
+      recordId = gevonden.id;
+      // Sla order_id op voor volgende webhook-calls
+      await supabase.from('after_sales').update({ transport_order_id: orderId }).eq('id', recordId);
+    }
+  }
+
+  if (!recordId) {
+    console.warn('TransConnect webhook: geen record gevonden voor order', orderId, 'chassis', chassis);
     return NextResponse.json({ ok: false, error: 'Record niet gevonden' }, { status: 404 });
   }
 
-  // Bepaal wat er bijgewerkt moet worden op basis van de status
+  // ── Stap 3: status vertalen naar PEPE-veldwijzigingen ──
   const update: Record<string, unknown> = {
-    transport_status: status,
+    transport_status: body.status ?? status,
     transport_status_updated_at: new Date().toISOString(),
+    aangevraagd: true,
   };
 
-  const statusLower = status.toLowerCase();
-
-  if (geplandeDatum && (statusLower.includes('bevestigd') || statusLower.includes('gepland') || statusLower.includes('planned'))) {
+  if (geplandeDatum && (status.includes('planned') || status.includes('confirmed') || status.includes('created'))) {
     update.transportdatum = geplandeDatum.slice(0, 10);
   }
 
-  if (aankomstDatum || statusLower.includes('afgeleverd') || statusLower.includes('arrived') || statusLower.includes('aangekomen')) {
-    update.binnen = true;
-    update.binnen_op = (aankomstDatum ?? new Date().toISOString()).slice(0, 10);
+  if (status.includes('picked_up') || status.includes('in_transit') || status.includes('onderweg')) {
+    // Geen extra datumvelden, transport_status is al gezet
   }
 
-  const { error: updateFout } = await supabase
-    .from('after_sales')
-    .update(update)
-    .eq('id', record.id);
+  if (status.includes('delivered') || status.includes('aangekomen') || aankomstDatum) {
+    update.binnen      = true;
+    update.binnen_op   = (aankomstDatum ?? new Date().toISOString()).slice(0, 10);
+  }
 
-  if (updateFout) {
-    console.error('TransConnect webhook: update mislukt:', updateFout);
+  const { error } = await supabase.from('after_sales').update(update).eq('id', recordId);
+  if (error) {
+    console.error('TransConnect webhook update mislukt:', error);
     return NextResponse.json({ error: 'Update mislukt' }, { status: 500 });
   }
 
