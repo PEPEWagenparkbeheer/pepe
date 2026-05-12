@@ -22,7 +22,11 @@ export async function POST(req: NextRequest) {
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const callbackUrl = `${protocol}://${host}/api/transconnect/webhook`;
 
-  await registerWebhook(callbackUrl);
+  try {
+    await registerWebhook(callbackUrl);
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, callbackUrl });
 }
