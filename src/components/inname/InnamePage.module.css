@@ -11,6 +11,15 @@
 .pagina select,
 .pagina textarea {
   font-size: 16px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+.pagina input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 0;
+  line-height: 1.2;
 }
 
 .header {
