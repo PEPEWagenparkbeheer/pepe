@@ -57,6 +57,9 @@ export interface AfterSalesAuto {
   // Import checklist
   aangevraagd?: boolean;
   transportdatum?: string;
+  transport_order_id?: string;
+  transport_status?: string;
+  transport_status_updated_at?: string;
   betaald?: boolean;
   rdw_ingeschreven?: boolean;
   bpm_ingediend?: boolean;

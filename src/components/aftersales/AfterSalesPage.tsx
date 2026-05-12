@@ -519,6 +519,7 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
             <th>Klant</th>
             <th>Aangevr.</th>
             <th>Transportdatum</th>
+            <th>TC Status</th>
             <th className={styles.chk}>Betaald</th>
             <th className={styles.chk}>Binnen</th>
             {IMPORT_VOOR_BIN.slice(2).map((s) => <th key={s.veld} className={styles.chk}>{s.label}</th>)}
@@ -543,6 +544,7 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
                       onChange={(e) => onUpdate({ ...r, transportdatum: e.target.value })}
                     />
                   </td>
+                  <td><TransportStatusChip auto={r} /></td>
                   <td className={styles.chk}><CbMeta aan={!!r.betaald} onClick={() => onToggle(r.id, 'betaald')} meta={r.veld_meta?.['betaald']} /></td>
                   <td className={styles.chk}><CbMeta aan={!!r.binnen} onClick={() => onToggle(r.id, 'binnen')} meta={r.veld_meta?.['binnen']} /></td>
                   {IMPORT_VOOR_BIN.slice(2).map((s) => (
@@ -578,6 +580,20 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
       </div>
     </>
   );
+}
+
+// ── TransConnect status chip ──────────────────────────────────
+function TransportStatusChip({ auto }: { auto: AfterSalesAuto }) {
+  if (auto.binnen || auto.bin_ontvangen) {
+    return <span style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', whiteSpace: 'nowrap' }}>🟢 Aangekomen</span>;
+  }
+  if (auto.transport_status) {
+    return <span style={{ fontSize: 11, fontWeight: 600, color: '#2563eb', whiteSpace: 'nowrap' }}>🔵 {auto.transport_status}</span>;
+  }
+  if (auto.aangevraagd) {
+    return <span style={{ fontSize: 11, fontWeight: 600, color: '#ca8a04', whiteSpace: 'nowrap' }}>🟡 Aangevraagd</span>;
+  }
+  return <span style={{ fontSize: 11, color: 'var(--muted)' }}>—</span>;
 }
 
 // ── Platen badge ──────────────────────────────────────────────
