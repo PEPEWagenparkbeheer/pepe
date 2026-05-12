@@ -1,7 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST() {
+// Dit endpoint wist alle productiedata. Alleen toegankelijk met RESET_SECRET env var.
+// Zet RESET_SECRET NIET in de Vercel productie-omgeving — dan is het endpoint dood.
+export async function POST(req: NextRequest) {
+  const secret = process.env.RESET_SECRET;
+  if (!secret) return NextResponse.json({ error: 'Niet beschikbaar in productie' }, { status: 403 });
+
+  const { token } = await req.json().catch(() => ({}));
+  if (token !== secret) return NextResponse.json({ error: 'Ongeldig token' }, { status: 401 });
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return NextResponse.json({ error: 'Missende env vars' }, { status: 500 });

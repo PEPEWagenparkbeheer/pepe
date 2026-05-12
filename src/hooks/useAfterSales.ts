@@ -154,8 +154,13 @@ export function useAfterSales() {
   }, []);
 
   const removeAuto = useCallback(async (id: string) => {
-    updateAutos(autosRef.current.filter((r) => r.id !== id));
-    try { await supabase.from('after_sales').delete().eq('id', id); } catch { /* leeg */ }
+    const vorig = autosRef.current;
+    updateAutos(vorig.filter((r) => r.id !== id));
+    const { error } = await supabase.from('after_sales').delete().eq('id', id);
+    if (error) {
+      console.error('after_sales delete fout:', error.message);
+      updateAutos(vorig); // herstel bij fout
+    }
   }, []);
 
   // toggleAuto voegt automatisch tijdstempel + gebruiker toe aan veld_meta
