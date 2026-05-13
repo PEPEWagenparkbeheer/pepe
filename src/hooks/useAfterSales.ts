@@ -18,6 +18,7 @@ function prepareForDb(rec: AfterSalesAuto): Record<string, unknown> {
   for (const v of DATE_VELDEN) {
     if (out[v] === '') out[v] = null;
   }
+  delete out['kenteken_clean']; // generated column, mag niet meegestuurd worden
   return out;
 }
 
