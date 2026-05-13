@@ -302,7 +302,7 @@ export default function DashboardPage() {
               <span className={styles.todoPanelTitel}>Vandaag</span>
               <span className={styles.todoPanelCount}>{secties.reduce((t, s) => t + s.items.length, 0)}</span>
             </div>
-            <div className={styles.todoSecties}>
+            <div className={styles.todoSecties} style={{ gridTemplateColumns: `repeat(${secties.length}, 1fr)` }}>
               {secties.map(s => (
                 <div key={s.label} className={styles.todoSectie}>
                   <div className={`${styles.todoSectieHeader} ${styles[s.kleur as keyof typeof styles]}`}>
