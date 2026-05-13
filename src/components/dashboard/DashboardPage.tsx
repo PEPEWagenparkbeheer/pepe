@@ -6,6 +6,14 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import styles from './DashboardPage.module.css';
 
+interface TodoItem {
+  id: string | number;
+  label: string;
+  sub?: string;
+  extra?: string;
+  href: string;
+}
+
 interface DashData {
   prio: number;
   akkoordZoek: number;
@@ -23,14 +31,20 @@ interface DashData {
   tePlannenRijen: { id: string; kenteken: string; merk?: string; model?: string; klant?: string; type?: string; wie_levert_af?: string; binnen_op?: string }[];
   binnenLang: number;
   gemStadagen: number | null;
+  todoTeBetalen:        TodoItem[];
+  todoVandaagBinnen:    TodoItem[];
+  todoPrioZoek:         TodoItem[];
+  todoLeadsNietOpgepakt:TodoItem[];
+  todoVandaagLevering:  TodoItem[];
 }
 
 const LEEG: DashData = {
   prio: 0, akkoordZoek: 0, akkoordLease: 0, akkoordLead: 0, nieuwLeads: 0, tePlannen: 0, geplandCount: 0,
   prioRijen: [], rijklaarRijen: [], btwRijen: [], leaseRijen: [],
   leadsRijen: [], geplandRijen: [], tePlannenRijen: [],
-  binnenLang: 0,
-  gemStadagen: null,
+  binnenLang: 0, gemStadagen: null,
+  todoTeBetalen: [], todoVandaagBinnen: [], todoPrioZoek: [],
+  todoLeadsNietOpgepakt: [], todoVandaagLevering: [],
 };
 
 function groet() {
@@ -92,7 +106,7 @@ export default function DashboardPage() {
 
     const [zoekRes, asRes, btwRes, leaseRes, leadsRes] = await Promise.all([
       supabase.from('zoekopdrachten').select('id,klant,auto,wiezoekt,prio,uitgesteld,akkoord,akkoord_datum'),
-      supabase.from('after_sales').select('id,kenteken,merk,model,klant,afleverdatum,binnen,klaar,gearchiveerd,type,bin_ontvangen,binnen_op,wie_levert_af'),
+      supabase.from('after_sales').select('id,kenteken,merk,model,klant,afleverdatum,binnen,klaar,gearchiveerd,type,bin_ontvangen,binnen_op,wie_levert_af,transportdatum,betaald'),
       supabase.from('btw_records').select('id,auto,klant,ingekocht_op,geld_van_lm,geld_van_dealer,gearchiveerd,bedrag'),
       supabase.from('lease_aanvragen').select('id,klant_naam,merk,model,leasemaatschappij,verkocht,akkoord,offerte_verstuurd,verkocht_op'),
       supabase.from('leads').select('id,klant_naam,auto,status,bron,wie,gearchiveerd,created_at,veld_meta'),
@@ -169,12 +183,60 @@ export default function DashboardPage() {
 
     const nieuwLeads = leads.filter(l => !l.gearchiveerd && l.status === 'nieuw').length;
 
+    // ── Vandaag ToDo ──────────────────────────────────────────────
+    const vandaag    = new Date().toISOString().slice(0, 10);
+    const overmorgen = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+
+    const dagLabel = (d: string) => {
+      if (d === vandaag) return 'vandaag';
+      const morgen = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+      if (d === morgen) return 'morgen';
+      return new Date(d).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+    };
+
+    const todoTeBetalen: TodoItem[] = (as as Record<string, unknown>[])
+      .filter(a => !a.gearchiveerd && !a.betaald && a.transportdatum && (a.transportdatum as string) >= vandaag && (a.transportdatum as string) <= overmorgen)
+      .map(a => ({
+        id: a.id as string,
+        label: `${a.kenteken} — ${a.merk ?? ''} ${a.model ?? ''}`.trim(),
+        sub: a.klant as string | undefined,
+        extra: dagLabel(a.transportdatum as string),
+        href: '/aftersales?tab=import',
+      }));
+
+    const todoVandaagBinnen: TodoItem[] = (as as Record<string, unknown>[])
+      .filter(a => !a.gearchiveerd && !a.binnen && a.transportdatum === vandaag)
+      .map(a => ({
+        id: a.id as string,
+        label: `${a.kenteken} — ${a.merk ?? ''} ${a.model ?? ''}`.trim(),
+        sub: a.klant as string | undefined,
+        href: '/aftersales',
+      }));
+
+    const todoPrioZoek: TodoItem[] = zoek
+      .filter(z => z.prio && !z.akkoord && !z.uitgesteld)
+      .map(z => ({ id: z.id, label: z.klant, sub: z.auto, extra: z.wiezoekt, href: '/zoeken?filter=prio' }));
+
+    const todoLeadsNietOpgepakt: TodoItem[] = leads
+      .filter(l => !l.gearchiveerd && l.status === 'nieuw' && !l.wie)
+      .map(l => ({ id: l.id, label: l.klant_naam, sub: l.auto, extra: BRON_LABEL[l.bron] ?? l.bron, href: '/leads?filter=nieuw' }));
+
+    const todoVandaagLevering: TodoItem[] = (as as Record<string, unknown>[])
+      .filter(a => !a.gearchiveerd && a.afleverdatum === vandaag)
+      .map(a => ({
+        id: a.id as string,
+        label: `${a.kenteken} — ${a.merk ?? ''} ${a.model ?? ''}`.trim(),
+        sub: a.klant as string | undefined,
+        href: '/aftersales?tab=gepland',
+      }));
+
     setData({
       prio, akkoordZoek, akkoordLease, akkoordLead, nieuwLeads,
       tePlannen: tePlannenAll.length,
       geplandCount: geplandAll.length,
       prioRijen, rijklaarRijen, btwRijen, leaseRijen,
       leadsRijen, geplandRijen, tePlannenRijen, binnenLang, gemStadagen,
+      todoTeBetalen, todoVandaagBinnen, todoPrioZoek, todoLeadsNietOpgepakt, todoVandaagLevering,
     });
     setLaden(false);
   }
@@ -224,6 +286,45 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Vandaag ToDo */}
+      {(data.todoTeBetalen.length + data.todoVandaagBinnen.length + data.todoPrioZoek.length + data.todoLeadsNietOpgepakt.length + data.todoVandaagLevering.length) > 0 && (() => {
+        const secties = [
+          { icoon: '💳', label: 'Betalen', kleur: 'todoRood',  items: data.todoTeBetalen },
+          { icoon: '🚛', label: 'Vandaag binnen', kleur: 'todoBlauw', items: data.todoVandaagBinnen },
+          { icoon: '🚩', label: 'Prio zoekopdrachten', kleur: 'todoOranje', items: data.todoPrioZoek },
+          { icoon: '📞', label: 'Leads niet opgepakt', kleur: 'todoOranje', items: data.todoLeadsNietOpgepakt },
+          { icoon: '📅', label: 'Vandaag levering', kleur: 'todoGroen',  items: data.todoVandaagLevering },
+        ].filter(s => s.items.length > 0);
+        return (
+          <div className={styles.todoPanel}>
+            <div className={styles.todoPanelHeader}>
+              <span className={styles.todoPanelTitel}>Vandaag</span>
+              <span className={styles.todoPanelCount}>{secties.reduce((t, s) => t + s.items.length, 0)}</span>
+            </div>
+            <div className={styles.todoSecties}>
+              {secties.map(s => (
+                <div key={s.label} className={styles.todoSectie}>
+                  <div className={`${styles.todoSectieHeader} ${styles[s.kleur as keyof typeof styles]}`}>
+                    <span>{s.icoon}</span>
+                    <span>{s.label}</span>
+                    <span className={styles.todoSectieCount}>{s.items.length}</span>
+                  </div>
+                  {s.items.map(item => (
+                    <div key={item.id} className={styles.todoRij} onClick={() => router.push(item.href)}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className={styles.todoLabel}>{item.label}</div>
+                        {item.sub && <div className={styles.todoSub}>{item.sub}</div>}
+                      </div>
+                      {item.extra && <div className={styles.todoExtra}>{item.extra}</div>}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 3×2 Kaarten */}
       <div className={styles.kaartenGrid}>
