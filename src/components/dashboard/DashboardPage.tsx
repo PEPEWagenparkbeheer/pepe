@@ -105,7 +105,7 @@ export default function DashboardPage() {
     const veertienDagenGeleden = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
 
     const [zoekRes, asRes, btwRes, leaseRes, leadsRes] = await Promise.all([
-      supabase.from('zoekopdrachten').select('id,klant,auto,wiezoekt,prio,uitgesteld,akkoord,akkoord_datum'),
+      supabase.from('zoekopdrachten').select('id,klant,auto,wiezoekt,prio,uitgesteld,akkoord,akkoord_datum,uitgewerkt'),
       supabase.from('after_sales').select('id,kenteken,merk,model,klant,afleverdatum,binnen,klaar,gearchiveerd,type,bin_ontvangen,binnen_op,wie_levert_af,transportdatum,betaald'),
       supabase.from('btw_records').select('id,auto,klant,ingekocht_op,geld_van_lm,geld_van_dealer,gearchiveerd,bedrag'),
       supabase.from('lease_aanvragen').select('id,klant_naam,merk,model,leasemaatschappij,verkocht,akkoord,offerte_verstuurd,verkocht_op'),
@@ -214,7 +214,7 @@ export default function DashboardPage() {
       }));
 
     const todoPrioZoek: TodoItem[] = zoek
-      .filter(z => z.prio && !z.akkoord && !z.uitgesteld)
+      .filter(z => z.prio && !z.akkoord && !z.uitgesteld && !z.uitgewerkt)
       .map(z => ({ id: z.id, label: z.klant, sub: z.auto, extra: z.wiezoekt, href: '/zoeken?filter=prio' }));
 
     const todoLeadsNietOpgepakt: TodoItem[] = leads
