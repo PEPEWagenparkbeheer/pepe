@@ -138,11 +138,11 @@ async function rdwOphalen(kenteken: string): Promise<{ apk?: string; terugroep?:
 }
 
 // ── KPI strip ─────────────────────────────────────────────────
-function KpiStrip({ autos, klachten, onTab }: { autos: AfterSalesAuto[]; klachten: ASKlacht[]; onTab: (t: HoofdTab) => void }) {
+function KpiStrip({ autos, klachten, onKpiKlik }: { autos: AfterSalesAuto[]; klachten: ASKlacht[]; onKpiKlik: (tab: HoofdTab, filter?: string) => void }) {
   const nu = new Date();
   const actief = autos.filter((r) => !r.gearchiveerd);
 
-  const binnen = actief.filter((r) => r.binnen && !r.klaar).length;
+  const binnen = actief.filter((r) => r.binnen).length;
   const rijklaar = actief.filter((r) => r.binnen && !r.klaar).length;
 
   const apkWaarsch = actief.filter((r) => {
@@ -169,11 +169,11 @@ function KpiStrip({ autos, klachten, onTab }: { autos: AfterSalesAuto[]; klachte
       Math.floor((Date.now() - new Date(staDag).getTime()) / 86_400_000) > 14;
   }).length;
 
-  const kaarten: { icoon: string; getal: number; label: string; kleur: string; tab: HoofdTab }[] = [
-    { icoon: '📦', getal: binnen, label: "Auto's binnen", kleur: binnen > 0 ? 'ok' : '', tab: 'rijklaar' },
+  const kaarten: { icoon: string; getal: number; label: string; kleur: string; tab: HoofdTab; filter?: string }[] = [
+    { icoon: '📦', getal: binnen, label: "Auto's binnen", kleur: binnen > 0 ? 'ok' : '', tab: 'lopend' },
     { icoon: '🚗', getal: rijklaar, label: 'Rijklaar te maken', kleur: '', tab: 'rijklaar' },
-    { icoon: '📅', getal: apkWaarsch, label: 'APK < 6 mnd', kleur: apkWaarsch > 0 ? 'warn' : '', tab: 'rijklaar' },
-    { icoon: '🔔', getal: recalls, label: 'Terugroepacties', kleur: recalls > 0 ? 'hot' : '', tab: 'rijklaar' },
+    { icoon: '📅', getal: apkWaarsch, label: 'APK < 6 mnd', kleur: apkWaarsch > 0 ? 'warn' : '', tab: 'rijklaar', filter: 'apk' },
+    { icoon: '🔔', getal: recalls, label: 'Terugroepacties', kleur: recalls > 0 ? 'hot' : '', tab: 'rijklaar', filter: 'terugroep' },
     { icoon: '⚠️', getal: openKlachten, label: 'Open klachten', kleur: openKlachten > 0 ? 'warn' : '', tab: 'nalevering' },
     { icoon: '🚗', getal: klaarZonderDatum, label: 'Klaar — datum plan', kleur: klaarZonderDatum > 0 ? 'ok' : '', tab: 'gepland' },
     { icoon: '📅', getal: geplandAfl, label: 'Geplande afleveringen', kleur: geplandAfl > 0 ? 'warn' : '', tab: 'gepland' },
@@ -182,8 +182,8 @@ function KpiStrip({ autos, klachten, onTab }: { autos: AfterSalesAuto[]; klachte
 
   return (
     <div className={`${styles.kpiStrip} ${styles.col7}`} style={{ gridTemplateColumns: `repeat(${kaarten.length}, 1fr)` }}>
-      {kaarten.map(({ icoon, getal, label, kleur, tab }) => (
-        <div key={label} className={styles.kpiCard} onClick={() => onTab(tab)}>
+      {kaarten.map(({ icoon, getal, label, kleur, tab, filter }) => (
+        <div key={label} className={styles.kpiCard} onClick={() => onKpiKlik(tab, filter)}>
           <div className={styles.kpiIcoon}>{icoon}</div>
           <div className={`${styles.kpiGetal} ${kleur ? styles[kleur as 'warn' | 'ok' | 'hot'] : ''}`}>{getal}</div>
           <div className={styles.kpiLabel}>{label}</div>
@@ -622,8 +622,8 @@ function ApkChip({ apk, onClick }: { apk?: string; onClick: (e: React.MouseEvent
 }
 
 // ── Tab: Rijklaar maken ───────────────────────────────────────
-function TabRijklaar({ autos, zoek, onEdit, onUpdate, onToggleMeta }: {
-  autos: AfterSalesAuto[]; zoek: string;
+function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }: {
+  autos: AfterSalesAuto[]; zoek: string; kpiFilter?: string | null;
   onEdit: (r: AfterSalesAuto) => void;
   onUpdate: (rec: AfterSalesAuto) => Promise<void>;
   onToggleMeta: (rec: AfterSalesAuto, veld: keyof AfterSalesAuto, nieuweWaarde: boolean, extra?: Partial<AfterSalesAuto>) => Promise<void>;
@@ -634,7 +634,13 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate, onToggleMeta }: {
   const popupRef = useRef<HTMLDivElement>(null);
 
   const rijen = useMemo(() => {
-    const gefilterd = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
+    const gefilterd = autos.filter((r) => {
+      if (r.gearchiveerd) return false;
+      if (zoek && !zoekMatch(r, zoek)) return false;
+      if (kpiFilter === 'terugroep') return !!r.terugroep && r.terugroep !== 'geen';
+      if (kpiFilter === 'apk') { if (!r.apk) return false; const mnd = (new Date(r.apk).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30.5); return mnd < 6; }
+      return true;
+    });
     return [...gefilterd].sort((a, b) => {
       // Klaar onderaan
       if (!!a.klaar !== !!b.klaar) return a.klaar ? 1 : -1;
@@ -645,7 +651,7 @@ function TabRijklaar({ autos, zoek, onEdit, onUpdate, onToggleMeta }: {
       const dB = b.binnen_op ?? '';
       return dA < dB ? -1 : dA > dB ? 1 : 0;
     });
-  }, [autos, zoek]);
+  }, [autos, zoek, kpiFilter]);
   if (!rijen.length) return <div className={styles.leeg}>Geen auto's</div>;
 
   function toggleBool(r: AfterSalesAuto, veld: keyof AfterSalesAuto) {
@@ -882,10 +888,44 @@ function TabGepland({ autos, zoek, onToggle, onBewerken, onAfgeleverd }: {
   onBewerken: (r: AfterSalesAuto) => void;
   onAfgeleverd: (r: AfterSalesAuto) => void;
 }) {
-  const rijen = autos
-    .filter((r) => r.afleverdatum && !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)))
+  const actief = autos.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
+  const tePlannen = actief.filter((r) => {
+    if (r.afleverdatum) return false;
+    return r.type === 'import'
+      ? (r.binnen && r.aflevercontrole && r.klaar)
+      : !!r.klaar;
+  });
+  const gepland = actief
+    .filter((r) => !!r.afleverdatum)
     .sort((a, b) => (a.afleverdatum ?? '') < (b.afleverdatum ?? '') ? -1 : 1);
-  if (!rijen.length) return <div className={styles.leeg}>Geen geplande afleveringen</div>;
+
+  if (!tePlannen.length && !gepland.length) return <div className={styles.leeg}>Geen geplande afleveringen</div>;
+
+  const renderRij = (r: AfterSalesAuto) => (
+    <tr key={r.id} onClick={() => onBewerken(r)} style={{ cursor: 'pointer' }}>
+      <td><KentekenPlaat kenteken={r.kenteken} /></td>
+      <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
+      <td style={{ whiteSpace: 'nowrap' }}>{r.klant || '—'}</td>
+      <td>{r.type ? <span className={`${styles.badge} ${TYPE_CSS[r.type]}`}>{TYPE_LABEL[r.type]}</span> : '—'}</td>
+      <td style={{ fontWeight: 600, color: r.afleverdatum ? 'var(--green)' : '#b45309', whiteSpace: 'nowrap' }}>
+        {r.afleverdatum ? `${datumFmt(r.afleverdatum)}${r.tijdstip_levering ? ` ${r.tijdstip_levering}` : ''}` : '— in te plannen'}
+      </td>
+      <td style={{ whiteSpace: 'nowrap' }}>{r.wie_levert_af || '—'}</td>
+      {AFLEVERING_CHECKS.map((s) => (
+        <td key={s.veld} className={styles.chk}>
+          <CbMeta aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} meta={r.veld_meta?.[String(s.veld)]} />
+        </td>
+      ))}
+      <td style={{ maxWidth: 220 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: r.taken_notitie ? 6 : 0 }}>{r.taken_notitie || ''}</div>
+        <button className={styles.bewerkLink} onClick={() => onBewerken(r)}>✏ Bewerken</button>
+      </td>
+      <td onClick={(e) => e.stopPropagation()}>
+        <button className={styles.afleverKnop} onClick={() => onAfgeleverd(r)}>✅ Afgeleverd</button>
+      </td>
+    </tr>
+  );
+
   return (
     <div className={styles.tabelWrapper}>
       <table className={styles.tabel}>
@@ -896,30 +936,22 @@ function TabGepland({ autos, zoek, onToggle, onBewerken, onAfgeleverd }: {
           <th>Notitie</th><th>Acties</th>
         </tr></thead>
         <tbody>
-          {rijen.map((r) => (
-            <tr key={r.id} onClick={() => onBewerken(r)} style={{ cursor: 'pointer' }}>
-              <td><KentekenPlaat kenteken={r.kenteken} /></td>
-              <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
-              <td style={{ whiteSpace: 'nowrap' }}>{r.klant || '—'}</td>
-              <td>{r.type ? <span className={`${styles.badge} ${TYPE_CSS[r.type]}`}>{TYPE_LABEL[r.type]}</span> : '—'}</td>
-              <td style={{ fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap' }}>
-                {datumFmt(r.afleverdatum)}{r.tijdstip_levering ? ` ${r.tijdstip_levering}` : ''}
-              </td>
-              <td style={{ whiteSpace: 'nowrap' }}>{r.wie_levert_af || '—'}</td>
-              {AFLEVERING_CHECKS.map((s) => (
-                <td key={s.veld} className={styles.chk}>
-                  <CbMeta aan={!!r[s.veld]} onClick={() => onToggle(r.id, s.veld)} meta={r.veld_meta?.[String(s.veld)]} />
-                </td>
-              ))}
-              <td style={{ maxWidth: 220 }} onClick={(e) => e.stopPropagation()}>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: r.taken_notitie ? 6 : 0 }}>{r.taken_notitie || ''}</div>
-                <button className={styles.bewerkLink} onClick={() => onBewerken(r)}>✏ Bewerken</button>
-              </td>
-              <td onClick={(e) => e.stopPropagation()}>
-                <button className={styles.afleverKnop} onClick={() => onAfgeleverd(r)}>✅ Afgeleverd</button>
+          {tePlannen.length > 0 && (
+            <tr>
+              <td colSpan={8 + AFLEVERING_CHECKS.length} style={{ background: 'rgba(180,83,9,.06)', color: '#b45309', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '6px 14px' }}>
+                Datum nog in te plannen ({tePlannen.length})
               </td>
             </tr>
-          ))}
+          )}
+          {tePlannen.map(renderRij)}
+          {gepland.length > 0 && tePlannen.length > 0 && (
+            <tr>
+              <td colSpan={8 + AFLEVERING_CHECKS.length} style={{ background: 'rgba(22,163,74,.06)', color: 'var(--green)', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '6px 14px' }}>
+                Gepland ({gepland.length})
+              </td>
+            </tr>
+          )}
+          {gepland.map(renderRij)}
         </tbody>
       </table>
     </div>
@@ -1286,6 +1318,7 @@ export default function AfterSalesPage() {
     (searchParams.get('tab') as HoofdTab) || 'lopend'
   );
   const [zoek, setZoek] = useState('');
+  const [kpiFilter, setKpiFilter] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<AfterSalesAuto | null>(null);
   const [afleverAuto, setAfleverAuto] = useState<{ auto: AfterSalesAuto; bewerken: boolean } | null>(null);
@@ -1356,7 +1389,7 @@ export default function AfterSalesPage() {
       {/* Sub-tab balk */}
       <div className={styles.subTabBalk}>
         {TABS.map(({ k, l }) => (
-          <button key={k} className={`tab ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>{l}</button>
+          <button key={k} className={`tab ${tab === k ? 'on' : ''}`} onClick={() => { setTab(k); setKpiFilter(null); }}>{l}</button>
         ))}
         <div className={styles.subTabBalkRechts}>
           <input className={styles.zoekbalk} placeholder="Zoeken in after sales..." value={zoek} onChange={(e) => setZoek(e.target.value)} />
@@ -1367,7 +1400,7 @@ export default function AfterSalesPage() {
       </div>
 
       {/* KPI strip */}
-      <KpiStrip autos={autos} klachten={klachten} onTab={setTab} />
+      <KpiStrip autos={autos} klachten={klachten} onKpiKlik={(t, f) => { setTab(t); setKpiFilter(f ?? null); }} />
 
       {/* Tab inhoud */}
       {loading ? (
@@ -1376,7 +1409,7 @@ export default function AfterSalesPage() {
         <>
           {tab === 'lopend'    && <TabLopend    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} onAfleveren={(r) => setAfleverAuto({ auto: r, bewerken: false })} />}
           {tab === 'import'   && <TabImport    autos={autos} zoek={zoek} onEdit={openEdit} onToggle={toggleAuto} onUpdate={updateAuto} />}
-          {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} onEdit={openEdit} onUpdate={updateAuto} onToggleMeta={toggleAutoMeta} />}
+          {tab === 'rijklaar' && <TabRijklaar  autos={autos} zoek={zoek} kpiFilter={kpiFilter} onEdit={openEdit} onUpdate={updateAuto} onToggleMeta={toggleAutoMeta} />}
           {tab === 'gepland'  && <TabGepland   autos={autos} zoek={zoek} onToggle={toggleAuto} onBewerken={(r) => setAfleverAuto({ auto: r, bewerken: true })} onAfgeleverd={handleAfgeleverd} />}
           {tab === 'nalevering' && <TabNalevering klachten={klachten} autos={autos} zoek={zoek} onAddKlacht={addKlacht} onUpdateKlacht={updateKlacht} onRemoveKlacht={removeKlacht} gebruiker={gebruiker} />}
           {tab === 'archief'  && <TabArchief   autos={autos} zoek={zoek} onEdit={openEdit} onTerugzetten={(r) => updateAuto({ ...r, gearchiveerd: false, afgeleverd_op: undefined, wie_heeft_afgeleverd: undefined })} />}
