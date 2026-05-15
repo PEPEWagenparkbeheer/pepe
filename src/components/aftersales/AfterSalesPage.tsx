@@ -897,7 +897,7 @@ function TabGepland({ autos, zoek, onToggle, onBewerken, onAfgeleverd }: {
         </tr></thead>
         <tbody>
           {rijen.map((r) => (
-            <tr key={r.id}>
+            <tr key={r.id} onClick={() => onBewerken(r)} style={{ cursor: 'pointer' }}>
               <td><KentekenPlaat kenteken={r.kenteken} /></td>
               <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
               <td style={{ whiteSpace: 'nowrap' }}>{r.klant || '—'}</td>
