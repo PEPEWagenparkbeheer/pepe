@@ -21,7 +21,7 @@
   border-radius: 16px 16px 0 0;
   width: 100%;
   max-width: 560px;
-  max-height: 92dvh;
+  max-height: 96dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -33,6 +33,14 @@
     border-radius: 16px;
     max-height: 85dvh;
   }
+}
+
+@media (max-width: 640px) {
+  .modalBody { padding: 16px; gap: 20px; }
+  .modalHeader { padding: 16px 16px 12px; }
+  .modalFooter { padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .klaarKnop { font-size: 15px; padding: 13px; }
+  .opslaanKnop { padding: 13px 18px; font-size: 14px; }
 }
 
 /* ── Header ── */

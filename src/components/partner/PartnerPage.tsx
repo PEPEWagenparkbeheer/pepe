@@ -50,12 +50,12 @@ export default function PartnerPage({ wie }: { wie: string }) {
                 <tr>
                   <th>Kenteken</th>
                   <th>Merk / Model</th>
-                  <th>Klant</th>
-                  <th>Type</th>
-                  <th>Ingepland</th>
-                  <th>Onderdelen</th>
-                  <th>Updates</th>
-                  <th className={styles.chk}>Klaar</th>
+                  <th className={styles.mobielVerbergen}>Klant</th>
+                  <th className={styles.mobielVerbergen}>Type</th>
+                  <th className={styles.mobielVerbergen}>Ingepland</th>
+                  <th className={styles.mobielVerbergen}>Onderdelen</th>
+                  <th className={styles.mobielVerbergen}>Updates</th>
+                  <th className={`${styles.chk} ${styles.mobielVerbergen}`}>Klaar</th>
                 </tr>
               </thead>
               <tbody>
@@ -72,27 +72,33 @@ export default function PartnerPage({ wie }: { wie: string }) {
                       <td>
                         <span className={styles.merk}>{r.merk}</span>{' '}
                         <span className={styles.model}>{r.model}</span>
+                        {/* Mobiel: toon klant + status compact onder merk/model */}
+                        <div className={styles.mobielSub}>
+                          {r.klant && <span>{r.klant}</span>}
+                          {r.type && <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>}
+                          {klaar && <span className={styles.klaarBadge}>✓ Klaar</span>}
+                        </div>
                       </td>
-                      <td>{r.klant || '—'}</td>
-                      <td>
+                      <td className={styles.mobielVerbergen}>{r.klant || '—'}</td>
+                      <td className={styles.mobielVerbergen}>
                         {r.type
                           ? <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>
                           : '—'}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+                      <td className={styles.mobielVerbergen} style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
                         {r.partner_datum ? <span style={{ color: 'var(--green)', fontWeight: 600 }}>{datumFmt(r.partner_datum)}</span> : <span style={{ color: 'var(--muted)' }}>—</span>}
                       </td>
-                      <td>
+                      <td className={styles.mobielVerbergen}>
                         {r.partner_onderdelen_besteld
                           ? <span className={styles.ondelBadge}>✓ Besteld</span>
                           : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
                       </td>
-                      <td>
+                      <td className={styles.mobielVerbergen}>
                         {updates.length > 0
                           ? <span className={styles.updatesBadge}>{updates.length} update{updates.length !== 1 ? 's' : ''}</span>
                           : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
                       </td>
-                      <td className={styles.chk} onClick={(e) => e.stopPropagation()}>
+                      <td className={`${styles.chk} ${styles.mobielVerbergen}`} onClick={(e) => e.stopPropagation()}>
                         <div
                           className={`${styles.klaarCb} ${klaar ? styles.klaarCbAan : ''}`}
                           onClick={async () => {

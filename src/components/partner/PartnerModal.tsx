@@ -46,9 +46,12 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
     };
   }
 
-  async function opslaan(overrides: Partial<AfterSalesAuto> = {}) {
+  async function opslaan(overrides: Partial<AfterSalesAuto> = {}, sluiten = false) {
     setBezig(true);
-    try { await onOpslaan(buildAuto(overrides)); } finally { setBezig(false); }
+    try {
+      await onOpslaan(buildAuto(overrides));
+      if (sluiten) onSluiten();
+    } finally { setBezig(false); }
   }
 
   // ── Updates ──────────────────────────────────────────────────
@@ -235,7 +238,7 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
         <div className={styles.modalFooter}>
           <button
             className={styles.opslaanKnop}
-            onClick={() => opslaan()}
+            onClick={() => opslaan({}, true)}
             disabled={bezig}
           >
             {bezig ? 'Opslaan...' : 'Opslaan'}
