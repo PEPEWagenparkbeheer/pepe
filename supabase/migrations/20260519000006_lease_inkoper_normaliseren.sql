@@ -1,3 +1,6 @@
+-- Zorg dat akkoord_door kolom bestaat (stond wel in schema maar niet in productie)
+alter table lease_aanvragen add column if not exists akkoord_door text;
+
 -- Normaliseer bestaande inkoper- en akkoord_door-namen:
 -- trim spaties en zet eerste letter op hoofdletter (joep → Joep)
 
