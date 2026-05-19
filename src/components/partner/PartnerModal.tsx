@@ -38,6 +38,7 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
     return {
       ...auto,
       partner_binnen: binnen,
+      partner_binnen_op: auto.partner_binnen_op,
       partner_datum: datum || undefined,
       partner_onderdelen_besteld: onderdelenBesteld,
       partner_updates: updates,
@@ -135,7 +136,10 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
                 onClick={async () => {
                   const n = !binnen;
                   setBinnen(n);
-                  await opslaan({ partner_binnen: n });
+                  await opslaan({
+                    partner_binnen: n,
+                    partner_binnen_op: n ? new Date().toISOString() : undefined,
+                  });
                 }}
               >
                 <div className={styles.toggleKnop} />

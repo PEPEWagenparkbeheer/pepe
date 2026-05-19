@@ -88,8 +88,15 @@ export default function PartnerPage({ wie }: { wie: string }) {
                           : '—'}
                       </td>
                       <td className={styles.mobielVerbergen}>
-                        {r.partner_binnen
-                          ? <span className={styles.binnenBadge}>📍 Ja</span>
+                        {r.partner_binnen ? (() => {
+                          const dagen = r.partner_binnen_op
+                            ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000)
+                            : null;
+                          const tip = r.partner_binnen_op
+                            ? `Binnen sinds ${new Date(r.partner_binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })} · ${dagen === 0 ? 'vandaag' : `${dagen} dag${dagen !== 1 ? 'en' : ''}`}`
+                            : undefined;
+                          return <span className={styles.binnenBadge} title={tip}>📍 {dagen !== null ? (dagen === 0 ? 'vandaag' : `${dagen}d`) : 'Ja'}</span>;
+                        })()
                           : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
                       </td>
                       <td className={styles.mobielVerbergen} style={{ whiteSpace: 'nowrap', fontSize: 13 }}>

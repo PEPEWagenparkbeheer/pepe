@@ -855,21 +855,38 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                         {(r.partner_binnen !== undefined || r.partner_datum || r.partner_onderdelen_besteld || (r.partner_updates ?? []).length > 0) && (
                           <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
                             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Partner</div>
-                            <div
-                              style={{ fontSize: 12, marginBottom: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                              onClick={() => onUpdate({ ...r, partner_binnen: !r.partner_binnen })}
-                            >
-                              <div style={{
-                                width: 32, height: 18, borderRadius: 9, background: r.partner_binnen ? 'var(--green)' : 'var(--border)',
-                                position: 'relative', flexShrink: 0, transition: 'background 0.2s',
-                              }}>
-                                <div style={{
-                                  position: 'absolute', top: 2, left: r.partner_binnen ? 14 : 2,
-                                  width: 14, height: 14, borderRadius: 7, background: '#fff', transition: 'left 0.2s',
-                                }} />
-                              </div>
-                              <span style={{ color: 'var(--text)' }}>Auto staat bij partner</span>
-                            </div>
+                            {(() => {
+                              const nieuwBinnen = !r.partner_binnen;
+                              const aantalDagen = r.partner_binnen_op
+                                ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000)
+                                : null;
+                              const tooltip = r.partner_binnen && r.partner_binnen_op
+                                ? `Binnen sinds ${new Date(r.partner_binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })} · ${aantalDagen === 0 ? 'vandaag' : `${aantalDagen} dag${aantalDagen !== 1 ? 'en' : ''}`}`
+                                : undefined;
+                              return (
+                                <div
+                                  style={{ fontSize: 12, marginBottom: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                                  title={tooltip}
+                                  onClick={() => onUpdate({
+                                    ...r,
+                                    partner_binnen: nieuwBinnen,
+                                    partner_binnen_op: nieuwBinnen ? new Date().toISOString() : undefined,
+                                  })}
+                                >
+                                  <div style={{
+                                    width: 32, height: 18, borderRadius: 9, background: r.partner_binnen ? 'var(--green)' : 'var(--border)',
+                                    position: 'relative', flexShrink: 0, transition: 'background 0.2s',
+                                  }}>
+                                    <div style={{
+                                      position: 'absolute', top: 2, left: r.partner_binnen ? 14 : 2,
+                                      width: 14, height: 14, borderRadius: 7, background: '#fff', transition: 'left 0.2s',
+                                    }} />
+                                  </div>
+                                  <span style={{ color: 'var(--text)' }}>Auto staat bij partner</span>
+                                  {tooltip && <span style={{ color: 'var(--muted)', fontSize: 11 }}>({aantalDagen === 0 ? 'vandaag' : `${aantalDagen}d`})</span>}
+                                </div>
+                              );
+                            })()}
                             {r.partner_datum && (
                               <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>
                                 📅 Ingepland: <strong>{new Date(r.partner_datum).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })}</strong>

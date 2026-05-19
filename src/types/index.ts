@@ -103,6 +103,7 @@ export interface AfterSalesAuto {
 
   // Partner (extern rijklaar-bedrijf)
   partner_binnen?: boolean;
+  partner_binnen_op?: string;
   partner_datum?: string;
   partner_onderdelen_besteld?: boolean;
   partner_updates?: { tekst: string; op: string; door: string }[];
