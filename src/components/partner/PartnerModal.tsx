@@ -15,6 +15,7 @@ interface Props {
 type Update = { tekst: string; op: string; door: string };
 
 export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props) {
+  const [binnen, setBinnen] = useState(!!auto.partner_binnen);
   const [datum, setDatum] = useState(auto.partner_datum ?? '');
   const [onderdelenBesteld, setOnderdelenBesteld] = useState(!!auto.partner_onderdelen_besteld);
   const [updates, setUpdates] = useState<Update[]>(auto.partner_updates ?? []);
@@ -36,6 +37,7 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
   function buildAuto(overrides: Partial<AfterSalesAuto> = {}): AfterSalesAuto {
     return {
       ...auto,
+      partner_binnen: binnen,
       partner_datum: datum || undefined,
       partner_onderdelen_besteld: onderdelenBesteld,
       partner_updates: updates,
@@ -124,6 +126,23 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
         </div>
 
         <div className={styles.modalBody}>
+
+          {/* Binnen bij partner */}
+          <section className={styles.sectie}>
+            <label className={styles.toggleRij}>
+              <div
+                className={`${styles.toggle} ${binnen ? styles.toggleAan : ''}`}
+                onClick={async () => {
+                  const n = !binnen;
+                  setBinnen(n);
+                  await opslaan({ partner_binnen: n });
+                }}
+              >
+                <div className={styles.toggleKnop} />
+              </div>
+              <span className={styles.toggleLabel}>Auto staat bij ons</span>
+            </label>
+          </section>
 
           {/* Accessoires */}
           <section className={styles.sectie}>

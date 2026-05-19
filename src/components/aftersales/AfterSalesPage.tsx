@@ -851,10 +851,25 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                           />
                           <button className="btn btn-a" style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }} onClick={() => voegAccToe(r)}>+ Toevoegen</button>
                         </div>
-                        {/* Partner info (readonly) */}
-                        {(r.partner_datum || r.partner_onderdelen_besteld || (r.partner_updates ?? []).length > 0) && (
+                        {/* Partner info */}
+                        {(r.partner_binnen !== undefined || r.partner_datum || r.partner_onderdelen_besteld || (r.partner_updates ?? []).length > 0) && (
                           <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
                             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Partner</div>
+                            <div
+                              style={{ fontSize: 12, marginBottom: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                              onClick={() => onUpdate({ ...r, partner_binnen: !r.partner_binnen })}
+                            >
+                              <div style={{
+                                width: 32, height: 18, borderRadius: 9, background: r.partner_binnen ? 'var(--green)' : 'var(--border)',
+                                position: 'relative', flexShrink: 0, transition: 'background 0.2s',
+                              }}>
+                                <div style={{
+                                  position: 'absolute', top: 2, left: r.partner_binnen ? 14 : 2,
+                                  width: 14, height: 14, borderRadius: 7, background: '#fff', transition: 'left 0.2s',
+                                }} />
+                              </div>
+                              <span style={{ color: 'var(--text)' }}>Auto staat bij partner</span>
+                            </div>
                             {r.partner_datum && (
                               <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>
                                 📅 Ingepland: <strong>{new Date(r.partner_datum).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })}</strong>

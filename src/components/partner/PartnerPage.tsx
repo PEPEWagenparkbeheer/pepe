@@ -52,6 +52,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
                   <th>Merk / Model</th>
                   <th className={styles.mobielVerbergen}>Klant</th>
                   <th className={styles.mobielVerbergen}>Type</th>
+                  <th className={styles.mobielVerbergen}>Staat hier</th>
                   <th className={styles.mobielVerbergen}>Ingepland</th>
                   <th className={styles.mobielVerbergen}>Onderdelen</th>
                   <th className={styles.mobielVerbergen}>Updates</th>
@@ -76,6 +77,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
                         <div className={styles.mobielSub}>
                           {r.klant && <span>{r.klant}</span>}
                           {r.type && <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>}
+                          {r.partner_binnen && <span className={styles.binnenBadge}>📍 Staat hier</span>}
                           {klaar && <span className={styles.klaarBadge}>✓ Klaar</span>}
                         </div>
                       </td>
@@ -84,6 +86,11 @@ export default function PartnerPage({ wie }: { wie: string }) {
                         {r.type
                           ? <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>
                           : '—'}
+                      </td>
+                      <td className={styles.mobielVerbergen}>
+                        {r.partner_binnen
+                          ? <span className={styles.binnenBadge}>📍 Ja</span>
+                          : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
                       </td>
                       <td className={styles.mobielVerbergen} style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
                         {r.partner_datum ? <span style={{ color: 'var(--green)', fontWeight: 600 }}>{datumFmt(r.partner_datum)}</span> : <span style={{ color: 'var(--muted)' }}>—</span>}
