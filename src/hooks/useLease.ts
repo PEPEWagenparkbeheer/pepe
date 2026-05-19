@@ -10,6 +10,26 @@ const KLANT_SK = 'pepe_lease_klanten_v1';
 const bool = (v: unknown) => v === true || v === 'TRUE' || v === 'true';
 const num = (v: unknown) => v != null && v !== '' ? Number(v) : undefined;
 
+// Capitalize eerste letter (joep → Joep), behoudt rest van de string
+function cap(v?: string): string | undefined {
+  if (!v) return v;
+  const t = v.trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : undefined;
+}
+
+// Schoon record op voordat het naar Supabase gaat:
+// - Lege strings voor UUID/date kolommen → null (anders faalt INSERT met type-error)
+// - Inkoper/akkoord_door naam normaliseren (eerste letter hoofdletter)
+function schoonAanvraag<T extends Partial<LeaseAanvraag>>(rec: T): T {
+  const r = { ...rec } as Record<string, unknown>;
+  for (const veld of ['klant_id', 'verwachte_leverdatum', 'verkocht_op', 'akkoord_datum']) {
+    if (r[veld] === '') r[veld] = null;
+  }
+  if (typeof r.inkoper === 'string') r.inkoper = cap(r.inkoper);
+  if (typeof r.akkoord_door === 'string') r.akkoord_door = cap(r.akkoord_door);
+  return r as T;
+}
+
 function deserializeAanvraag(r: Record<string, unknown>): LeaseAanvraag {
   return {
     ...(r as unknown as LeaseAanvraag),
@@ -107,16 +127,24 @@ export function useLease() {
   // ── Aanvragen ─────────────────────────────────────────────
   const addAanvraag = useCallback(async (rec: Omit<LeaseAanvraag, 'id' | 'created_at'>) => {
     const nieuw: LeaseAanvraag = { ...rec, id: crypto.randomUUID(), created_at: new Date().toISOString() };
-    updateAanvragen([nieuw, ...aanvraagRef.current]);
-    const { error } = await supabase.from('lease_aanvragen').insert(nieuw);
-    if (error) console.error('lease_aanvragen insert fout:', error.message, error.details);
-    return nieuw;
+    const lokaal = { ...nieuw, inkoper: cap(nieuw.inkoper), akkoord_door: cap(nieuw.akkoord_door) };
+    updateAanvragen([lokaal, ...aanvraagRef.current]);
+    const { error } = await supabase.from('lease_aanvragen').insert(schoonAanvraag(nieuw));
+    if (error) {
+      console.error('lease_aanvragen insert fout:', error.message, error.details);
+      alert('Opslaan mislukt: ' + (error.message || 'onbekende fout'));
+    }
+    return lokaal;
   }, []);
 
   const saveAanvraag = useCallback(async (rec: LeaseAanvraag) => {
-    updateAanvragen(aanvraagRef.current.map((r) => (r.id === rec.id ? rec : r)));
-    const { error } = await supabase.from('lease_aanvragen').upsert(rec);
-    if (error) console.error('lease_aanvragen upsert fout:', error.message, error.details);
+    const lokaal = { ...rec, inkoper: cap(rec.inkoper), akkoord_door: cap(rec.akkoord_door) };
+    updateAanvragen(aanvraagRef.current.map((r) => (r.id === rec.id ? lokaal : r)));
+    const { error } = await supabase.from('lease_aanvragen').upsert(schoonAanvraag(rec));
+    if (error) {
+      console.error('lease_aanvragen upsert fout:', error.message, error.details);
+      alert('Opslaan mislukt: ' + (error.message || 'onbekende fout'));
+    }
   }, []);
 
   const removeAanvraag = useCallback(async (id: string) => {
