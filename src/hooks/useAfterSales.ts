@@ -10,9 +10,13 @@ const NAL_SK = 'pepe_nal_v1';
 // ── Bool helper ───────────────────────────────────────────────
 const bool = (v: unknown) => v === true || v === 'TRUE' || v === 'true';
 
-// Lege strings in datumvelden veroorzaken een Supabase 400-fout (PostgreSQL verwerpt '' als date).
+// Lege strings in datum/timestamp-velden veroorzaken een Supabase 400-fout (PostgreSQL verwerpt '' als date).
 // Dit converteert ze naar null voordat het record naar de DB gaat.
-const DATE_VELDEN = ['afleverdatum', 'transportdatum', 'proefrit_op', 'binnen_op', 'afgeleverd_op'] as const;
+const DATE_VELDEN = [
+  'afleverdatum', 'transportdatum', 'proefrit_op', 'binnen_op', 'afgeleverd_op',
+  'partner_datum', 'partner_binnen_op', 'partner_updates_gezien_op',
+  'apk', 'akkoord_datum', 'transport_status_updated_at',
+] as const;
 function prepareForDb(rec: AfterSalesAuto): Record<string, unknown> {
   const out: Record<string, unknown> = { ...rec };
   for (const v of DATE_VELDEN) {
@@ -43,6 +47,8 @@ function deserializeAuto(r: Record<string, unknown>): AfterSalesAuto {
     poetsen: bool(r.poetsen),
     hubspot: bool(r.hubspot),
     gearchiveerd: bool(r.gearchiveerd),
+    partner_binnen: bool(r.partner_binnen),
+    partner_onderdelen_besteld: bool(r.partner_onderdelen_besteld),
     veld_meta: (r.veld_meta as Record<string, { op: string; door: string }>) ?? {},
   };
 }
@@ -151,7 +157,10 @@ export function useAfterSales() {
   const updateAuto = useCallback(async (rec: AfterSalesAuto) => {
     updateAutos(autosRef.current.map((r) => (r.id === rec.id ? rec : r)));
     const { error } = await supabase.from('after_sales').upsert(prepareForDb(rec));
-    if (error) console.error('after_sales upsert fout:', error.message, error.details);
+    if (error) {
+      console.error('after_sales upsert fout:', error.message, error.details);
+      if (typeof window !== 'undefined') alert('Opslaan mislukt: ' + (error.message || 'onbekende fout'));
+    }
   }, []);
 
   const removeAuto = useCallback(async (id: string) => {

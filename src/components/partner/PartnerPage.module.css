@@ -1,8 +1,11 @@
 .pagina {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ── Header ── */
@@ -66,6 +69,7 @@
   overflow-x: auto;
   border-radius: 10px;
   border: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch;
 }
 
 .tabel {
@@ -200,7 +204,11 @@
 
   .content { padding: 12px; }
 
-  .tabel th, .tabel td { padding: 10px 10px; }
+  /* Geen horizontale scroll op mobiel — alleen 2 kolommen, dus alles past.
+     Voorkomt scroll-lock waarbij verticaal scrollen niet werkt. */
+  .tabelWrapper { overflow-x: visible; }
+  .tabel { table-layout: fixed; width: 100%; }
+  .tabel th, .tabel td { padding: 10px 10px; word-break: break-word; }
 
   .header { padding: 12px 16px; }
   .logoImg { height: 22px; }
