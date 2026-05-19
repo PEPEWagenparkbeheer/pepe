@@ -211,14 +211,6 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
           <div className={styles.sectieHdr}>Wie maakt klaar</div>
 
           <div className={styles.fg}>
-            <label>Wie maakt klaar</label>
-            <select className="fi" value={form.wie_rijklaar ?? ''} onChange={(e) => stel('wie_rijklaar', e.target.value)}>
-              <option value="">— kies —</option>
-              {wieLijst.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-
-          <div className={styles.fg}>
             <label>Klaarmaker naam (vrij invullen)</label>
             <input className="fi" placeholder="Naam garage/persoon" value={form.klaarmaker_naam ?? ''} onChange={(e) => stel('klaarmaker_naam', e.target.value)} />
           </div>
@@ -248,39 +240,45 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             </div>
           )}
 
-          {/* ── PARTNER UPDATES ── */}
-          {(form.wie_rijklaar || (form.partner_updates ?? []).length > 0) && (
+          {/* ── PARTNER STATUS ── */}
+          {((form.partners_toegewezen ?? []).length > 0 || (form.partner_updates ?? []).length > 0 || form.partner_binnen || !!form.partner_datum) && (
             <>
-              <div className={styles.sectieHdr}>Partner — {form.wie_rijklaar || '—'}</div>
+              <div className={styles.sectieHdr}>Partner status</div>
               <div className={`${styles.fg} ${styles.vol}`}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
-                  {/* Binnen bij partner */}
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                    background: form.partner_binnen ? 'rgba(82,196,126,0.15)' : 'var(--bg)',
-                    color: form.partner_binnen ? 'var(--green)' : 'var(--muted)',
-                    border: '1px solid var(--border)',
+                {/* Binnen bij partner — klikbare toggle */}
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 10 }}
+                  onClick={() => {
+                    const n = !form.partner_binnen;
+                    stel('partner_binnen', n);
+                    stel('partner_binnen_op', n ? new Date().toISOString() : ('' as string | undefined));
+                  }}
+                >
+                  <div style={{
+                    width: 36, height: 20, borderRadius: 10, flexShrink: 0, position: 'relative', transition: 'background 0.2s',
+                    background: form.partner_binnen ? 'var(--green)' : 'var(--border)',
                   }}>
-                    {form.partner_binnen ? '📍 Staat bij partner' : 'Nog niet bij partner'}
-                    {form.partner_binnen && form.partner_binnen_op && (() => {
-                      const dagen = Math.floor((Date.now() - new Date(form.partner_binnen_op!).getTime()) / 86400000);
-                      return <span style={{ opacity: 0.7 }}>· {dagen === 0 ? 'vandaag' : `${dagen}d`}</span>;
-                    })()}
-                  </span>
-                  {/* Ingepland */}
-                  {form.partner_datum && (
-                    <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: 'rgba(82,196,126,0.1)', border: '1px solid var(--border)' }}>
-                      📅 Ingepland: {new Date(form.partner_datum).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                    </span>
-                  )}
-                  {/* Onderdelen */}
-                  {form.partner_onderdelen_besteld && (
-                    <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: 'rgba(82,196,126,0.1)', border: '1px solid var(--border)' }}>
-                      ✓ Onderdelen besteld
-                    </span>
-                  )}
+                    <div style={{
+                      position: 'absolute', top: 3, left: form.partner_binnen ? 17 : 3,
+                      width: 14, height: 14, borderRadius: 7, background: '#fff', transition: 'left 0.2s',
+                    }} />
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--text)' }}>Auto staat bij partner</span>
+                  {form.partner_binnen && form.partner_binnen_op && (() => {
+                    const dagen = Math.floor((Date.now() - new Date(form.partner_binnen_op!).getTime()) / 86400000);
+                    return <span style={{ fontSize: 12, color: 'var(--muted)' }}>({dagen === 0 ? 'vandaag' : `${dagen}d`})</span>;
+                  })()}
                 </div>
+                {/* Ingepland op — datuminvoer */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', fontWeight: 700, marginBottom: 4 }}>Ingepland op</label>
+                  <input className="fi" type="date" value={form.partner_datum ?? ''} onChange={(e) => stel('partner_datum', e.target.value || ('' as string | undefined))} style={{ maxWidth: 160 }} />
+                </div>
+                {/* Onderdelen besteld */}
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--text)', marginBottom: 12, fontWeight: 'normal', textTransform: 'none', letterSpacing: 0 }}>
+                  <input type="checkbox" checked={!!form.partner_onderdelen_besteld} onChange={(e) => stel('partner_onderdelen_besteld', e.target.checked)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                  Onderdelen besteld
+                </label>
                 {/* Updates feed */}
                 {(form.partner_updates ?? []).length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>

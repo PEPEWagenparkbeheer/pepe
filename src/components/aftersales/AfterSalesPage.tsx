@@ -635,9 +635,11 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
   onToggleMeta: (rec: AfterSalesAuto, veld: keyof AfterSalesAuto, nieuweWaarde: boolean, extra?: Partial<AfterSalesAuto>) => Promise<void>;
 }) {
   const [accPopupId, setAccPopupId] = useState<string | null>(null);
+  const [partnerPopupId, setPartnerPopupId] = useState<string | null>(null);
   const [nieuweAcc, setNieuweAcc] = useState('');
   const [rdwLaden, setRdwLaden] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const partnerPopupRef = useRef<HTMLDivElement>(null);
   const partnerLijst = leesWie();
 
   const rijen = useMemo(() => {
@@ -704,7 +706,7 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
   }
 
   return (
-    <div className={styles.tabelWrapper} onClick={() => setAccPopupId(null)}>
+    <div className={styles.tabelWrapper} onClick={() => { setAccPopupId(null); setPartnerPopupId(null); }}>
       <table className={styles.tabel} style={{ minWidth: 1100 }}>
         <thead><tr>
           <th>Kenteken</th>
@@ -718,6 +720,7 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
           <th>APK</th>
           <th>Terugroep</th>
           <th>Acc. + Mwrk</th>
+          <th>Partner</th>
           <th className={styles.chk}>Aflctr.</th>
           <th className={styles.chk}>Klaar</th>
         </tr></thead>
@@ -726,6 +729,7 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
             const accItems = (r.accessoires ?? '').split(',').map((s) => s.trim()).filter(Boolean);
             const accKlaar = (r.accessoires_klaar ?? '').split(',').map((s) => s.trim()).filter(Boolean);
             const accPopupOpen = accPopupId === r.id;
+            const partnerPopupOpen = partnerPopupId === r.id;
             const kleurTr = r.klaar ? styles.dotGroen : undefined;
             const terugroepOpen = r.terugroep && r.terugroep !== 'geen';
 
@@ -751,53 +755,25 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                 </td>
 
                 {/* Wie */}
-                <td onClick={(e) => e.stopPropagation()}>
+                <td>
                   {(() => {
                     const partners = r.partners_toegewezen ?? (r.wie_rijklaar ? [r.wie_rijklaar] : []);
                     if (partners.length === 0) return <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>;
                     const klaarLijst = r.partners_klaar ?? [];
-                    const dagen = r.partner_binnen_op
-                      ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000)
-                      : null;
-                    const binnenTip = r.partner_binnen_op
-                      ? `Binnen sinds ${new Date(r.partner_binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })} · ${dagen === 0 ? 'vandaag' : `${dagen} dag${dagen !== 1 ? 'en' : ''}`}`
-                      : 'Klik om aan te geven dat auto bij partner staat';
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
                         {partners.map((naam) => {
                           const isKlaar = klaarLijst.some((p) => p.toUpperCase() === naam.toUpperCase());
                           return (
-                            <button
+                            <span
                               key={naam}
                               className={`${styles.wieChip} ${isKlaar ? styles.wieKlaar : ''}`}
-                              title={isKlaar ? `${naam} heeft klaar gemeld` : 'Klik om te bevestigen'}
-                              onClick={() => toggleWie(r)}
-                              style={isKlaar ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}
+                              style={isKlaar ? { textDecoration: 'line-through', opacity: 0.6, cursor: 'default' } : { cursor: 'default' }}
                             >
                               {isKlaar && '✓ '}{naam}
-                            </button>
+                            </span>
                           );
                         })}
-                        {/* Staat bij partner — klikbaar */}
-                        <span
-                          className={r.partner_binnen ? styles.partnerBinnenBadge : styles.partnerBinnenBadgeUit}
-                          title={binnenTip}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => onUpdate({
-                            ...r,
-                            partner_binnen: !r.partner_binnen,
-                            partner_binnen_op: !r.partner_binnen ? new Date().toISOString() : undefined,
-                          })}
-                        >
-                          📍 {r.partner_binnen
-                            ? (dagen !== null ? (dagen === 0 ? 'vandaag' : `${dagen}d`) : 'hier')
-                            : 'bij partner?'}
-                        </span>
-                        {(r.partner_updates ?? []).length > 0 && (
-                          <span className={styles.partnerUpdatesBadge} title={`Laatste: ${r.partner_updates![0].tekst}`}>
-                            💬 {r.partner_updates!.length}
-                          </span>
-                        )}
                       </div>
                     );
                   })()}
@@ -918,62 +894,128 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                           />
                           <button className="btn btn-a" style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }} onClick={() => voegAccToe(r)}>+ Toevoegen</button>
                         </div>
-                        {/* Partner info */}
-                        {(r.partner_binnen !== undefined || r.partner_datum || r.partner_onderdelen_besteld || (r.partner_updates ?? []).length > 0) && (
-                          <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Partner</div>
-                            {(() => {
-                              const nieuwBinnen = !r.partner_binnen;
-                              const aantalDagen = r.partner_binnen_op
-                                ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000)
-                                : null;
-                              const tooltip = r.partner_binnen && r.partner_binnen_op
-                                ? `Binnen sinds ${new Date(r.partner_binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })} · ${aantalDagen === 0 ? 'vandaag' : `${aantalDagen} dag${aantalDagen !== 1 ? 'en' : ''}`}`
-                                : undefined;
-                              return (
-                                <div
-                                  style={{ fontSize: 12, marginBottom: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                                  title={tooltip}
-                                  onClick={() => onUpdate({
-                                    ...r,
-                                    partner_binnen: nieuwBinnen,
-                                    partner_binnen_op: nieuwBinnen ? new Date().toISOString() : undefined,
-                                  })}
-                                >
-                                  <div style={{
-                                    width: 32, height: 18, borderRadius: 9, background: r.partner_binnen ? 'var(--green)' : 'var(--border)',
-                                    position: 'relative', flexShrink: 0, transition: 'background 0.2s',
-                                  }}>
-                                    <div style={{
-                                      position: 'absolute', top: 2, left: r.partner_binnen ? 14 : 2,
-                                      width: 14, height: 14, borderRadius: 7, background: '#fff', transition: 'left 0.2s',
-                                    }} />
-                                  </div>
-                                  <span style={{ color: 'var(--text)' }}>Auto staat bij partner</span>
-                                  {tooltip && <span style={{ color: 'var(--muted)', fontSize: 11 }}>({aantalDagen === 0 ? 'vandaag' : `${aantalDagen}d`})</span>}
-                                </div>
-                              );
-                            })()}
-                            {r.partner_datum && (
-                              <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>
-                                📅 Ingepland: <strong>{new Date(r.partner_datum).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })}</strong>
-                              </div>
-                            )}
-                            {r.partner_onderdelen_besteld && (
-                              <div style={{ fontSize: 12, color: 'var(--green)', marginBottom: 4 }}>✓ Onderdelen besteld</div>
-                            )}
-                            {(r.partner_updates ?? []).map((u, i) => (
-                              <div key={i} style={{ fontSize: 12, color: 'var(--muted)', borderLeft: '2px solid var(--border)', paddingLeft: 8, marginBottom: 4 }}>
-                                <span style={{ color: 'var(--text)' }}>{u.tekst}</span>
-                                <br /><span style={{ fontSize: 10 }}>{u.door} · {new Date(u.op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' })}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
                         <button className="btn" style={{ width: '100%', marginTop: 6 }} onClick={() => setAccPopupId(null)}>Klaar</button>
                       </div>
                     )}
                   </div>
+                </td>
+
+                {/* Partner */}
+                <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                  {(() => {
+                    const partners = r.partners_toegewezen ?? (r.wie_rijklaar ? [r.wie_rijklaar] : []);
+                    const heeftPartners = partners.length > 0;
+                    const d = r.partner_binnen_op ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000) : null;
+                    return (
+                      <>
+                        <div
+                          style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', cursor: 'pointer', minWidth: 70 }}
+                          onClick={() => { setPartnerPopupId(partnerPopupOpen ? null : r.id); setAccPopupId(null); }}
+                        >
+                          {heeftPartners ? (
+                            <span className={r.partner_binnen ? styles.partnerBinnenBadge : styles.partnerBinnenBadgeUit}>
+                              📍 {r.partner_binnen ? (d === null ? 'hier' : d === 0 ? 'vandaag' : `${d}d`) : 'nee'}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>
+                          )}
+                          {(r.partner_updates ?? []).length > 0 && (
+                            <span className={styles.partnerUpdatesBadge} title={r.partner_updates![0].tekst}>
+                              💬 {r.partner_updates!.length}
+                            </span>
+                          )}
+                          {r.partner_datum && (
+                            <span style={{ fontSize: 10, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                              📅 {new Date(r.partner_datum).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Partner popup */}
+                        {partnerPopupOpen && (
+                          <div ref={partnerPopupRef} className={styles.accPopup} onClick={(e) => e.stopPropagation()} style={{ minWidth: 280 }}>
+                            <div className={styles.accPopupTitel}>Partners</div>
+
+                            {/* Partners toewijzen */}
+                            <div style={{ marginBottom: 10 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Toewijzen</div>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {partnerLijst.map((naam) => {
+                                  const aan = (r.partners_toegewezen ?? []).includes(naam);
+                                  const klaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === naam.toUpperCase());
+                                  return (
+                                    <button
+                                      key={naam}
+                                      className={`${styles.typeBtn} ${aan ? styles.actief : ''}`}
+                                      style={{ fontSize: 12, padding: '4px 12px', ...(klaar ? { opacity: 0.5, textDecoration: 'line-through' } : {}) }}
+                                      onClick={() => {
+                                        const huidig = r.partners_toegewezen ?? [];
+                                        const nieuw = huidig.includes(naam) ? huidig.filter((n) => n !== naam) : [...huidig, naam];
+                                        onUpdate({ ...r, partners_toegewezen: nieuw });
+                                      }}
+                                    >{klaar ? '✓ ' : ''}{naam}</button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Staat bij partner toggle */}
+                            <div
+                              style={{ fontSize: 12, marginBottom: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                              onClick={() => onUpdate({ ...r, partner_binnen: !r.partner_binnen, partner_binnen_op: !r.partner_binnen ? new Date().toISOString() : undefined })}
+                            >
+                              <div style={{ width: 32, height: 18, borderRadius: 9, background: r.partner_binnen ? 'var(--green)' : 'var(--border)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                                <div style={{ position: 'absolute', top: 2, left: r.partner_binnen ? 14 : 2, width: 14, height: 14, borderRadius: 7, background: '#fff', transition: 'left 0.2s' }} />
+                              </div>
+                              <span style={{ color: 'var(--text)' }}>Auto staat bij partner</span>
+                              {r.partner_binnen && d !== null && (
+                                <span style={{ color: 'var(--muted)', fontSize: 11 }}>({d === 0 ? 'vandaag' : `${d}d`})</span>
+                              )}
+                            </div>
+
+                            {/* Ingepland op */}
+                            <div style={{ marginBottom: 10 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 4 }}>Ingepland op</div>
+                              <input
+                                type="date"
+                                className={styles.datumInput}
+                                value={r.partner_datum ?? ''}
+                                onChange={(e) => onUpdate({ ...r, partner_datum: e.target.value || undefined })}
+                              />
+                            </div>
+
+                            {/* Onderdelen besteld */}
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text)', marginBottom: 10 }}>
+                              <input
+                                type="checkbox"
+                                checked={!!r.partner_onderdelen_besteld}
+                                onChange={(e) => onUpdate({ ...r, partner_onderdelen_besteld: e.target.checked })}
+                                style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                              />
+                              Onderdelen besteld
+                            </label>
+
+                            {/* Updates feed */}
+                            {(r.partner_updates ?? []).length > 0 && (
+                              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginBottom: 8 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Updates van partner</div>
+                                <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  {(r.partner_updates ?? []).map((u, i) => (
+                                    <div key={i} style={{ fontSize: 12, borderLeft: '2px solid var(--border)', paddingLeft: 8 }}>
+                                      <span style={{ color: 'var(--text)' }}>{u.tekst}</span>
+                                      <br /><span style={{ fontSize: 10, color: 'var(--muted)' }}>{u.door} · {new Date(u.op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' })}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <button className="btn" style={{ width: '100%' }} onClick={() => setPartnerPopupId(null)}>Sluiten</button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </td>
 
                 {/* Aflevercontrole */}
