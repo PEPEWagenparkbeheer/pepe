@@ -7,9 +7,15 @@ import { supabase } from '@/lib/supabase';
 import { useAfterSales } from '@/hooks/useAfterSales';
 import { schietConfetti } from '@/lib/confetti';
 import type { AfterSalesAuto, ASAutoType, ASKlacht, BtwAutoType, KlachtUpdate } from '@/types';
+import { WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
 import KentekenPlaat from './KentekenPlaat';
 import AfterSalesModal from './AfterSalesModal';
 import styles from './AfterSalesPage.module.css';
+
+function leesWie(): string[] {
+  if (typeof window === 'undefined') return WIE_DEFAULT;
+  try { const s = localStorage.getItem(WIE_KEY); return s ? JSON.parse(s) : WIE_DEFAULT; } catch { return WIE_DEFAULT; }
+}
 
 type HoofdTab = 'lopend' | 'import' | 'rijklaar' | 'gepland' | 'nalevering' | 'archief';
 type NalTab = 'open' | 'opgelost';
@@ -632,6 +638,7 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
   const [nieuweAcc, setNieuweAcc] = useState('');
   const [rdwLaden, setRdwLaden] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const partnerLijst = leesWie();
 
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => {
@@ -866,19 +873,39 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                       <div ref={popupRef} className={styles.accPopup} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.accPopupTitel}>🔧 Accessoires</div>
                         <div className={styles.accLijst}>
-                          {accItems.map((item) => (
-                            <div key={item} className={styles.accRij}>
-                              <div
-                                className={`${styles.cb} ${accKlaar.includes(item) ? styles.on : ''}`}
-                                style={{ flexShrink: 0 }}
-                                onClick={() => toggleAcc(r, item)}
-                              >
-                                {accKlaar.includes(item) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                          {accItems.map((item) => {
+                            const toewijzingen = r.taak_toewijzingen ?? [];
+                            const huidigPartner = toewijzingen.find((t) => t.taak === item)?.partner ?? null;
+                            function cyclePartner() {
+                              const idx = huidigPartner ? partnerLijst.indexOf(huidigPartner) : -1;
+                              const volgende = idx < partnerLijst.length - 1 ? partnerLijst[idx + 1] : null;
+                              const nieuw = toewijzingen.filter((t) => t.taak !== item);
+                              if (volgende) nieuw.push({ taak: item, partner: volgende });
+                              onUpdate({ ...r, taak_toewijzingen: nieuw });
+                            }
+                            return (
+                              <div key={item} className={styles.accRij}>
+                                <div
+                                  className={`${styles.cb} ${accKlaar.includes(item) ? styles.on : ''}`}
+                                  style={{ flexShrink: 0 }}
+                                  onClick={() => toggleAcc(r, item)}
+                                >
+                                  {accKlaar.includes(item) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                                </div>
+                                <span className={`${styles.accNaam} ${accKlaar.includes(item) ? styles.accKlaarNaam : ''}`}>{item}</span>
+                                {partnerLijst.length > 0 && (
+                                  <button
+                                    className={styles.taakPartnerChip}
+                                    onClick={cyclePartner}
+                                    title={huidigPartner ? `Toegewezen aan ${huidigPartner} — klik om te wijzigen` : 'Klik om partner toe te wijzen'}
+                                  >
+                                    {huidigPartner ?? '—'}
+                                  </button>
+                                )}
+                                <button className={styles.accVerwijder} onClick={() => verwijderAcc(r, item)}>×</button>
                               </div>
-                              <span className={`${styles.accNaam} ${accKlaar.includes(item) ? styles.accKlaarNaam : ''}`}>{item}</span>
-                              <button className={styles.accVerwijder} onClick={() => verwijderAcc(r, item)}>×</button>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         <div className={styles.accInput}>
                           <input

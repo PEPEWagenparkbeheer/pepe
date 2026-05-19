@@ -104,6 +104,7 @@ export interface AfterSalesAuto {
   // Partner (extern rijklaar-bedrijf)
   partners_toegewezen?: string[];
   partners_klaar?: string[];
+  taak_toewijzingen?: { taak: string; partner: string }[];
   partner_binnen?: boolean;
   partner_binnen_op?: string;
   partner_datum?: string;

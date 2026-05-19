@@ -27,10 +27,17 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
   );
   const [bezig, setBezig] = useState(false);
 
-  // Accessoires
-  const [accItems, setAccItems] = useState<string[]>(
-    (auto.accessoires ?? '').split(',').map(s => s.trim()).filter(Boolean)
-  );
+  // Accessoires — alleen taken voor deze partner (of zonder toewijzing als geen taken toegewezen zijn)
+  const allAccItems = (auto.accessoires ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  const toewijzingen = auto.taak_toewijzingen ?? [];
+  const heeftToewijzingen = toewijzingen.length > 0;
+  const mijnTaken = heeftToewijzingen
+    ? allAccItems.filter((item) => {
+        const t = toewijzingen.find((t) => t.taak === item);
+        return !t || t.partner.toUpperCase() === wie.toUpperCase();
+      })
+    : allAccItems;
+  const [accItems, setAccItems] = useState<string[]>(mijnTaken);
   const [accKlaarSet, setAccKlaarSet] = useState<Set<string>>(
     new Set((auto.accessoires_klaar ?? '').split(',').map(s => s.trim()).filter(Boolean))
   );
