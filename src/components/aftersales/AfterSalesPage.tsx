@@ -851,6 +851,26 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                           />
                           <button className="btn btn-a" style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }} onClick={() => voegAccToe(r)}>+ Toevoegen</button>
                         </div>
+                        {/* Partner info (readonly) */}
+                        {(r.partner_datum || r.partner_onderdelen_besteld || (r.partner_updates ?? []).length > 0) && (
+                          <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Partner</div>
+                            {r.partner_datum && (
+                              <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>
+                                📅 Ingepland: <strong>{new Date(r.partner_datum).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })}</strong>
+                              </div>
+                            )}
+                            {r.partner_onderdelen_besteld && (
+                              <div style={{ fontSize: 12, color: 'var(--green)', marginBottom: 4 }}>✓ Onderdelen besteld</div>
+                            )}
+                            {(r.partner_updates ?? []).map((u, i) => (
+                              <div key={i} style={{ fontSize: 12, color: 'var(--muted)', borderLeft: '2px solid var(--border)', paddingLeft: 8, marginBottom: 4 }}>
+                                <span style={{ color: 'var(--text)' }}>{u.tekst}</span>
+                                <br /><span style={{ fontSize: 10 }}>{u.door} · {new Date(u.op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' })}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <button className="btn" style={{ width: '100%', marginTop: 6 }} onClick={() => setAccPopupId(null)}>Klaar</button>
                       </div>
                     )}

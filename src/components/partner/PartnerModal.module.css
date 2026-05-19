@@ -1,0 +1,297 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .overlay {
+    align-items: center;
+    padding: 24px;
+  }
+}
+
+.modal {
+  background: var(--surface, #1e2128);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 560px;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+@media (min-width: 640px) {
+  .modal {
+    border-radius: 16px;
+    max-height: 85dvh;
+  }
+}
+
+/* ── Header ── */
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.modalTitel {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.modalAuto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.merk {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.model {
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.klant {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.sluitenKnop {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.sluitenKnop:hover { color: var(--text); }
+
+/* ── Body ── */
+.modalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sectie {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectieLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ── Accessoires ── */
+.accLijst {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.accItem {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.accItemKlaar {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  background: rgba(82,196,126,0.12);
+  color: var(--green, #52c47e);
+  border: 1px solid rgba(82,196,126,0.3);
+  font-weight: 600;
+}
+
+/* ── Datum ── */
+.datumInput {
+  width: 100%;
+  max-width: 180px;
+  padding: 9px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+}
+.datumInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Toggle ── */
+.toggleRij {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.toggle {
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.2s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggleAan {
+  background: var(--green, #52c47e);
+}
+
+.toggleKnop {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: #fff;
+  transition: transform 0.2s;
+  pointer-events: none;
+}
+
+.toggleAan .toggleKnop {
+  transform: translateX(20px);
+}
+
+.toggleLabel {
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* ── Updates ── */
+.updateInvoer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.toevoegenKnop {
+  align-self: flex-end;
+  padding: 9px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.toevoegenKnop:disabled { opacity: 0.4; cursor: default; }
+
+.updateFeed {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.updateEntry {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-bottom: 1px solid var(--border);
+}
+.updateEntry:last-child { border-bottom: none; }
+
+.updateTekst {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.updateMeta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── Footer ── */
+.modalFooter {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.klaarKnop {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.2s;
+  background: var(--green, #52c47e);
+  color: #fff;
+}
+
+.klaarKnopAf {
+  background: var(--border);
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.klaarKnop:disabled { opacity: 0.4; }

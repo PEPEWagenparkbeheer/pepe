@@ -132,9 +132,49 @@
   font-size: 11px;
   font-weight: 700;
 }
-.badgeNieuw     { background: rgba(96,165,250,.12);  color: #60a5fa;      border: 1px solid rgba(96,165,250,.2); }
-.badgeOfferte   { background: rgba(251,191,36,.12);  color: #fbbf24;      border: 1px solid rgba(251,191,36,.2); }
-.badgeAkkoord   { background: rgba(74,222,128,.08);  color: var(--green); border: 1px solid rgba(74,222,128,.2); }
+.badgeNieuw        { background: rgba(96,165,250,.12);  color: #60a5fa;      border: 1px solid rgba(96,165,250,.2); }
+.badgeOfferte      { background: rgba(251,191,36,.12);  color: #fbbf24;      border: 1px solid rgba(251,191,36,.2); }
+.badgeAkkoordKlant { background: rgba(139,92,246,.12);  color: #a78bfa;      border: 1px solid rgba(139,92,246,.2); }
+.badgeAkkoord      { background: rgba(74,222,128,.08);  color: var(--green); border: 1px solid rgba(74,222,128,.2); }
+
+/* KPI info (akkoord klant) */
+.kpiCard.info  { border-color: rgba(139,92,246,.25); background: rgba(139,92,246,.04); }
+.kpiGetal.infoTxt { color: #a78bfa; }
+
+/* Inline status picker */
+.statusPickerTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  border-radius: 20px;
+  transition: opacity 0.12s;
+}
+.statusPickerTrigger:hover { opacity: 0.8; }
+.statusPickerPijl { font-size: 9px; color: var(--muted); }
+
+.statusDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.18);
+  min-width: 170px;
+  padding: 4px 0;
+  white-space: nowrap;
+}
+.statusDropdownItem {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text);
+  transition: background 0.1s;
+}
+.statusDropdownItem:hover { background: var(--surface2); }
+.statusDropdownItemActief { color: var(--accent); font-weight: 700; }
 
 /* Actie knoppen */
 .actieKnop {
@@ -323,6 +363,38 @@
   font-family: inherit;
 }
 .verwijderKnop:hover { background: rgba(248,113,113,.1); }
+
+/* Status pillen (in modal) */
+.statusPillen {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.statusPil {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.14s;
+  background: var(--surface2);
+}
+.statusPil:hover { border-color: rgba(146,25,57,.3); }
+.statusPilActief {
+  border-color: var(--accent);
+  background: rgba(146,25,57,.06);
+}
+.statusPilLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.statusPilOmschrijving {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.statusPilActief .statusPilLabel { color: var(--accent); }
 
 /* Akkoord modal */
 .akkoordInfo {

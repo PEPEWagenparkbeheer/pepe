@@ -1,0 +1,190 @@
+.pagina {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: var(--sidebar-bg, #1a1d23);
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+
+.headerLogo {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.pepeLogo {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--accent);
+  sup { font-size: 10px; vertical-align: super; }
+}
+
+.headerSub {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.uitlogKnop {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.uitlogKnop:hover {
+  background: var(--hover-bg, rgba(255,255,255,0.06));
+  color: var(--text);
+}
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  padding: 24px;
+}
+
+.leeg {
+  color: var(--muted);
+  font-size: 15px;
+  margin-top: 40px;
+  text-align: center;
+}
+
+/* ── Tabel ── */
+.tabelWrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.tabel {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tabel thead {
+  background: var(--surface, #1e2128);
+}
+
+.tabel th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabel td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  color: var(--text);
+}
+
+.tabel tbody tr {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.tabel tbody tr:hover {
+  background: var(--hover-bg, rgba(255,255,255,0.04));
+}
+
+.tabel tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Klare rij — dimmen */
+.rijKlaar td {
+  opacity: 0.45;
+}
+
+/* ── Merk / Model ── */
+.merk {
+  font-weight: 600;
+  color: var(--text);
+}
+.model {
+  color: var(--muted);
+}
+
+/* ── Type badges ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.typeImport  { background: rgba(250,173, 20,0.15); color: #faad14; }
+.typeNl      { background: rgba( 82,196,252,0.15); color: #52c4fc; }
+.typeNieuw   { background: rgba( 82,196,126,0.15); color: #52c47e; }
+.typeVoorraad{ background: rgba(161,117,252,0.15); color: #a175fc; }
+
+/* ── Onderdelen badge ── */
+.ondelBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(82,196,126,0.15);
+  color: var(--green, #52c47e);
+}
+
+/* ── Updates badge ── */
+.updatesBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(99,179,237,0.15);
+  color: #63b3ed;
+}
+
+/* ── Klaar checkbox ── */
+.chk {
+  width: 52px;
+  text-align: center;
+}
+
+.klaarCb {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--border);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0 auto;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.klaarCbAan {
+  background: var(--green, #52c47e);
+  border-color: var(--green, #52c47e);
+}

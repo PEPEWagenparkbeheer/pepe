@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import type { LeaseAanvraag, LeaseKlant } from '@/types';
+import { getStatus } from '@/lib/leaseStatus';
+import type { LeaseStatus } from '@/lib/leaseStatus';
 import { MERKEN_LIJST } from '@/lib/constants';
 import { useMedewerkers } from '@/hooks/useMedewerkers';
 import styles from './LeasePage.module.css';
@@ -38,6 +40,13 @@ const LEEG: Omit<LeaseAanvraag, 'id' | 'created_at'> = {
   verkocht: false,
   in_btw_lijst: false,
 };
+
+const STATUS_OPTIES: { waarde: LeaseStatus; label: string; omschrijving: string }[] = [
+  { waarde: 'nieuw',        label: 'In aanvraag',    omschrijving: 'Aanvraag ontvangen, nog geen offerte verstuurd' },
+  { waarde: 'offerte',      label: 'Offerte',         omschrijving: 'Offerte verstuurd naar opdrachtgever' },
+  { waarde: 'akkoord_klant',label: 'Akkoord klant',  omschrijving: 'Klant akkoord, wacht op goedkeuring leasemaatschappij' },
+  { waarde: 'verkocht',     label: 'Verkocht',        omschrijving: 'Leasemaatschappij akkoord, deal gesloten' },
+];
 
 
 function Cb({ aan, onClick }: { aan: boolean; onClick: () => void }) {
@@ -79,7 +88,11 @@ export default function LeaseModal({ record, klanten, open, onSluiten, onOpslaan
 
   useEffect(() => {
     if (!open) return;
-    setForm(record ? { ...LEEG, ...record } : { ...LEEG });
+    if (record) {
+      setForm({ ...LEEG, ...record, status: getStatus(record) });
+    } else {
+      setForm({ ...LEEG });
+    }
   }, [open, record]);
 
   function stel<K extends keyof typeof form>(veld: K, waarde: (typeof form)[K]) {
@@ -288,9 +301,23 @@ export default function LeaseModal({ record, klanten, open, onSluiten, onOpslaan
           <div className={styles.sectieKop}>Status</div>
 
           <div className={`${styles.fg} ${styles.vol}`}>
-            <div className={styles.cbRij} onClick={() => stel('offerte_verstuurd', !form.offerte_verstuurd)}>
-              <Cb aan={!!form.offerte_verstuurd} onClick={() => stel('offerte_verstuurd', !form.offerte_verstuurd)} />
-              <span>Offerte verstuurd naar klant</span>
+            <div className={styles.statusPillen}>
+              {STATUS_OPTIES.map((opt) => {
+                const actief = (form.status ?? 'nieuw') === opt.waarde;
+                return (
+                  <div
+                    key={opt.waarde}
+                    className={`${styles.statusPil} ${actief ? styles.statusPilActief : ''}`}
+                    onClick={() => {
+                      stel('status', opt.waarde);
+                      stel('offerte_verstuurd', opt.waarde === 'offerte' || opt.waarde === 'akkoord_klant' || opt.waarde === 'verkocht');
+                    }}
+                  >
+                    <div className={styles.statusPilLabel}>{opt.label}</div>
+                    <div className={styles.statusPilOmschrijving}>{opt.omschrijving}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

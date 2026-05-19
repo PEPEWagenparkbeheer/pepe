@@ -5,12 +5,15 @@ import { supabase } from '@/lib/supabase';
 import { useLease } from '@/hooks/useLease';
 import { schietConfetti } from '@/lib/confetti';
 import type { LeaseAanvraag, LeaseKlant } from '@/types';
+import { getStatus, STATUS_LABEL } from '@/lib/leaseStatus';
+import type { LeaseStatus } from '@/lib/leaseStatus';
 import LeaseAkkoordModal from './LeaseAkkoordModal';
 import LeaseKlantModal from './LeaseKlantModal';
 import LeaseModal from './LeaseModal';
 import styles from './LeasePage.module.css';
 
 type Tab = 'aanvragen' | 'verkocht' | 'klanten';
+export type { LeaseStatus };
 
 // ── Helpers ───────────────────────────────────────────────────
 function normSummary(r: LeaseAanvraag): string {
@@ -50,26 +53,32 @@ function zoekMatchKlant(k: LeaseKlant, q: string): boolean {
 // ── KPI strip ─────────────────────────────────────────────────
 function KpiStrip({ aanvragen, onTab }: { aanvragen: LeaseAanvraag[]; onTab: (t: Tab) => void }) {
   const nu = new Date();
-  const lopend = aanvragen.filter((r) => !r.verkocht);
-  const offerte = lopend.filter((r) => r.offerte_verstuurd).length;
+  const lopend = aanvragen.filter((r) => getStatus(r) !== 'verkocht');
+  const offerteCnt = lopend.filter((r) => getStatus(r) === 'offerte').length;
+  const akkoordKlantCnt = lopend.filter((r) => getStatus(r) === 'akkoord_klant').length;
   const totaal = lopend.reduce((s, r) => s + (r.verdiensten_lm ?? 0) + (r.verdiensten_dealer ?? 0), 0);
   const verkochtMnd = aanvragen.filter((r) => {
-    if (!r.verkocht || !r.verkocht_op) return false;
+    if (getStatus(r) !== 'verkocht' || !r.verkocht_op) return false;
     const d = new Date(r.verkocht_op);
     return d.getMonth() === nu.getMonth() && d.getFullYear() === nu.getFullYear();
   }).length;
 
   return (
-    <div className={styles.kpiStrip}>
+    <div className={styles.kpiStrip} style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
       <div className={`${styles.kpiCard} ${lopend.length > 0 ? styles.hot : ''}`} onClick={() => onTab('aanvragen')}>
         <div className={styles.kpiIcoon}>📋</div>
         <div className={`${styles.kpiGetal} ${lopend.length > 0 ? styles.warn : ''}`}>{lopend.length}</div>
         <div className={styles.kpiLabel}>Lopende aanvragen</div>
       </div>
-      <div className={`${styles.kpiCard} ${offerte > 0 ? styles.warn : ''}`} onClick={() => onTab('aanvragen')}>
+      <div className={`${styles.kpiCard} ${offerteCnt > 0 ? styles.warn : ''}`} onClick={() => onTab('aanvragen')}>
         <div className={styles.kpiIcoon}>📤</div>
-        <div className={`${styles.kpiGetal} ${offerte > 0 ? styles.warn : ''}`}>{offerte}</div>
+        <div className={`${styles.kpiGetal} ${offerteCnt > 0 ? styles.warn : ''}`}>{offerteCnt}</div>
         <div className={styles.kpiLabel}>Offerte verstuurd</div>
+      </div>
+      <div className={`${styles.kpiCard} ${akkoordKlantCnt > 0 ? styles.info : ''}`} onClick={() => onTab('aanvragen')}>
+        <div className={styles.kpiIcoon}>🤝</div>
+        <div className={`${styles.kpiGetal} ${akkoordKlantCnt > 0 ? styles.infoTxt : ''}`}>{akkoordKlantCnt}</div>
+        <div className={styles.kpiLabel}>Akkoord klant</div>
       </div>
       <div className={`${styles.kpiCard} ${verkochtMnd > 0 ? styles.good : ''}`} onClick={() => onTab('verkocht')}>
         <div className={styles.kpiIcoon}>✅</div>
@@ -88,20 +97,64 @@ function KpiStrip({ aanvragen, onTab }: { aanvragen: LeaseAanvraag[]; onTab: (t:
 }
 
 // ── Status badge ──────────────────────────────────────────────
-function StatusBadge({ r }: { r: LeaseAanvraag }) {
-  if (r.akkoord) return <span className={`${styles.badge} ${styles.badgeAkkoord}`}>✓ Akkoord</span>;
-  if (r.offerte_verstuurd) return <span className={`${styles.badge} ${styles.badgeOfferte}`}>📤 Offerte</span>;
+function StatusBadge({ status }: { status: LeaseStatus }) {
+  if (status === 'verkocht')      return <span className={`${styles.badge} ${styles.badgeAkkoord}`}>✓ Verkocht</span>;
+  if (status === 'akkoord_klant') return <span className={`${styles.badge} ${styles.badgeAkkoordKlant}`}>🤝 Akkoord klant</span>;
+  if (status === 'offerte')       return <span className={`${styles.badge} ${styles.badgeOfferte}`}>📤 Offerte</span>;
   return <span className={`${styles.badge} ${styles.badgeNieuw}`}>In aanvraag</span>;
 }
 
+// ── Inline status picker ──────────────────────────────────────
+const LOPENDE_STATUSSEN: LeaseStatus[] = ['nieuw', 'offerte', 'akkoord_klant'];
+
+function StatusPicker({ r, onWijzig }: {
+  r: LeaseAanvraag;
+  onWijzig: (s: LeaseStatus) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const status = getStatus(r);
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <div
+        className={styles.statusPickerTrigger}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+      >
+        <StatusBadge status={status} />
+        <span className={styles.statusPickerPijl}>▾</span>
+      </div>
+      {open && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+            onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+          />
+          <div className={styles.statusDropdown}>
+            {LOPENDE_STATUSSEN.map((s) => (
+              <div
+                key={s}
+                className={`${styles.statusDropdownItem} ${status === s ? styles.statusDropdownItemActief : ''}`}
+                onClick={(e) => { e.stopPropagation(); onWijzig(s); setOpen(false); }}
+              >
+                {STATUS_LABEL[s]}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Tab: Lopende aanvragen ────────────────────────────────────
-function TabAanvragen({ aanvragen, zoek, onEdit, onAkkoord }: {
+function TabAanvragen({ aanvragen, zoek, onEdit, onAkkoord, onStatusWijzig }: {
   aanvragen: LeaseAanvraag[];
   zoek: string;
   onEdit: (r: LeaseAanvraag) => void;
   onAkkoord: (r: LeaseAanvraag) => void;
+  onStatusWijzig: (r: LeaseAanvraag, s: LeaseStatus) => void;
 }) {
-  const rijen = aanvragen.filter((r) => !r.verkocht && (!zoek || zoekMatch(r, zoek)));
+  const rijen = aanvragen.filter((r) => getStatus(r) !== 'verkocht' && (!zoek || zoekMatch(r, zoek)));
   if (!rijen.length) return <div className={styles.leeg}>Geen lopende leaseaanvragen</div>;
 
   return (
@@ -122,6 +175,7 @@ function TabAanvragen({ aanvragen, zoek, onEdit, onAkkoord }: {
         <tbody>
           {rijen.map((r) => {
             const { tekst, totaal } = verdienSummary(r);
+            const status = getStatus(r);
             return (
               <tr key={r.id} onClick={() => onEdit(r)}>
                 <td>
@@ -145,10 +199,12 @@ function TabAanvragen({ aanvragen, zoek, onEdit, onAkkoord }: {
                 <td style={{ fontSize: 12, color: 'var(--muted)' }}>{r.leasemaatschappij || '—'}</td>
                 <td style={{ fontSize: 12 }}>{r.inkoper || '—'}</td>
                 <td style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{datumFmt(r.created_at)}</td>
-                <td><StatusBadge r={r} /></td>
                 <td onClick={(e) => e.stopPropagation()}>
-                  {!r.akkoord && (
-                    <button className={styles.actieKnop} onClick={() => onAkkoord(r)}>✅ Akkoord</button>
+                  <StatusPicker r={r} onWijzig={(s) => onStatusWijzig(r, s)} />
+                </td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {status === 'akkoord_klant' && (
+                    <button className={styles.actieKnop} onClick={() => onAkkoord(r)}>✅ Verkopen</button>
                   )}
                 </td>
               </tr>
@@ -168,7 +224,7 @@ function TabVerkocht({ aanvragen, zoek, onEdit, onTerugzetten }: {
   onTerugzetten: (r: LeaseAanvraag) => void;
 }) {
   const rijen = aanvragen
-    .filter((r) => r.verkocht && (!zoek || zoekMatch(r, zoek)))
+    .filter((r) => getStatus(r) === 'verkocht' && (!zoek || zoekMatch(r, zoek)))
     .sort((a, b) => (b.verkocht_op ?? '') > (a.verkocht_op ?? '') ? 1 : -1);
 
   if (!rijen.length) return <div className={styles.leeg}>Nog geen verkochte lease</div>;
@@ -296,6 +352,14 @@ export default function LeasePage() {
     else await addKlant(rec);
   }
 
+  async function handleStatusWijzig(rec: LeaseAanvraag, nieuweStatus: LeaseStatus) {
+    await saveAanvraag({
+      ...rec,
+      status: nieuweStatus,
+      offerte_verstuurd: nieuweStatus === 'offerte' || nieuweStatus === 'akkoord_klant',
+    });
+  }
+
   async function handleAkkoordBevestig(
     rec: LeaseAanvraag,
     { ookAfterSales, verwachteDatum }: { ookAfterSales: boolean; verwachteDatum: string }
@@ -303,6 +367,7 @@ export default function LeasePage() {
     const vandaag = new Date().toISOString().slice(0, 10);
     const bijgewerkt: LeaseAanvraag = {
       ...rec,
+      status: 'verkocht',
       akkoord: true,
       akkoord_datum: vandaag,
       verkocht: true,
@@ -353,7 +418,7 @@ export default function LeasePage() {
   }
 
   async function handleTerugzetten(rec: LeaseAanvraag) {
-    await saveAanvraag({ ...rec, akkoord: false, verkocht: false, verkocht_op: undefined, in_btw_lijst: false });
+    await saveAanvraag({ ...rec, status: 'nieuw', akkoord: false, verkocht: false, verkocht_op: undefined, in_btw_lijst: false });
   }
 
   const isKlantenTab = tab === 'klanten';
@@ -379,7 +444,7 @@ export default function LeasePage() {
         <div className={styles.leeg}>Laden...</div>
       ) : (
         <>
-          {tab === 'aanvragen' && <TabAanvragen aanvragen={aanvragen} zoek={zoek} onEdit={openEdit} onAkkoord={openAkkoord} />}
+          {tab === 'aanvragen' && <TabAanvragen aanvragen={aanvragen} zoek={zoek} onEdit={openEdit} onAkkoord={openAkkoord} onStatusWijzig={handleStatusWijzig} />}
           {tab === 'verkocht'  && <TabVerkocht  aanvragen={aanvragen} zoek={zoek} onEdit={openEdit} onTerugzetten={handleTerugzetten} />}
           {tab === 'klanten'   && <TabKlanten   klanten={klanten} zoek={zoek} onEdit={openKlantEdit} />}
         </>

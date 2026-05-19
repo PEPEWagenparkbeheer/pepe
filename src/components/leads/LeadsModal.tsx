@@ -89,10 +89,11 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
     if (!form.klant_naam.trim()) { alert('Vul de klantnaam in.'); return; }
     if (!form.auto.trim()) { alert('Vul de auto in.'); return; }
     setBezig(true);
+    const opTeSlaan = form.status === 'geen_interesse' ? { ...form, gearchiveerd: true } : form;
     if (lead) {
-      await onOpslaan({ ...form, id: lead.id, created_at: lead.created_at });
+      await onOpslaan({ ...opTeSlaan, id: lead.id, created_at: lead.created_at });
     } else {
-      await onOpslaan(form);
+      await onOpslaan(opTeSlaan);
     }
     setBezig(false);
     onSluiten();

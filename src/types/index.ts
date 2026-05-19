@@ -100,6 +100,11 @@ export interface AfterSalesAuto {
 
   // Tijdstempel + wie per afgevinkt veld
   veld_meta?: Record<string, { op: string; door: string }>;
+
+  // Partner (extern rijklaar-bedrijf)
+  partner_datum?: string;
+  partner_onderdelen_besteld?: boolean;
+  partner_updates?: { tekst: string; op: string; door: string }[];
 }
 
 export interface KlachtUpdate {
@@ -183,6 +188,9 @@ export interface LeaseAanvraag {
   verkocht?: boolean;
   verkocht_op?: string;
   in_btw_lijst?: boolean;
+
+  // Expliciete status (vervangt boolean-combinaties)
+  status?: 'nieuw' | 'offerte' | 'akkoord_klant' | 'verkocht';
 }
 
 // ── BTW / Credit ─────────────────────────────────────────────

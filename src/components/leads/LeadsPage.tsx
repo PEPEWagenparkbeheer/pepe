@@ -110,7 +110,7 @@ function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer,
   onAkkoord: (id: string) => void;
 }) {
   const rijen = leads
-    .filter((r) => !r.gearchiveerd)
+    .filter((r) => !r.gearchiveerd && r.status !== 'geen_interesse')
     .filter((r) => !zoek || zoekMatch(r, zoek))
     .filter((r) => !statusFilter || r.status === statusFilter);
 
@@ -222,7 +222,7 @@ function TabArchief({ leads, zoek, onEdit, onTerugzetten }: {
   onTerugzetten: (r: Lead) => void;
 }) {
   const rijen = leads
-    .filter((r) => r.gearchiveerd)
+    .filter((r) => r.gearchiveerd || r.status === 'geen_interesse')
     .filter((r) => !zoek || zoekMatch(r, zoek));
 
   if (!rijen.length) return <div className={styles.leeg}>Archief is leeg</div>;

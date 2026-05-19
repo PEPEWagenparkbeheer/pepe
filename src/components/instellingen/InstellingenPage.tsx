@@ -280,6 +280,111 @@ function TransConnectBeheer() {
   );
 }
 
+// ── Partners (rijklaar-bedrijven) ─────────────────────────────────────────────
+function PartnersBeheer() {
+  const [partners, setPartners] = useState<{ naam: string; wie: string; email: string }[]>([]);
+  const [naam, setNaam] = useState('');
+  const [wie, setWie] = useState('');
+  const [email, setEmail] = useState('');
+  const [bezig, setBezig] = useState(false);
+  const [melding, setMelding] = useState<{ type: 'ok' | 'fout'; tekst: string } | null>(null);
+
+  async function uitnodigen() {
+    if (!naam.trim() || !wie.trim()) return;
+    setBezig(true);
+    setMelding(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/partner-aanmaken', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ naam: naam.trim(), wie: wie.trim(), email: email.trim() || undefined }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMelding({ type: 'fout', tekst: data.error ?? 'Onbekende fout' });
+    } else {
+      const tekst = data.bestaatAl
+        ? `${data.email} bestond al — uitnodiging opnieuw verstuurd`
+        : `Uitnodiging verstuurd naar ${data.email}`;
+      setMelding({ type: 'ok', tekst });
+      setPartners(prev => [...prev, { naam: naam.trim(), wie: wie.trim().toUpperCase(), email: data.email }]);
+      setNaam(''); setWie(''); setEmail('');
+    }
+    setBezig(false);
+    setTimeout(() => setMelding(null), 6000);
+  }
+
+  return (
+    <div className={styles.kaart}>
+      <div className={styles.kaartHeader}>
+        <span className={styles.kaartIcon}>🤝</span>
+        <div>
+          <div className={styles.kaartTitel}>Partners</div>
+          <div className={styles.kaartSub}>Externe bedrijven met eigen inlog (rijklaar-portaal)</div>
+        </div>
+      </div>
+
+      {partners.length > 0 && (
+        <div className={styles.lijst}>
+          {partners.map((p, i) => (
+            <div key={i} className={styles.rij}>
+              <div className={styles.medewerkersInfo}>
+                <span className={styles.naam}>{p.naam}</span>
+                <span className={styles.emailLabel}>{p.email} · {p.wie}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.toevoegBlok}>
+        <div className={styles.toevoegRij}>
+          <input
+            className={styles.toevoegInput}
+            placeholder="Naam partner (bijv. Kurdo)..."
+            value={naam}
+            onChange={e => setNaam(e.target.value)}
+            disabled={bezig}
+          />
+          <input
+            className={styles.toevoegInput}
+            placeholder="Wie-koppeling (bijv. KURDO)..."
+            value={wie}
+            onChange={e => setWie(e.target.value)}
+            disabled={bezig}
+            style={{ maxWidth: 160 }}
+          />
+        </div>
+        <div className={styles.toevoegRij} style={{ marginTop: 6 }}>
+          <input
+            className={styles.toevoegInput}
+            placeholder="E-mailadres (optioneel)..."
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') uitnodigen(); }}
+            disabled={bezig}
+          />
+          <button
+            className={styles.toevoegKnop}
+            onClick={uitnodigen}
+            disabled={!naam.trim() || !wie.trim() || bezig}
+          >
+            {bezig ? 'Bezig...' : '+ Uitnodigen'}
+          </button>
+        </div>
+        {melding && (
+          <div className={`${styles.melding} ${melding.type === 'fout' ? styles.meldingFout : styles.meldingOk}`}>
+            {melding.tekst}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Pagina ────────────────────────────────────────────────────────────────────
 export default function InstellingenPage() {
   return (
@@ -290,6 +395,7 @@ export default function InstellingenPage() {
 
       <div className={styles.grid}>
         <MedewerkersBeheer />
+        <PartnersBeheer />
         <TransConnectBeheer />
 
         <LijstBeheer
