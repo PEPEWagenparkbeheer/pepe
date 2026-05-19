@@ -639,7 +639,6 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
   const [nieuweAcc, setNieuweAcc] = useState('');
   const [rdwLaden, setRdwLaden] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
-  const partnerPopupRef = useRef<HTMLDivElement>(null);
   const partnerLijst = leesWie();
 
   const rijen = useMemo(() => {
@@ -729,7 +728,6 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
             const accItems = (r.accessoires ?? '').split(',').map((s) => s.trim()).filter(Boolean);
             const accKlaar = (r.accessoires_klaar ?? '').split(',').map((s) => s.trim()).filter(Boolean);
             const accPopupOpen = accPopupId === r.id;
-            const partnerPopupOpen = partnerPopupId === r.id;
             const kleurTr = r.klaar ? styles.dotGroen : undefined;
             const terugroepOpen = r.terugroep && r.terugroep !== 'geen';
 
@@ -755,7 +753,7 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                 </td>
 
                 {/* Wie */}
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   {(() => {
                     const partners = r.partners_toegewezen ?? (r.wie_rijklaar ? [r.wie_rijklaar] : []);
                     if (partners.length === 0) return <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>;
@@ -765,13 +763,22 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                         {partners.map((naam) => {
                           const isKlaar = klaarLijst.some((p) => p.toUpperCase() === naam.toUpperCase());
                           return (
-                            <span
+                            <button
                               key={naam}
                               className={`${styles.wieChip} ${isKlaar ? styles.wieKlaar : ''}`}
-                              style={isKlaar ? { textDecoration: 'line-through', opacity: 0.6, cursor: 'default' } : { cursor: 'default' }}
+                              title={isKlaar ? `${naam} → klik om af te vinken` : `${naam} → klik om als klaar te markeren`}
+                              onClick={() => {
+                                const huidig = r.partners_klaar ?? [];
+                                const upper = naam.toUpperCase();
+                                const nieuw = isKlaar
+                                  ? huidig.filter((p) => p.toUpperCase() !== upper)
+                                  : [...huidig, naam];
+                                onUpdate({ ...r, partners_klaar: nieuw });
+                              }}
+                              style={isKlaar ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}
                             >
                               {isKlaar && '✓ '}{naam}
-                            </span>
+                            </button>
                           );
                         })}
                       </div>
@@ -901,119 +908,37 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                 </td>
 
                 {/* Partner */}
-                <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                <td
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => { e.stopPropagation(); setPartnerPopupId(r.id); setAccPopupId(null); }}
+                >
                   {(() => {
                     const partners = r.partners_toegewezen ?? (r.wie_rijklaar ? [r.wie_rijklaar] : []);
-                    const heeftPartners = partners.length > 0;
+                    if (partners.length === 0) return <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>;
                     const d = r.partner_binnen_op ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000) : null;
+                    const dKleur = d === null ? '#63b3ed' : d <= 7 ? '#16a34a' : d <= 14 ? '#f97316' : '#dc2626';
                     return (
-                      <>
-                        <div
-                          style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', cursor: 'pointer', minWidth: 70 }}
-                          onClick={() => { setPartnerPopupId(partnerPopupOpen ? null : r.id); setAccPopupId(null); }}
-                        >
-                          {heeftPartners ? (
-                            <span className={r.partner_binnen ? styles.partnerBinnenBadge : styles.partnerBinnenBadgeUit}>
-                              📍 {r.partner_binnen ? (d === null ? 'hier' : d === 0 ? 'vandaag' : `${d}d`) : 'nee'}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>
-                          )}
-                          {(r.partner_updates ?? []).length > 0 && (
-                            <span className={styles.partnerUpdatesBadge} title={r.partner_updates![0].tekst}>
-                              💬 {r.partner_updates!.length}
-                            </span>
-                          )}
-                          {r.partner_datum && (
-                            <span style={{ fontSize: 10, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                              📅 {new Date(r.partner_datum).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' })}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Partner popup */}
-                        {partnerPopupOpen && (
-                          <div ref={partnerPopupRef} className={styles.accPopup} onClick={(e) => e.stopPropagation()} style={{ minWidth: 280 }}>
-                            <div className={styles.accPopupTitel}>Partners</div>
-
-                            {/* Partners toewijzen */}
-                            <div style={{ marginBottom: 10 }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Toewijzen</div>
-                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                {partnerLijst.map((naam) => {
-                                  const aan = (r.partners_toegewezen ?? []).includes(naam);
-                                  const klaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === naam.toUpperCase());
-                                  return (
-                                    <button
-                                      key={naam}
-                                      className={`${styles.typeBtn} ${aan ? styles.actief : ''}`}
-                                      style={{ fontSize: 12, padding: '4px 12px', ...(klaar ? { opacity: 0.5, textDecoration: 'line-through' } : {}) }}
-                                      onClick={() => {
-                                        const huidig = r.partners_toegewezen ?? [];
-                                        const nieuw = huidig.includes(naam) ? huidig.filter((n) => n !== naam) : [...huidig, naam];
-                                        onUpdate({ ...r, partners_toegewezen: nieuw });
-                                      }}
-                                    >{klaar ? '✓ ' : ''}{naam}</button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* Staat bij partner toggle */}
-                            <div
-                              style={{ fontSize: 12, marginBottom: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-                              onClick={() => onUpdate({ ...r, partner_binnen: !r.partner_binnen, partner_binnen_op: !r.partner_binnen ? new Date().toISOString() : undefined })}
-                            >
-                              <div style={{ width: 32, height: 18, borderRadius: 9, background: r.partner_binnen ? 'var(--green)' : 'var(--border)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
-                                <div style={{ position: 'absolute', top: 2, left: r.partner_binnen ? 14 : 2, width: 14, height: 14, borderRadius: 7, background: '#fff', transition: 'left 0.2s' }} />
-                              </div>
-                              <span style={{ color: 'var(--text)' }}>Auto staat bij partner</span>
-                              {r.partner_binnen && d !== null && (
-                                <span style={{ color: 'var(--muted)', fontSize: 11 }}>({d === 0 ? 'vandaag' : `${d}d`})</span>
-                              )}
-                            </div>
-
-                            {/* Ingepland op */}
-                            <div style={{ marginBottom: 10 }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 4 }}>Ingepland op</div>
-                              <input
-                                type="date"
-                                className={styles.datumInput}
-                                value={r.partner_datum ?? ''}
-                                onChange={(e) => onUpdate({ ...r, partner_datum: e.target.value || undefined })}
-                              />
-                            </div>
-
-                            {/* Onderdelen besteld */}
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text)', marginBottom: 10 }}>
-                              <input
-                                type="checkbox"
-                                checked={!!r.partner_onderdelen_besteld}
-                                onChange={(e) => onUpdate({ ...r, partner_onderdelen_besteld: e.target.checked })}
-                                style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
-                              />
-                              Onderdelen besteld
-                            </label>
-
-                            {/* Updates feed */}
-                            {(r.partner_updates ?? []).length > 0 && (
-                              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginBottom: 8 }}>
-                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Updates van partner</div>
-                                <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  {(r.partner_updates ?? []).map((u, i) => (
-                                    <div key={i} style={{ fontSize: 12, borderLeft: '2px solid var(--border)', paddingLeft: 8 }}>
-                                      <span style={{ color: 'var(--text)' }}>{u.tekst}</span>
-                                      <br /><span style={{ fontSize: 10, color: 'var(--muted)' }}>{u.door} · {new Date(u.op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' })}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            <button className="btn" style={{ width: '100%' }} onClick={() => setPartnerPopupId(null)}>Sluiten</button>
-                          </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 70, alignItems: 'flex-start' }}>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap',
+                          background: r.partner_binnen ? `${dKleur}1A` : 'transparent',
+                          color: r.partner_binnen ? dKleur : 'var(--muted)',
+                          border: r.partner_binnen ? `1px solid ${dKleur}55` : '1px dashed var(--border)',
+                          display: 'inline-block',
+                        }}>
+                          📍 {r.partner_binnen ? (d === null ? 'hier' : d === 0 ? 'vandaag' : `${d}d`) : 'nee'}
+                        </span>
+                        {(r.partner_updates ?? []).length > 0 && (
+                          <span className={styles.partnerUpdatesBadge} title={r.partner_updates![0].tekst}>
+                            💬 {r.partner_updates!.length}
+                          </span>
                         )}
-                      </>
+                        {r.partner_datum && (
+                          <span style={{ fontSize: 10, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                            📅 {new Date(r.partner_datum).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
                     );
                   })()}
                 </td>
@@ -1032,6 +957,142 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
           })}
         </tbody>
       </table>
+
+      {/* ── Partner Modal (centered overlay) ── */}
+      {partnerPopupId && typeof document !== 'undefined' && (() => {
+        const r = rijen.find((row) => row.id === partnerPopupId);
+        if (!r) return null;
+        const d = r.partner_binnen_op ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000) : null;
+        return createPortal(
+          <div
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+              zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 20, backdropFilter: 'blur(2px)',
+            }}
+            onClick={() => setPartnerPopupId(null)}
+          >
+            <div
+              style={{
+                background: 'var(--surface)', borderRadius: 18,
+                maxWidth: 560, width: '100%', maxHeight: '90vh',
+                display: 'flex', flexDirection: 'column',
+                boxShadow: '0 24px 60px rgba(0,0,0,0.35)', border: '1px solid var(--border)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div style={{
+                padding: '14px 20px', borderBottom: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <KentekenPlaat kenteken={r.kenteken} />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>
+                      <span className={styles.kn}>{r.merk}</span> <span className={styles.modelAccent}>{r.model}</span>
+                    </div>
+                    {r.klant && <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.klant}</div>}
+                  </div>
+                </div>
+                <button onClick={() => setPartnerPopupId(null)} style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--muted)', cursor: 'pointer', padding: 4 }}>✕</button>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {/* Partners toewijzen + klaar */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Partners toewijzen</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {partnerLijst.map((naam) => {
+                      const aan = (r.partners_toegewezen ?? []).includes(naam);
+                      const klaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === naam.toUpperCase());
+                      return (
+                        <button
+                          key={naam}
+                          className={`${styles.typeBtn} ${aan ? styles.actief : ''}`}
+                          style={{ padding: '6px 14px', ...(klaar ? { opacity: 0.6, textDecoration: 'line-through' } : {}) }}
+                          onClick={() => {
+                            const huidig = r.partners_toegewezen ?? [];
+                            const nieuw = huidig.includes(naam) ? huidig.filter((n) => n !== naam) : [...huidig, naam];
+                            onUpdate({ ...r, partners_toegewezen: nieuw });
+                          }}
+                        >{klaar ? '✓ ' : ''}{naam}</button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Klik in tabel-kolom WIE om als klaar af te vinken.</div>
+                </div>
+
+                {/* Aanwezigheid + Datum side-by-side */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Aanwezigheid</div>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: r.partner_binnen ? 'rgba(22,163,74,0.05)' : 'transparent' }}
+                      onClick={() => onUpdate({ ...r, partner_binnen: !r.partner_binnen, partner_binnen_op: !r.partner_binnen ? new Date().toISOString() : undefined })}
+                    >
+                      <div style={{ width: 36, height: 20, borderRadius: 10, background: r.partner_binnen ? 'var(--green)' : 'var(--border)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                        <div style={{ position: 'absolute', top: 3, left: r.partner_binnen ? 17 : 3, width: 14, height: 14, borderRadius: 7, background: '#fff', transition: 'left 0.2s' }} />
+                      </div>
+                      <div style={{ fontSize: 13, lineHeight: 1.3 }}>
+                        <div style={{ color: 'var(--text)', fontWeight: 600 }}>{r.partner_binnen ? 'Bij partner' : 'Niet bij partner'}</div>
+                        {r.partner_binnen && d !== null && <div style={{ color: 'var(--muted)', fontSize: 11 }}>{d === 0 ? 'sinds vandaag' : `${d} dag${d !== 1 ? 'en' : ''}`}</div>}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Ingepland op</div>
+                    <input
+                      type="date"
+                      className={styles.datumInput}
+                      value={r.partner_datum ?? ''}
+                      onChange={(e) => onUpdate({ ...r, partner_datum: e.target.value || undefined })}
+                      style={{ width: '100%', padding: '10px 12px', fontSize: 13, boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Onderdelen */}
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, color: 'var(--text)', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!r.partner_onderdelen_besteld}
+                    onChange={(e) => onUpdate({ ...r, partner_onderdelen_besteld: e.target.checked })}
+                    style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                  />
+                  Onderdelen besteld
+                </label>
+
+                {/* Updates feed */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Updates van partner</div>
+                  {(r.partner_updates ?? []).length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
+                      {(r.partner_updates ?? []).map((u, i) => (
+                        <div key={i} style={{ padding: '10px 12px', borderBottom: i < (r.partner_updates ?? []).length - 1 ? '1px solid var(--border)' : 'none' }}>
+                          <div style={{ fontSize: 13, color: 'var(--text)' }}>{u.tekst}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                            {new Date(u.op).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })} · {u.door}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Nog geen updates van de partner.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn btn-a" onClick={() => setPartnerPopupId(null)}>Sluiten</button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 }
