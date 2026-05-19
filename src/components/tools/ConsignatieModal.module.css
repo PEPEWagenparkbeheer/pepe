@@ -332,24 +332,26 @@
 .regelZero .regelLbl,
 .regelZero .regelVal { color: rgba(21, 28, 39, 0.3); }
 
-/* Totaal */
+/* Totaal — zwart met rode accent-streep, premium */
 .totaal {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(135deg, #700025, #921939);
+  background: #0f1218;
   color: #fff;
   padding: 18px 22px;
   border-radius: 12px;
   margin-top: 8px;
+  border-left: 4px solid var(--accent);
+  position: relative;
 }
 
 .totaalLbl {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.85);
+  color: #dc3c5a;
 }
 
 .totaalVal {

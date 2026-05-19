@@ -62,6 +62,49 @@ function fmtEuro(n: number): string {
   }).format(n);
 }
 
+// Laad witte PEPE-logo SVG, render naar high-res PNG voor crisp PDF embedding
+async function loadWitLogoAsPng(): Promise<{ data: string; aspect: number } | null> {
+  try {
+    const res = await fetch('/pepe-logo-cmyk-wit.svg');
+    let svgText = await res.text();
+
+    // Bepaal aspect ratio uit viewBox of width/height
+    let aspect = 4;
+    const vb = svgText.match(/viewBox=["']([\d.\-\s]+)["']/);
+    if (vb) {
+      const parts = vb[1].split(/\s+/).map(Number);
+      if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) aspect = parts[2] / parts[3];
+    }
+
+    // Forceer explicit dimensies zodat browsers de SVG kunnen renderen
+    if (!/<svg[^>]*\swidth=/.test(svgText)) {
+      const targetW = 1200;
+      const targetH = Math.round(targetW / aspect);
+      svgText = svgText.replace(/<svg/, `<svg width="${targetW}" height="${targetH}"`);
+    }
+
+    const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = url;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 1600;
+    canvas.height = Math.round(1600 / aspect);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    return { data: canvas.toDataURL('image/png'), aspect };
+  } catch {
+    return null;
+  }
+}
+
 export default function ConsignatieModal({ open, onSluiten }: Props) {
   const [form, setForm] = useState<Form>(LEEG);
   const [stap, setStap] = useState(0);
@@ -138,28 +181,8 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
   }
 
   async function downloadPDF() {
-    // Laad logo en converteer naar data-URL voor jsPDF
-    let logoDataUrl: string | null = null;
-    let logoDims: { w: number; h: number } | null = null;
-    try {
-      const res = await fetch('/pepe-logo-rgb.png');
-      const blob = await res.blob();
-      logoDataUrl = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onloadend = () => resolve(r.result as string);
-        r.onerror = reject;
-        r.readAsDataURL(blob);
-      });
-      // Krijg de native dimensies om aspect ratio te behouden
-      logoDims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-        img.onerror = reject;
-        img.src = logoDataUrl!;
-      });
-    } catch {
-      // fallback: geen logo
-    }
+    // Laad het witte SVG-logo, render naar PNG op canvas voor jsPDF
+    const witLogo = await loadWitLogoAsPng();
 
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const W = 210;
@@ -167,61 +190,67 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
     const col2 = W - margin;
     let y = 0;
 
-    // Witte header met logo + accent lijn
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, W, 32, 'F');
+    // ─── Donkere header (kentekenplaat-stijl) ────────────────
+    doc.setFillColor(15, 18, 24); // bijna zwart
+    doc.rect(0, 0, W, 30, 'F');
 
-    if (logoDataUrl && logoDims) {
-      const targetH = 14;
-      const targetW = (logoDims.w / logoDims.h) * targetH;
-      doc.addImage(logoDataUrl, 'PNG', margin, 9, targetW, targetH);
+    if (witLogo) {
+      const targetH = 12;
+      const targetW = targetH * witLogo.aspect;
+      doc.addImage(witLogo.data, 'PNG', margin, 9, targetW, targetH);
     } else {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(20);
-      doc.setTextColor(146, 25, 57);
-      doc.text('PEPE', margin, 18);
+      doc.setTextColor(255, 255, 255);
+      doc.text('PEPE®', margin, 18);
     }
 
-    // Tag rechts
+    // Tag rechts: titel + datum
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    doc.setTextColor(146, 25, 57);
-    doc.text('CONSIGNATIE EINDAFREKENING', col2, 15, { align: 'right' });
+    doc.setTextColor(220, 60, 90); // rood accent
+    doc.text('CONSIGNATIE · EINDAFREKENING', col2, 14, { align: 'right' });
     const datum = new Date().toLocaleDateString('nl-NL', {
       day: 'numeric', month: 'long', year: 'numeric',
     });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(122, 132, 144);
+    doc.setTextColor(180, 188, 200);
     doc.text(datum, col2, 21, { align: 'right' });
 
-    // Accent lijn onder header
+    // Dunne rode accent-streep onder header
     doc.setFillColor(146, 25, 57);
-    doc.rect(0, 32, W, 1.2, 'F');
+    doc.rect(0, 30, W, 0.6, 'F');
 
-    y = 33.2;
+    y = 30.6;
 
-    // Hero (licht met accent left-border)
-    doc.setFillColor(146, 25, 57);
-    doc.rect(0, y, 4, 40, 'F');
-    doc.setFillColor(252, 247, 249);
-    doc.rect(4, y, W - 4, 40, 'F');
-
+    // ─── Hero blok ───────────────────────────────────────────
+    y += 14;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setTextColor(146, 25, 57);
-    doc.text('EINDAFREKENING VOOR KLANT', margin, y + 12);
+    doc.text('EINDAFREKENING VOOR KLANT', margin, y);
 
-    doc.setFontSize(22);
-    doc.setTextColor(21, 28, 39);
-    doc.text(form.auto.toUpperCase(), margin, y + 26);
+    y += 11;
+    doc.setFontSize(28);
+    doc.setTextColor(15, 18, 24);
+    doc.text(form.auto.toUpperCase(), margin, y);
 
+    y += 7;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(122, 132, 144);
-    doc.text(cijfers.isIncl ? 'Personenauto · prijzen incl. btw/bpm' : 'Bedrijfswagen · prijzen excl. btw', margin, y + 35);
+    doc.text(
+      cijfers.isIncl ? 'Personenauto · alle bedragen incl. btw/bpm' : 'Bedrijfswagen · alle bedragen excl. btw',
+      margin, y
+    );
 
-    y += 40 + 8;
+    // Subtiele scheidingslijn onder hero
+    y += 9;
+    doc.setDrawColor(232, 232, 236);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, col2, y);
+    y += 8;
 
     // Regels
     const vpLbl = cijfers.isIncl ? 'Verkoopprijs (incl. btw/bpm)' : 'Verkoopprijs (excl. btw)';
@@ -236,58 +265,86 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
       { lbl: `PEPE commissie ${cijfers.feeP}%`, val: cijfers.fee, type: cijfers.fee ? 'neg' : 'zero' },
     ];
 
-    regels.forEach((r) => {
+    // Sectie-label
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(146, 25, 57);
+    doc.text('SPECIFICATIE', margin, y);
+    y += 6;
+
+    regels.forEach((r, i) => {
       const pfx = r.type === 'zero' ? '' : r.type === 'pos' ? '+ ' : '− ';
+      // Label
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10.5);
-      if (r.type === 'zero') doc.setTextColor(180, 180, 186);
-      else doc.setTextColor(90, 96, 106);
+      if (r.type === 'zero') doc.setTextColor(190, 192, 198);
+      else doc.setTextColor(75, 82, 92);
       doc.text(r.lbl, margin, y + 5.5);
 
+      // Bedrag (tabular)
       doc.setFont('helvetica', 'bold');
-      if (r.type === 'pos') doc.setTextColor(22, 163, 74);
-      else if (r.type === 'zero') doc.setTextColor(180, 180, 186);
-      else doc.setTextColor(21, 28, 39);
+      if (r.type === 'pos') doc.setTextColor(15, 18, 24);
+      else if (r.type === 'zero') doc.setTextColor(190, 192, 198);
+      else doc.setTextColor(15, 18, 24);
       doc.text(`${pfx}€ ${fmtEuro(r.val)}`, col2, y + 5.5, { align: 'right' });
 
-      doc.setDrawColor(232, 232, 236);
+      // Subtiele lijn
+      doc.setDrawColor(238, 238, 240);
       doc.setLineWidth(0.2);
       doc.line(margin, y + 10, col2, y + 10);
+
+      // Iets dikkere lijn tussen verkoopprijs en aftrekposten
+      if (i === 0) {
+        doc.setDrawColor(15, 18, 24);
+        doc.setLineWidth(0.4);
+        doc.line(margin, y + 10, col2, y + 10);
+      }
       y += 11.5;
     });
 
-    // Totaal balk
-    y += 6;
+    // ─── Totaalbalk: ZWART, premium ──────────────────────────
+    y += 8;
+    doc.setFillColor(15, 18, 24);
+    doc.rect(margin - 4, y, W - 2 * (margin - 4), 24, 'F');
+    // Rode accent-streep aan linkerzijde
     doc.setFillColor(146, 25, 57);
-    doc.rect(margin - 4, y, W - 2 * (margin - 4), 22, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(255, 255, 255);
-    doc.text('NETTO OPBRENGST KLANT', margin, y + 9);
-    doc.setFontSize(18);
-    doc.text(`€ ${fmtEuro(cijfers.totaal)}`, col2, y + 15, { align: 'right' });
-    y += 22;
+    doc.rect(margin - 4, y, 3, 24, 'F');
 
-    // BTW-toelichting onder totaal
-    y += 7;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(220, 60, 90);
+    doc.text('NETTO OPBRENGST KLANT', margin + 2, y + 9);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`€ ${fmtEuro(cijfers.totaal)}`, col2, y + 16, { align: 'right' });
+    y += 24;
+
+    // BTW-toelichting
+    y += 8;
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(8.5);
-    doc.setTextColor(122, 132, 144);
+    doc.setTextColor(140, 148, 158);
     const toelichting = cijfers.isIncl
       ? 'Kosten zijn omgerekend van excl btw naar incl btw (×1,21) zodat alle bedragen in dezelfde basis staan.'
       : 'Bedrijfswagen — alle bedragen zijn excl btw.';
     doc.text(toelichting, margin, y, { maxWidth: W - 2 * margin });
 
-    // Footer
-    y = 278;
-    doc.setDrawColor(146, 25, 57);
-    doc.setLineWidth(0.6);
+    // ─── Footer ──────────────────────────────────────────────
+    y = 283;
+    doc.setDrawColor(15, 18, 24);
+    doc.setLineWidth(0.3);
     doc.line(margin, y, col2, y);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(15, 18, 24);
+    doc.text('PEPE®  WAGENPARKBEHEER', margin, y + 5.5);
+
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(122, 132, 144);
-    doc.text('PEPE Wagenparkbeheer', margin, y + 6);
-    doc.text('pepewagenparkbeheer.nl', col2, y + 6, { align: 'right' });
+    doc.setTextColor(160, 168, 178);
+    doc.text('pepewagenparkbeheer.nl', col2, y + 5.5, { align: 'right' });
 
     const safe = form.auto.replace(/[^a-zA-Z0-9\-_\s]/g, '').trim().replace(/\s+/g, '-');
     doc.save(`PEPE-Eindafrekening-${safe}.pdf`);
