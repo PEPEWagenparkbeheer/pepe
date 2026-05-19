@@ -197,22 +197,9 @@
   color: var(--green, #52c47e);
 }
 
-@media (max-width: 640px) {
-  /* Alle kolommen blijven zichtbaar op mobiel — gebruiker zoomt zelf in/uit voor detail.
-     Geen .mobielSub trick meer, geen kolommen verstoppen. */
-  .mobielSub { display: none; }
-
-  .content { padding: 8px; }
-
-  /* Compactere tabel op mobiel zodat zoveel mogelijk past zonder zoomen */
-  .tabel { font-size: 12px; }
-  .tabel th { font-size: 10px; padding: 6px 6px; }
-  .tabel td { padding: 6px 6px; }
-
-  .header { padding: 10px 12px; }
-  .logoImg { height: 22px; }
-  .headerSub { font-size: 11px; }
-}
+/* Geen aparte mobiele styling meer — PartnerPage zet via meta-viewport
+   een virtuele breedte van 1100px op mobiel, telefoon scaled down. */
+.mobielSub { display: none; }
 
 /* ── Klaar checkbox ── */
 .chk {

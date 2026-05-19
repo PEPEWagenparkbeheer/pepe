@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
 import { useAuth } from '@/hooks/useAuth';
 import type { AfterSalesAuto } from '@/types';
@@ -20,6 +20,16 @@ export default function PartnerPage({ wie }: { wie: string }) {
   const { autos, updateAuto } = useAfterSales();
   const { signOut } = useAuth();
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
+
+  // Forceer desktop-breedte op mobiel — telefoon scaled automatisch down,
+  // pinch-zoom werkt voor detail. Gebruiker wilde "uitgezoomd desktop view".
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    const orig = meta.getAttribute('content') ?? '';
+    meta.setAttribute('content', 'width=1100, initial-scale=1, maximum-scale=5, user-scalable=yes');
+    return () => { meta.setAttribute('content', orig); };
+  }, []);
 
   const wieUpper = wie.toUpperCase();
   const mijnAutos = autos
