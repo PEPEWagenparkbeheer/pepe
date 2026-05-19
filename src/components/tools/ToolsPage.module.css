@@ -1,0 +1,69 @@
+.pagina {
+  padding: 28px 32px 60px;
+  max-width: 1200px;
+}
+
+.kop {
+  margin-bottom: 28px;
+}
+
+.titel {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.tegel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: inherit;
+  transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+.tegel:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(146, 25, 57, 0.08);
+}
+
+.tegelIcoon {
+  font-size: 32px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.tegelTitel {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.tegelDesc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .pagina { padding: 16px; }
+}

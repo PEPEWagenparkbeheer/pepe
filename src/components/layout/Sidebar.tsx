@@ -18,6 +18,7 @@ const NAV_ITEMS = [
       { href: '/btw', label: 'BTW / Credit', icon: '💶' },
     ],
   },
+  { section: 'Tools', items: [{ href: '/tools', label: 'Tools', icon: '🔧' }] },
   { section: 'Systeem', items: [{ href: '/instellingen', label: 'Instellingen', icon: '⚙️' }] },
 ];
 

@@ -1,0 +1,348 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(21, 28, 39, 0.55);
+  z-index: 500;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 620px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+.modalHeader {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modalSub {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 2px;
+}
+
+.modalTitel {
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.sluitKnop {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.sluitKnop:hover { color: var(--text); }
+
+/* Step nav */
+.stepNav {
+  display: flex;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.stepItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 56px;
+  padding: 4px 2px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.15s;
+}
+
+.stepNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 3px;
+}
+
+.stepLabel {
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.stepActief {
+  color: var(--accent);
+}
+.stepActief .stepNum {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.stepDone {
+  color: var(--green);
+}
+.stepDone .stepNum {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--green);
+  border-color: rgba(22, 163, 74, 0.3);
+}
+
+/* Body */
+.modalBody {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.fg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fg label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.btwBadge,
+.btwBadgeExcl {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.btwBadge {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+}
+
+.btwBadgeExcl {
+  background: rgba(146, 25, 57, 0.08);
+  color: var(--accent);
+  border: 1px solid rgba(146, 25, 57, 0.2);
+}
+
+.inputWrap {
+  position: relative;
+}
+
+.sfx {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.uitleg {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+/* Calc box (advertentie) */
+.calcBox {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.calcRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.calcRow span:last-child {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.calcTotaal {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+}
+.calcTotaal span:first-child { color: var(--text); }
+.calcTotaal span:last-child { color: var(--accent); font-size: 15px; }
+
+/* Fee live */
+.feeLive {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.feeLive strong {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 18px;
+}
+
+/* RESULTAAT */
+.hero {
+  border-left: 4px solid var(--accent);
+  background: linear-gradient(120deg, rgba(146, 25, 57, 0.06) 0%, var(--surface) 70%);
+  padding: 16px 20px;
+  border-radius: 0 12px 12px 0;
+  margin: -22px -22px 0;
+  padding-left: 24px;
+}
+
+.heroSub {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 4px;
+}
+
+.heroAuto {
+  font-size: 24px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text);
+  line-height: 1;
+}
+
+.regels {
+  display: flex;
+  flex-direction: column;
+}
+
+.regel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.regel:last-child {
+  border-bottom: none;
+}
+
+.regelSep {
+  border-top: 2px solid var(--border);
+  margin-top: 4px;
+}
+
+.regelLbl {
+  color: var(--muted);
+}
+
+.regelVal {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.regelPos .regelVal { color: var(--green); }
+.regelNeg .regelVal { color: var(--text); }
+.regelZero .regelLbl,
+.regelZero .regelVal { color: rgba(21, 28, 39, 0.3); }
+
+/* Totaal */
+.totaal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #700025, #921939);
+  color: #fff;
+  padding: 18px 22px;
+  border-radius: 12px;
+  margin-top: 8px;
+}
+
+.totaalLbl {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.totaalVal {
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* Footer */
+.modalFooter {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .overlay { padding: 0; }
+  .modal { max-height: 100dvh; margin-bottom: 0; border-radius: 0; }
+  .stepNav { padding: 6px 8px; }
+  .stepLabel { font-size: 8px; }
+  .stepItem { min-width: 44px; }
+  .totaalVal { font-size: 22px; }
+  .heroAuto { font-size: 20px; }
+}
