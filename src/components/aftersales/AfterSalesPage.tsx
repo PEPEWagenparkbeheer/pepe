@@ -988,9 +988,14 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
           function cyclePartner() {
             const idx = huidigPartner ? partnerLijst.indexOf(huidigPartner) : -1;
             const volgende = idx < partnerLijst.length - 1 ? partnerLijst[idx + 1] : null;
-            const nieuw = toewijzingen.filter((t) => t.taak !== item);
-            if (volgende) nieuw.push({ taak: item, partner: volgende });
-            onUpdate({ ...r!, taak_toewijzingen: nieuw });
+            const nieuwToewijzingen = toewijzingen.filter((t) => t.taak !== item);
+            if (volgende) nieuwToewijzingen.push({ taak: item, partner: volgende });
+            // Sync: zorg dat de toegewezen partner ook in partners_toegewezen staat
+            const huidigePartners = r!.partners_toegewezen ?? [];
+            const nieuwePartners = volgende && !huidigePartners.some((p) => p.toUpperCase() === volgende.toUpperCase())
+              ? [...huidigePartners, volgende]
+              : huidigePartners;
+            onUpdate({ ...r!, taak_toewijzingen: nieuwToewijzingen, partners_toegewezen: nieuwePartners });
           }
           return (
             <div key={item} style={{
@@ -1160,8 +1165,13 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                           style={{ padding: '6px 14px', ...(klaar ? { opacity: 0.6, textDecoration: 'line-through' } : {}) }}
                           onClick={() => {
                             const huidig = r.partners_toegewezen ?? [];
-                            const nieuw = huidig.includes(naam) ? huidig.filter((n) => n !== naam) : [...huidig, naam];
-                            onUpdate({ ...r, partners_toegewezen: nieuw });
+                            const wordtToegevoegd = !huidig.includes(naam);
+                            const nieuw = wordtToegevoegd ? [...huidig, naam] : huidig.filter((n) => n !== naam);
+                            // Bij weghalen: ook de taak-toewijzingen voor deze partner opruimen
+                            const nieuweToewijzingen = wordtToegevoegd
+                              ? (r.taak_toewijzingen ?? [])
+                              : (r.taak_toewijzingen ?? []).filter((t) => t.partner.toUpperCase() !== naam.toUpperCase());
+                            onUpdate({ ...r, partners_toegewezen: nieuw, taak_toewijzingen: nieuweToewijzingen });
                           }}
                         >{klaar ? '✓ ' : ''}{naam}</button>
                       );
