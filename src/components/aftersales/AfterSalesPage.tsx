@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { useAfterSales } from '@/hooks/useAfterSales';
+import { useAuth } from '@/hooks/useAuth';
 import { schietConfetti } from '@/lib/confetti';
 import type { AfterSalesAuto, ASAutoType, ASKlacht, BtwAutoType, KlachtUpdate } from '@/types';
 import { WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
@@ -636,17 +637,34 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
 }) {
   const [accPopupId, setAccPopupId] = useState<string | null>(null);
   const [partnerPopupId, setPartnerPopupId] = useState<string | null>(null);
+  const [partnerFilter, setPartnerFilter] = useState<string | null>(null);
+  const [nieuwBericht, setNieuwBericht] = useState('');
   const [nieuweAcc, setNieuweAcc] = useState('');
   const [rdwLaden, setRdwLaden] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const partnerLijst = leesWie();
+  const { user } = useAuth();
+  const mijnNaam = (user?.user_metadata?.naam as string) ?? user?.email ?? 'PEPE';
+
+  function heeftNieuweUpdate(r: AfterSalesAuto): boolean {
+    const updates = r.partner_updates ?? [];
+    if (updates.length === 0) return false;
+    const laatste = updates[0].op;
+    const gezien = r.partner_updates_gezien_op;
+    if (!gezien) return true;
+    return new Date(laatste).getTime() > new Date(gezien).getTime();
+  }
 
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => {
       if (r.gearchiveerd) return false;
       if (zoek && !zoekMatch(r, zoek)) return false;
-      if (kpiFilter === 'terugroep') return !!r.terugroep && r.terugroep !== 'geen';
-      if (kpiFilter === 'apk') { if (!r.apk) return false; const mnd = (new Date(r.apk).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30.5); return mnd < 6; }
+      if (kpiFilter === 'terugroep' && !(r.terugroep && r.terugroep !== 'geen')) return false;
+      if (kpiFilter === 'apk') { if (!r.apk) return false; const mnd = (new Date(r.apk).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30.5); if (!(mnd < 6)) return false; }
+      if (partnerFilter) {
+        const partners = r.partners_toegewezen ?? (r.wie_rijklaar ? [r.wie_rijklaar] : []);
+        if (!partners.some((p) => p.toUpperCase() === partnerFilter.toUpperCase())) return false;
+      }
       return true;
     });
     return [...gefilterd].sort((a, b) => {
@@ -659,8 +677,28 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
       const dB = b.binnen_op ?? '';
       return dA < dB ? -1 : dA > dB ? 1 : 0;
     });
-  }, [autos, zoek, kpiFilter]);
-  if (!rijen.length) return <div className={styles.leeg}>Geen auto's</div>;
+  }, [autos, zoek, kpiFilter, partnerFilter]);
+
+  const partnerCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    autos.forEach((r) => {
+      if (r.gearchiveerd) return;
+      const partners = r.partners_toegewezen ?? (r.wie_rijklaar ? [r.wie_rijklaar] : []);
+      partners.forEach((p) => {
+        const klaar = (r.partners_klaar ?? []).some((k) => k.toUpperCase() === p.toUpperCase());
+        if (!klaar) counts[p.toUpperCase()] = (counts[p.toUpperCase()] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [autos]);
+
+  async function stuurBericht(r: AfterSalesAuto) {
+    if (!nieuwBericht.trim()) return;
+    const entry = { tekst: nieuwBericht.trim(), op: new Date().toISOString(), door: mijnNaam };
+    const nieuweLijst = [entry, ...(r.partner_updates ?? [])];
+    setNieuwBericht('');
+    await onUpdate({ ...r, partner_updates: nieuweLijst, partner_updates_gezien_op: new Date().toISOString() });
+  }
 
   function toggleBool(r: AfterSalesAuto, veld: keyof AfterSalesAuto) {
     const nieuweWaarde = !r[veld];
@@ -705,7 +743,31 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
   }
 
   return (
+    <>
+      {/* Partner filter-chips */}
+      {partnerLijst.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, padding: '10px 14px 0', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginRight: 4 }}>Partner:</span>
+          <button
+            className={`${styles.typeBtn} ${!partnerFilter ? styles.actief : ''}`}
+            style={{ fontSize: 11, padding: '3px 10px' }}
+            onClick={() => setPartnerFilter(null)}
+          >Alle</button>
+          {partnerLijst.map((naam) => {
+            const aantal = partnerCounts[naam.toUpperCase()] ?? 0;
+            return (
+              <button
+                key={naam}
+                className={`${styles.typeBtn} ${partnerFilter === naam ? styles.actief : ''}`}
+                style={{ fontSize: 11, padding: '3px 10px' }}
+                onClick={() => setPartnerFilter(partnerFilter === naam ? null : naam)}
+              >{naam}{aantal > 0 && <span style={{ opacity: 0.6, marginLeft: 4 }}>({aantal})</span>}</button>
+            );
+          })}
+        </div>
+      )}
     <div className={styles.tabelWrapper} onClick={() => { setAccPopupId(null); setPartnerPopupId(null); }}>
+      {rijen.length === 0 ? <div className={styles.leeg}>Geen auto&apos;s {partnerFilter ? `bij ${partnerFilter}` : ''}</div> : (
       <table className={styles.tabel} style={{ minWidth: 1100 }}>
         <thead><tr>
           <th>Kenteken</th>
@@ -909,9 +971,17 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
 
                 {/* Partner */}
                 <td
-                  style={{ cursor: 'pointer' }}
-                  onClick={(e) => { e.stopPropagation(); setPartnerPopupId(r.id); setAccPopupId(null); }}
+                  style={{ cursor: 'pointer', position: 'relative' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPartnerPopupId(r.id);
+                    setAccPopupId(null);
+                    if (heeftNieuweUpdate(r)) {
+                      onUpdate({ ...r, partner_updates_gezien_op: new Date().toISOString() });
+                    }
+                  }}
                 >
+                  {heeftNieuweUpdate(r) && <span className={styles.notifDot} title="Nieuwe update van partner" />}
                   {(() => {
                     const partners = r.partners_toegewezen ?? (r.wie_rijklaar ? [r.wie_rijklaar] : []);
                     if (partners.length === 0) return <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>;
@@ -957,6 +1027,7 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
           })}
         </tbody>
       </table>
+      )}
 
       {/* ── Partner Modal (centered overlay) ── */}
       {partnerPopupId && typeof document !== 'undefined' && (() => {
@@ -1064,22 +1135,50 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                   Onderdelen besteld
                 </label>
 
+                {/* Bericht aan partner */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Bericht aan partner</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <textarea
+                      className="fi"
+                      placeholder="bijv. Wanneer kan de auto opgehaald worden?"
+                      value={nieuwBericht}
+                      onChange={(e) => setNieuwBericht(e.target.value)}
+                      rows={2}
+                      style={{ flex: 1, fontSize: 13, resize: 'vertical' }}
+                    />
+                    <button
+                      className="btn btn-a"
+                      onClick={() => stuurBericht(r)}
+                      disabled={!nieuwBericht.trim()}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >Versturen</button>
+                  </div>
+                </div>
+
                 {/* Updates feed */}
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Updates van partner</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Historie</div>
                   {(r.partner_updates ?? []).length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
-                      {(r.partner_updates ?? []).map((u, i) => (
-                        <div key={i} style={{ padding: '10px 12px', borderBottom: i < (r.partner_updates ?? []).length - 1 ? '1px solid var(--border)' : 'none' }}>
-                          <div style={{ fontSize: 13, color: 'var(--text)' }}>{u.tekst}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                            {new Date(u.op).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })} · {u.door}
+                      {(r.partner_updates ?? []).map((u, i) => {
+                        const isIntern = !partnerLijst.some((p) => p.toUpperCase() === u.door.toUpperCase());
+                        return (
+                          <div key={i} style={{
+                            padding: '10px 12px',
+                            borderBottom: i < (r.partner_updates ?? []).length - 1 ? '1px solid var(--border)' : 'none',
+                            background: isIntern ? 'rgba(146,25,57,0.04)' : 'transparent',
+                          }}>
+                            <div style={{ fontSize: 13, color: 'var(--text)' }}>{u.tekst}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                              {new Date(u.op).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })} · <strong style={{ color: isIntern ? 'var(--accent)' : 'var(--muted)' }}>{u.door}</strong>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Nog geen updates van de partner.</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Nog geen historie.</div>
                   )}
                 </div>
               </div>
@@ -1094,6 +1193,7 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
         );
       })()}
     </div>
+    </>
   );
 }
 

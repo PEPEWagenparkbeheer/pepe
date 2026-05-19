@@ -110,6 +110,7 @@ export interface AfterSalesAuto {
   partner_datum?: string;
   partner_onderdelen_besteld?: boolean;
   partner_updates?: { tekst: string; op: string; door: string }[];
+  partner_updates_gezien_op?: string;
 }
 
 export interface KlachtUpdate {
