@@ -4,7 +4,6 @@
   background: var(--bg);
   display: flex;
   flex-direction: column;
-  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -199,20 +198,20 @@
 }
 
 @media (max-width: 640px) {
-  .mobielVerbergen { display: none !important; }
-  .mobielSub { display: flex; }
+  /* Alle kolommen blijven zichtbaar op mobiel — gebruiker zoomt zelf in/uit voor detail.
+     Geen .mobielSub trick meer, geen kolommen verstoppen. */
+  .mobielSub { display: none; }
 
-  .content { padding: 12px; }
+  .content { padding: 8px; }
 
-  /* Geen horizontale scroll op mobiel — alleen 2 kolommen, dus alles past.
-     Voorkomt scroll-lock waarbij verticaal scrollen niet werkt. */
-  .tabelWrapper { overflow-x: visible; }
-  .tabel { table-layout: fixed; width: 100%; }
-  .tabel th, .tabel td { padding: 10px 10px; word-break: break-word; }
+  /* Compactere tabel op mobiel zodat zoveel mogelijk past zonder zoomen */
+  .tabel { font-size: 12px; }
+  .tabel th { font-size: 10px; padding: 6px 6px; }
+  .tabel td { padding: 6px 6px; }
 
-  .header { padding: 12px 16px; }
+  .header { padding: 10px 12px; }
   .logoImg { height: 22px; }
-  .headerSub { font-size: 12px; }
+  .headerSub { font-size: 11px; }
 }
 
 /* ── Klaar checkbox ── */

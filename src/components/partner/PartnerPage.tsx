@@ -32,7 +32,12 @@ export default function PartnerPage({ wie }: { wie: string }) {
       const isKlaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === wieUpper);
       return !isKlaar;
     })
-    .sort((a, b) => (a.binnen_op ?? '') < (b.binnen_op ?? '') ? -1 : 1);
+    .sort((a, b) => {
+      // 1. Auto's die fysiek bij partner staan eerst
+      if (!!a.partner_binnen !== !!b.partner_binnen) return a.partner_binnen ? -1 : 1;
+      // 2. Daarna op binnen_op (oudste eerst)
+      return (a.binnen_op ?? '') < (b.binnen_op ?? '') ? -1 : 1;
+    });
 
   return (
     <div className={styles.pagina}>

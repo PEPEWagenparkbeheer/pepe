@@ -101,7 +101,6 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
   padding: 20px;
   display: flex;
   flex-direction: column;
