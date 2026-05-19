@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
@@ -641,7 +641,6 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
   const [nieuwBericht, setNieuwBericht] = useState('');
   const [nieuweAcc, setNieuweAcc] = useState('');
   const [rdwLaden, setRdwLaden] = useState<string | null>(null);
-  const popupRef = useRef<HTMLDivElement>(null);
   const partnerLijst = leesWie();
   const { user } = useAuth();
   const mijnNaam = (user?.user_metadata?.naam as string) ?? user?.email ?? 'PEPE';
@@ -789,7 +788,6 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
           {rijen.map((r) => {
             const accItems = (r.accessoires ?? '').split(',').map((s) => s.trim()).filter(Boolean);
             const accKlaar = (r.accessoires_klaar ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-            const accPopupOpen = accPopupId === r.id;
             const kleurTr = r.klaar ? styles.dotGroen : undefined;
             const terugroepOpen = r.terugroep && r.terugroep !== 'geen';
 
@@ -887,86 +885,32 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                 </td>
 
                 {/* Acc + Mwrk */}
-                <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', minWidth: 100 }}>
-                    {accItems.map((item) => (
-                      <span
-                        key={item}
-                        className={`${styles.accChip} ${accKlaar.includes(item) ? styles.accKlaar : ''}`}
-                        onClick={(e) => { e.stopPropagation(); toggleAcc(r, item); }}
-                        title={accKlaar.includes(item) ? 'Klik om af te vinken' : 'Klik om klaar te markeren'}
-                      >
-                        {accKlaar.includes(item) && '✓ '}{item}
-                      </span>
-                    ))}
-                    {accItems.length < 5 && (
-                      <button
-                        className={styles.accPlusKnop}
-                        onClick={(e) => { e.stopPropagation(); setAccPopupId(accPopupOpen ? null : r.id); setNieuweAcc(''); }}
-                        title="Accessoires beheren"
-                      >+</button>
-                    )}
-                    {accItems.length >= 5 && (
-                      <button
-                        className={styles.accPlusKnop}
-                        onClick={(e) => { e.stopPropagation(); setAccPopupId(accPopupOpen ? null : r.id); setNieuweAcc(''); }}
-                      >+{accItems.length - 4}</button>
-                    )}
-
-                    {/* Popup */}
-                    {accPopupOpen && (
-                      <div ref={popupRef} className={styles.accPopup} onClick={(e) => e.stopPropagation()}>
-                        <div className={styles.accPopupTitel}>🔧 Accessoires</div>
-                        <div className={styles.accLijst}>
-                          {accItems.map((item) => {
-                            const toewijzingen = r.taak_toewijzingen ?? [];
-                            const huidigPartner = toewijzingen.find((t) => t.taak === item)?.partner ?? null;
-                            function cyclePartner() {
-                              const idx = huidigPartner ? partnerLijst.indexOf(huidigPartner) : -1;
-                              const volgende = idx < partnerLijst.length - 1 ? partnerLijst[idx + 1] : null;
-                              const nieuw = toewijzingen.filter((t) => t.taak !== item);
-                              if (volgende) nieuw.push({ taak: item, partner: volgende });
-                              onUpdate({ ...r, taak_toewijzingen: nieuw });
-                            }
-                            return (
-                              <div key={item} className={styles.accRij}>
-                                <div
-                                  className={`${styles.cb} ${accKlaar.includes(item) ? styles.on : ''}`}
-                                  style={{ flexShrink: 0 }}
-                                  onClick={() => toggleAcc(r, item)}
-                                >
-                                  {accKlaar.includes(item) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                                </div>
-                                <span className={`${styles.accNaam} ${accKlaar.includes(item) ? styles.accKlaarNaam : ''}`}>{item}</span>
-                                {partnerLijst.length > 0 && (
-                                  <button
-                                    className={styles.taakPartnerChip}
-                                    onClick={cyclePartner}
-                                    title={huidigPartner ? `Toegewezen aan ${huidigPartner} — klik om te wijzigen` : 'Klik om partner toe te wijzen'}
-                                  >
-                                    {huidigPartner ?? '—'}
-                                  </button>
-                                )}
-                                <button className={styles.accVerwijder} onClick={() => verwijderAcc(r, item)}>×</button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className={styles.accInput}>
-                          <input
-                            className="fi"
-                            placeholder="bijv. Trekhaak, Belettering, Matten..."
-                            value={nieuweAcc}
-                            onChange={(e) => setNieuweAcc(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && voegAccToe(r)}
-                            style={{ flex: 1, fontSize: 12 }}
-                          />
-                          <button className="btn btn-a" style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }} onClick={() => voegAccToe(r)}>+ Toevoegen</button>
-                        </div>
-                        <button className="btn" style={{ width: '100%', marginTop: 6 }} onClick={() => setAccPopupId(null)}>Klaar</button>
+                <td
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => { e.stopPropagation(); setAccPopupId(r.id); setPartnerPopupId(null); setNieuweAcc(''); }}
+                >
+                  {(() => {
+                    if (accItems.length === 0) return <span className={styles.accLegen}>+ toevoegen</span>;
+                    const open = accItems.filter((item) => !accKlaar.includes(item));
+                    const klaarN = accKlaar.length;
+                    if (open.length === 0) return <span className={styles.accAllesKlaar}>✓ alles klaar ({klaarN})</span>;
+                    const max = 2;
+                    const zichtbaar = open.slice(0, max);
+                    const verborgen = open.length - zichtbaar.length;
+                    return (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', minWidth: 100 }}>
+                        {zichtbaar.map((item) => (
+                          <span key={item} className={styles.accChip}>{item}</span>
+                        ))}
+                        {verborgen > 0 && (
+                          <span className={styles.accMeerKnop} title={open.slice(max).join('\n')}>+{verborgen}</span>
+                        )}
+                        {klaarN > 0 && (
+                          <span className={styles.accKlaarBadge} title={accKlaar.map((k) => '✓ ' + k).join('\n')}>✓ {klaarN}</span>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </td>
 
                 {/* Partner */}
@@ -1028,6 +972,137 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
         </tbody>
       </table>
       )}
+
+      {/* ── Accessoires Modal (centered overlay) ── */}
+      {accPopupId && typeof document !== 'undefined' && (() => {
+        const r = rijen.find((row) => row.id === accPopupId);
+        if (!r) return null;
+        const items = (r.accessoires ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+        const klaarLijst = (r.accessoires_klaar ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+        const open = items.filter((item) => !klaarLijst.includes(item));
+        const klaar = items.filter((item) => klaarLijst.includes(item));
+        const toewijzingen = r.taak_toewijzingen ?? [];
+
+        function taakRij(item: string, isKlaar: boolean) {
+          const huidigPartner = toewijzingen.find((t) => t.taak === item)?.partner ?? null;
+          function cyclePartner() {
+            const idx = huidigPartner ? partnerLijst.indexOf(huidigPartner) : -1;
+            const volgende = idx < partnerLijst.length - 1 ? partnerLijst[idx + 1] : null;
+            const nieuw = toewijzingen.filter((t) => t.taak !== item);
+            if (volgende) nieuw.push({ taak: item, partner: volgende });
+            onUpdate({ ...r!, taak_toewijzingen: nieuw });
+          }
+          return (
+            <div key={item} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+              borderBottom: '1px solid var(--border)',
+              background: isKlaar ? 'rgba(22,163,74,0.04)' : 'transparent',
+            }}>
+              <div
+                className={`${styles.cb} ${isKlaar ? styles.on : ''}`}
+                style={{ flexShrink: 0, cursor: 'pointer' }}
+                onClick={() => toggleAcc(r!, item)}
+              >
+                {isKlaar && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+              </div>
+              <span style={{ flex: 1, fontSize: 14, color: isKlaar ? 'var(--muted)' : 'var(--text)', textDecoration: isKlaar ? 'line-through' : 'none' }}>{item}</span>
+              {partnerLijst.length > 0 && (
+                <button
+                  className={styles.taakPartnerChip}
+                  style={{ fontSize: 11, padding: '3px 10px', margin: 0 }}
+                  onClick={cyclePartner}
+                  title={huidigPartner ? `Toegewezen aan ${huidigPartner} — klik om te wijzigen` : 'Klik om partner toe te wijzen'}
+                >
+                  {huidigPartner ?? '— wie? —'}
+                </button>
+              )}
+              <button className={styles.accVerwijder} onClick={() => verwijderAcc(r!, item)} title="Verwijder">×</button>
+            </div>
+          );
+        }
+
+        return createPortal(
+          <div
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+              zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 20, backdropFilter: 'blur(2px)',
+            }}
+            onClick={() => setAccPopupId(null)}
+          >
+            <div
+              style={{
+                background: 'var(--surface)', borderRadius: 18,
+                maxWidth: 560, width: '100%', maxHeight: '90vh',
+                display: 'flex', flexDirection: 'column',
+                boxShadow: '0 24px 60px rgba(0,0,0,0.35)', border: '1px solid var(--border)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <KentekenPlaat kenteken={r.kenteken} />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>
+                      <span className={styles.kn}>{r.merk}</span> <span className={styles.modelAccent}>{r.model}</span>
+                    </div>
+                    {r.klant && <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.klant}</div>}
+                  </div>
+                </div>
+                <button onClick={() => setAccPopupId(null)} style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--muted)', cursor: 'pointer', padding: 4 }}>✕</button>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {/* Te doen */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Te doen ({open.length})</div>
+                  {open.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                      {open.map((item) => taakRij(item, false))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Geen openstaande taken.</div>
+                  )}
+                </div>
+
+                {/* Toevoegen */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Taak toevoegen</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      className="fi"
+                      placeholder="bijv. Trekhaak monteren, Belettering, Inschrijven RDW..."
+                      value={nieuweAcc}
+                      onChange={(e) => setNieuweAcc(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && voegAccToe(r)}
+                      style={{ flex: 1, fontSize: 13 }}
+                    />
+                    <button className="btn btn-a" onClick={() => voegAccToe(r)} disabled={!nieuweAcc.trim()} style={{ whiteSpace: 'nowrap' }}>+ Toevoegen</button>
+                  </div>
+                </div>
+
+                {/* Afgerond */}
+                {klaar.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Afgerond ({klaar.length})</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', opacity: 0.85 }}>
+                      {klaar.map((item) => taakRij(item, true))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn btn-a" onClick={() => setAccPopupId(null)}>Sluiten</button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
 
       {/* ── Partner Modal (centered overlay) ── */}
       {partnerPopupId && typeof document !== 'undefined' && (() => {
