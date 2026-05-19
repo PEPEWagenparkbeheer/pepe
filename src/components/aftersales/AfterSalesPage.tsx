@@ -746,13 +746,29 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
                 {/* Wie */}
                 <td onClick={(e) => e.stopPropagation()}>
                   {r.wie_rijklaar ? (
-                    <button
-                      className={`${styles.wieChip} ${r.wie_rijklaar_klaar ? styles.wieKlaar : ''}`}
-                      onClick={() => toggleWie(r)}
-                      title="Klik om te bevestigen"
-                    >
-                      {r.wie_rijklaar_klaar && '✓ '}{r.wie_rijklaar}
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                      <button
+                        className={`${styles.wieChip} ${r.wie_rijklaar_klaar ? styles.wieKlaar : ''}`}
+                        onClick={() => toggleWie(r)}
+                        title="Klik om te bevestigen"
+                      >
+                        {r.wie_rijklaar_klaar && '✓ '}{r.wie_rijklaar}
+                      </button>
+                      {r.partner_binnen && (() => {
+                        const dagen = r.partner_binnen_op
+                          ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000)
+                          : null;
+                        const tip = r.partner_binnen_op
+                          ? `Binnen sinds ${new Date(r.partner_binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })} · ${dagen === 0 ? 'vandaag' : `${dagen} dag${dagen !== 1 ? 'en' : ''}`}`
+                          : 'Staat bij partner';
+                        return <span className={styles.partnerBinnenBadge} title={tip}>📍 {dagen !== null ? (dagen === 0 ? 'vandaag' : `${dagen}d`) : 'hier'}</span>;
+                      })()}
+                      {(r.partner_updates ?? []).length > 0 && (
+                        <span className={styles.partnerUpdatesBadge} title={`Laatste: ${r.partner_updates![0].tekst}`}>
+                          💬 {r.partner_updates!.length}
+                        </span>
+                      )}
+                    </div>
                   ) : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
                 </td>
 

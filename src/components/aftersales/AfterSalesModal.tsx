@@ -217,6 +217,58 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             <input className="fi" placeholder="Naam garage/persoon" value={form.klaarmaker_naam ?? ''} onChange={(e) => stel('klaarmaker_naam', e.target.value)} />
           </div>
 
+          {/* ── PARTNER UPDATES ── */}
+          {(form.wie_rijklaar || (form.partner_updates ?? []).length > 0) && (
+            <>
+              <div className={styles.sectieHdr}>Partner — {form.wie_rijklaar || '—'}</div>
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+                  {/* Binnen bij partner */}
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                    background: form.partner_binnen ? 'rgba(82,196,126,0.15)' : 'var(--bg)',
+                    color: form.partner_binnen ? 'var(--green)' : 'var(--muted)',
+                    border: '1px solid var(--border)',
+                  }}>
+                    {form.partner_binnen ? '📍 Staat bij partner' : 'Nog niet bij partner'}
+                    {form.partner_binnen && form.partner_binnen_op && (() => {
+                      const dagen = Math.floor((Date.now() - new Date(form.partner_binnen_op!).getTime()) / 86400000);
+                      return <span style={{ opacity: 0.7 }}>· {dagen === 0 ? 'vandaag' : `${dagen}d`}</span>;
+                    })()}
+                  </span>
+                  {/* Ingepland */}
+                  {form.partner_datum && (
+                    <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: 'rgba(82,196,126,0.1)', border: '1px solid var(--border)' }}>
+                      📅 Ingepland: {new Date(form.partner_datum).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                    </span>
+                  )}
+                  {/* Onderdelen */}
+                  {form.partner_onderdelen_besteld && (
+                    <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: 'rgba(82,196,126,0.1)', border: '1px solid var(--border)' }}>
+                      ✓ Onderdelen besteld
+                    </span>
+                  )}
+                </div>
+                {/* Updates feed */}
+                {(form.partner_updates ?? []).length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                    {(form.partner_updates ?? []).map((u, i) => (
+                      <div key={i} style={{ padding: '8px 12px', borderBottom: i < (form.partner_updates ?? []).length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <div style={{ fontSize: 13, color: 'var(--text)' }}>{u.tekst}</div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                          {new Date(u.op).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })} · {u.door}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>Nog geen updates van de partner.</div>
+                )}
+              </div>
+            </>
+          )}
+
           {/* ── ACCESSOIRES ── */}
           <div className={styles.sectieHdr}>Accessoires</div>
 
