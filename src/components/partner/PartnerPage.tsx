@@ -21,12 +21,18 @@ export default function PartnerPage({ wie }: { wie: string }) {
   const { signOut } = useAuth();
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
 
+  const wieUpper = wie.toUpperCase();
   const mijnAutos = autos
-    .filter((r) => !r.gearchiveerd && r.binnen && r.wie_rijklaar?.toUpperCase() === wie.toUpperCase())
-    .sort((a, b) => {
-      if (!!a.wie_rijklaar_klaar !== !!b.wie_rijklaar_klaar) return a.wie_rijklaar_klaar ? 1 : -1;
-      return (a.binnen_op ?? '') < (b.binnen_op ?? '') ? -1 : 1;
-    });
+    .filter((r) => {
+      if (r.gearchiveerd || !r.binnen) return false;
+      const inToegewezen = (r.partners_toegewezen ?? []).some((p) => p.toUpperCase() === wieUpper);
+      const inWieRijklaar = r.wie_rijklaar?.toUpperCase() === wieUpper;
+      if (!inToegewezen && !inWieRijklaar) return false;
+      // Verdwijn als deze partner klaar heeft gemeld
+      const isKlaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === wieUpper);
+      return !isKlaar;
+    })
+    .sort((a, b) => (a.binnen_op ?? '') < (b.binnen_op ?? '') ? -1 : 1);
 
   return (
     <div className={styles.pagina}>
@@ -56,17 +62,16 @@ export default function PartnerPage({ wie }: { wie: string }) {
                   <th className={styles.mobielVerbergen}>Ingepland</th>
                   <th className={styles.mobielVerbergen}>Onderdelen</th>
                   <th className={styles.mobielVerbergen}>Updates</th>
-                  <th className={`${styles.chk} ${styles.mobielVerbergen}`}>Klaar</th>
                 </tr>
               </thead>
               <tbody>
                 {mijnAutos.map((r) => {
                   const updates = r.partner_updates ?? [];
-                  const klaar = !!r.wie_rijklaar_klaar;
+                  const wieKlaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === wieUpper);
                   return (
                     <tr
                       key={r.id}
-                      className={klaar ? styles.rijKlaar : ''}
+                      className={wieKlaar ? styles.rijKlaar : ''}
                       onClick={() => setModalAuto(r)}
                     >
                       <td><KentekenPlaat kenteken={r.kenteken} /></td>
@@ -78,7 +83,6 @@ export default function PartnerPage({ wie }: { wie: string }) {
                           {r.klant && <span>{r.klant}</span>}
                           {r.type && <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>}
                           {r.partner_binnen && <span className={styles.binnenBadge}>📍 Staat hier</span>}
-                          {klaar && <span className={styles.klaarBadge}>✓ Klaar</span>}
                         </div>
                       </td>
                       <td className={styles.mobielVerbergen}>{r.klant || '—'}</td>
@@ -111,17 +115,6 @@ export default function PartnerPage({ wie }: { wie: string }) {
                         {updates.length > 0
                           ? <span className={styles.updatesBadge}>{updates.length} update{updates.length !== 1 ? 's' : ''}</span>
                           : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
-                      </td>
-                      <td className={`${styles.chk} ${styles.mobielVerbergen}`} onClick={(e) => e.stopPropagation()}>
-                        <div
-                          className={`${styles.klaarCb} ${klaar ? styles.klaarCbAan : ''}`}
-                          onClick={async () => {
-                            await updateAuto({ ...r, wie_rijklaar_klaar: !klaar });
-                          }}
-                          title={klaar ? 'Klaar — klik om ongedaan te maken' : 'Klik als auto klaar is'}
-                        >
-                          {klaar && <svg width="14" height="11" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                        </div>
                       </td>
                     </tr>
                   );

@@ -22,7 +22,9 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
   const [nieuweTekst, setNieuweTekst] = useState('');
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [editTekst, setEditTekst] = useState('');
-  const [klaar, setKlaar] = useState(!!auto.wie_rijklaar_klaar);
+  const [klaar, setKlaar] = useState(() =>
+    (auto.partners_klaar ?? []).some((p) => p.toUpperCase() === wie.toUpperCase())
+  );
   const [bezig, setBezig] = useState(false);
 
   // Accessoires
@@ -42,7 +44,6 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
       partner_datum: datum || undefined,
       partner_onderdelen_besteld: onderdelenBesteld,
       partner_updates: updates,
-      wie_rijklaar_klaar: klaar,
       accessoires: accItems.join(', '),
       accessoires_klaar: [...accKlaarSet].join(', '),
       ...overrides,
@@ -97,7 +98,19 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
   async function toggleKlaar() {
     const nieuwKlaar = !klaar;
     setKlaar(nieuwKlaar);
-    await opslaan({ wie_rijklaar_klaar: nieuwKlaar });
+    const wieUpper = wie.toUpperCase();
+    const huidigeKlaar = auto.partners_klaar ?? [];
+    const nieuweKlaar = nieuwKlaar
+      ? [...huidigeKlaar.filter((p) => p.toUpperCase() !== wieUpper), wie]
+      : huidigeKlaar.filter((p) => p.toUpperCase() !== wieUpper);
+    // Schrijf history-entry
+    let nieuweUpdates = updates;
+    if (nieuwKlaar) {
+      const entry = { tekst: '✓ Werkzaamheden afgerond', op: new Date().toISOString(), door: wie };
+      nieuweUpdates = [entry, ...updates];
+      setUpdates(nieuweUpdates);
+    }
+    await opslaan({ partners_klaar: nieuweKlaar, partner_updates: nieuweUpdates });
   }
 
   function datumFmt(iso: string) {

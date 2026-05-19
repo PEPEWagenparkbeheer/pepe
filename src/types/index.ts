@@ -102,6 +102,8 @@ export interface AfterSalesAuto {
   veld_meta?: Record<string, { op: string; door: string }>;
 
   // Partner (extern rijklaar-bedrijf)
+  partners_toegewezen?: string[];
+  partners_klaar?: string[];
   partner_binnen?: boolean;
   partner_binnen_op?: string;
   partner_datum?: string;

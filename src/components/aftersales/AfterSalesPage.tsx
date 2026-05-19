@@ -745,31 +745,55 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
 
                 {/* Wie */}
                 <td onClick={(e) => e.stopPropagation()}>
-                  {r.wie_rijklaar ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
-                      <button
-                        className={`${styles.wieChip} ${r.wie_rijklaar_klaar ? styles.wieKlaar : ''}`}
-                        onClick={() => toggleWie(r)}
-                        title="Klik om te bevestigen"
-                      >
-                        {r.wie_rijklaar_klaar && '✓ '}{r.wie_rijklaar}
-                      </button>
-                      {r.partner_binnen && (() => {
-                        const dagen = r.partner_binnen_op
-                          ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000)
-                          : null;
-                        const tip = r.partner_binnen_op
-                          ? `Binnen sinds ${new Date(r.partner_binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })} · ${dagen === 0 ? 'vandaag' : `${dagen} dag${dagen !== 1 ? 'en' : ''}`}`
-                          : 'Staat bij partner';
-                        return <span className={styles.partnerBinnenBadge} title={tip}>📍 {dagen !== null ? (dagen === 0 ? 'vandaag' : `${dagen}d`) : 'hier'}</span>;
-                      })()}
-                      {(r.partner_updates ?? []).length > 0 && (
-                        <span className={styles.partnerUpdatesBadge} title={`Laatste: ${r.partner_updates![0].tekst}`}>
-                          💬 {r.partner_updates!.length}
+                  {(() => {
+                    const partners = r.partners_toegewezen ?? (r.wie_rijklaar ? [r.wie_rijklaar] : []);
+                    if (partners.length === 0) return <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>;
+                    const klaarLijst = r.partners_klaar ?? [];
+                    const dagen = r.partner_binnen_op
+                      ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000)
+                      : null;
+                    const binnenTip = r.partner_binnen_op
+                      ? `Binnen sinds ${new Date(r.partner_binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })} · ${dagen === 0 ? 'vandaag' : `${dagen} dag${dagen !== 1 ? 'en' : ''}`}`
+                      : 'Klik om aan te geven dat auto bij partner staat';
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                        {partners.map((naam) => {
+                          const isKlaar = klaarLijst.some((p) => p.toUpperCase() === naam.toUpperCase());
+                          return (
+                            <button
+                              key={naam}
+                              className={`${styles.wieChip} ${isKlaar ? styles.wieKlaar : ''}`}
+                              title={isKlaar ? `${naam} heeft klaar gemeld` : 'Klik om te bevestigen'}
+                              onClick={() => toggleWie(r)}
+                              style={isKlaar ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}
+                            >
+                              {isKlaar && '✓ '}{naam}
+                            </button>
+                          );
+                        })}
+                        {/* Staat bij partner — klikbaar */}
+                        <span
+                          className={r.partner_binnen ? styles.partnerBinnenBadge : styles.partnerBinnenBadgeUit}
+                          title={binnenTip}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => onUpdate({
+                            ...r,
+                            partner_binnen: !r.partner_binnen,
+                            partner_binnen_op: !r.partner_binnen ? new Date().toISOString() : undefined,
+                          })}
+                        >
+                          📍 {r.partner_binnen
+                            ? (dagen !== null ? (dagen === 0 ? 'vandaag' : `${dagen}d`) : 'hier')
+                            : 'bij partner?'}
                         </span>
-                      )}
-                    </div>
-                  ) : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
+                        {(r.partner_updates ?? []).length > 0 && (
+                          <span className={styles.partnerUpdatesBadge} title={`Laatste: ${r.partner_updates![0].tekst}`}>
+                            💬 {r.partner_updates!.length}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </td>
 
                 {/* Binnen */}

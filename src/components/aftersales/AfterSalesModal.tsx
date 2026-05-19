@@ -64,6 +64,12 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
     stel('accessoires', nieuw.join(','));
   }
 
+  function togglePartner(naam: string) {
+    const huidig = form.partners_toegewezen ?? [];
+    const nieuw = huidig.includes(naam) ? huidig.filter((n) => n !== naam) : [...huidig, naam];
+    stel('partners_toegewezen', nieuw);
+  }
+
   const accLijst = (form.accessoires ?? '').split(',').filter(Boolean);
 
   async function rdwOpzoeken() {
@@ -216,6 +222,31 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             <label>Klaarmaker naam (vrij invullen)</label>
             <input className="fi" placeholder="Naam garage/persoon" value={form.klaarmaker_naam ?? ''} onChange={(e) => stel('klaarmaker_naam', e.target.value)} />
           </div>
+
+          {/* ── PARTNERS TOEWIJZEN ── */}
+          {wieLijst.length > 0 && (
+            <div className={`${styles.fg} ${styles.vol}`}>
+              <label>Partners toewijzen</label>
+              <div className={styles.typeGrid}>
+                {wieLijst.map((naam) => {
+                  const aan = (form.partners_toegewezen ?? []).includes(naam);
+                  const klaar = (form.partners_klaar ?? []).includes(naam);
+                  return (
+                    <button
+                      key={naam}
+                      type="button"
+                      className={`${styles.typeBtn} ${aan ? styles.actief : ''}`}
+                      onClick={() => togglePartner(naam)}
+                      style={klaar ? { opacity: 0.5, textDecoration: 'line-through' } : undefined}
+                      title={klaar ? `${naam} heeft klaar gemeld` : aan ? `${naam} verwijderen` : `${naam} toewijzen`}
+                    >
+                      {klaar ? '✓ ' : ''}{naam}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── PARTNER UPDATES ── */}
           {(form.wie_rijklaar || (form.partner_updates ?? []).length > 0) && (

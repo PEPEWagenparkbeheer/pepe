@@ -285,6 +285,18 @@
   white-space: nowrap;
 }
 
+.partnerBinnenBadgeUit {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--muted);
+  white-space: nowrap;
+  border: 1px dashed var(--border);
+}
+
 .partnerUpdatesBadge {
   display: inline-block;
   padding: 1px 7px;
