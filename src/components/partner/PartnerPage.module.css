@@ -22,12 +22,9 @@
   gap: 12px;
 }
 
-.pepeLogo {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: var(--accent);
-  sup { font-size: 10px; vertical-align: super; }
+.logoImg {
+  height: 28px;
+  width: auto;
 }
 
 .headerSub {

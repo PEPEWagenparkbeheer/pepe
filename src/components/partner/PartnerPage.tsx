@@ -33,7 +33,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLogo}>
-          <span className={styles.pepeLogo}>PEPE<sup>®</sup></span>
+          <img src="/pepe-logo-cmyk-wit.svg" alt="PEPE" className={styles.logoImg} />
           <span className={styles.headerSub}>Rijklaar portaal — {wie}</span>
         </div>
         <button className={styles.uitlogKnop} onClick={signOut}>Uitloggen</button>

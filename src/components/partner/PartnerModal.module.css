@@ -268,14 +268,113 @@
   color: var(--muted);
 }
 
+/* ── Accessoires invoer ── */
+.accInvoer {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.accInput {
+  flex: 1;
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+.accInput:focus { outline: none; border-color: var(--accent); }
+
+.accToevoegenKnop {
+  padding: 7px 14px;
+  background: var(--border);
+  border: none;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+.accToevoegenKnop:disabled { opacity: 0.4; }
+
+/* ── Update edit ── */
+.updateTekstRij {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.bewerkenKnop {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.bewerkenKnop:hover { opacity: 1; }
+
+.editRij {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editKnoppen {
+  display: flex;
+  gap: 6px;
+}
+
+.editOpslaanKnop {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.editOpslaanKnop:disabled { opacity: 0.4; }
+
+.editAnnuleerKnop {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
 /* ── Footer ── */
 .modalFooter {
   padding: 16px 20px;
   border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
 }
 
+.opslaanKnop {
+  flex: 0 0 auto;
+  padding: 14px 22px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--accent, #c0392b);
+  color: #fff;
+  transition: opacity 0.15s;
+}
+.opslaanKnop:disabled { opacity: 0.4; }
+
 .klaarKnop {
-  width: 100%;
+  flex: 1;
   padding: 14px;
   border: none;
   border-radius: 10px;
