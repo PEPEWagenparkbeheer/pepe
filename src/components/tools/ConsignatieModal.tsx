@@ -432,13 +432,16 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
 
         <div className={styles.stepNav}>
           {STAPPEN.map((s, i) => (
-            <div
+            <button
               key={s.key}
+              type="button"
               className={`${styles.stepItem} ${i === stap ? styles.stepActief : ''} ${i < stap ? styles.stepDone : ''}`}
+              onClick={() => setStap(i)}
+              title={`Stap ${i + 1}: ${s.label}`}
             >
               <span className={styles.stepNum}>{i + 1}</span>
               <span className={styles.stepLabel}>{s.label}</span>
-            </div>
+            </button>
           ))}
         </div>
 

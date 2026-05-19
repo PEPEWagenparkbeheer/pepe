@@ -74,13 +74,26 @@
   flex: 1;
   min-width: 56px;
   padding: 4px 2px;
+  border: none;
+  background: none;
   border-radius: 6px;
   color: var(--muted);
   font-size: 10px;
   font-weight: 600;
+  font-family: inherit;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  cursor: pointer;
   transition: all 0.15s;
+}
+
+.stepItem:hover {
+  background: rgba(146, 25, 57, 0.06);
+  color: var(--text);
+}
+.stepItem:hover .stepNum {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .stepNum {
