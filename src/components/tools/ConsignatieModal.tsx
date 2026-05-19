@@ -9,8 +9,11 @@ interface Props {
   onSluiten: () => void;
 }
 
+type KentekenType = 'personenauto' | 'bedrijfswagen';
+
 interface Form {
   auto: string;
+  kentekenType: KentekenType;
   verkoopprijs: string;
   garantie: string;
   poetsen: string;
@@ -23,6 +26,7 @@ interface Form {
 
 const LEEG: Form = {
   auto: '',
+  kentekenType: 'personenauto',
   verkoopprijs: '',
   garantie: '',
   poetsen: '',
@@ -32,6 +36,8 @@ const LEEG: Form = {
   accessoires: '',
   feePercent: '4',
 };
+
+const BTW = 0.21;
 
 const STAPPEN = [
   { key: 'auto',         label: 'Auto' },
@@ -66,19 +72,41 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
   }
 
   const cijfers = useMemo(() => {
+    // Personenauto (geel kenteken): kosten worden ex btw ingevoerd en omgerekend naar incl btw
+    // voor aftrek van een incl-prijs. Bedrijfswagen (grijs): alles ex btw, geen omrekening.
+    const factor = form.kentekenType === 'personenauto' ? 1 + BTW : 1;
+    const isIncl = form.kentekenType === 'personenauto';
+
     const vp = parseG(form.verkoopprijs);
     const dagen = parseInt(form.advDagen) || 0;
     const maanden = dagen === 0 ? 0 : Math.ceil(dagen / 30.44);
-    const adv = maanden * 25;
-    const garantie = parseG(form.garantie);
-    const poetsen = parseG(form.poetsen);
-    const tanken = parseG(form.tanken);
-    const rijklaar = parseG(form.rijklaar);
-    const accessoires = parseG(form.accessoires);
+
+    const garantieEx = parseG(form.garantie);
+    const poetsenEx = parseG(form.poetsen);
+    const tankenEx = parseG(form.tanken);
+    const advEx = maanden * 25;
+    const rijklaarEx = parseG(form.rijklaar);
+    const accessoiresEx = parseG(form.accessoires);
+
+    // Bedragen na omrekening (gebruikt in eindberekening + weergave)
+    const garantie = garantieEx * factor;
+    const poetsen = poetsenEx * factor;
+    const tanken = tankenEx * factor;
+    const adv = advEx * factor;
+    const rijklaar = rijklaarEx * factor;
+    const accessoires = accessoiresEx * factor;
+
     const feeP = parseG(form.feePercent);
     const fee = vp * feeP / 100;
     const totaal = vp - garantie - poetsen - tanken - adv - rijklaar - accessoires - fee;
-    return { vp, dagen, maanden, adv, garantie, poetsen, tanken, rijklaar, accessoires, feeP, fee, totaal };
+
+    return {
+      vp, dagen, maanden,
+      garantie, poetsen, tanken, adv, rijklaar, accessoires,
+      garantieEx, poetsenEx, tankenEx, advEx, rijklaarEx, accessoiresEx,
+      feeP, fee, totaal,
+      factor, isIncl,
+    };
   }, [form]);
 
   function volgende() {
@@ -165,8 +193,9 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
     y += 38 + 6;
 
     // Regels
+    const vpLbl = cijfers.isIncl ? 'Verkoopprijs (incl. btw/bpm)' : 'Verkoopprijs (excl. btw)';
     const regels: { lbl: string; val: number; type: 'pos' | 'neg' | 'zero' }[] = [
-      { lbl: 'Verkoopprijs (incl. btw/bpm)', val: cijfers.vp, type: 'pos' },
+      { lbl: vpLbl, val: cijfers.vp, type: 'pos' },
       { lbl: 'Garantie / herstelkosten', val: cijfers.garantie, type: cijfers.garantie ? 'neg' : 'zero' },
       { lbl: 'Poetsen', val: cijfers.poetsen, type: cijfers.poetsen ? 'neg' : 'zero' },
       { lbl: 'Tanken', val: cijfers.tanken, type: cijfers.tanken ? 'neg' : 'zero' },
@@ -206,6 +235,17 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
     doc.text('NETTO OPBRENGST KLANT', margin, y + 7);
     doc.setFontSize(16);
     doc.text(`€ ${fmtEuro(cijfers.totaal)}`, col2, y + 12, { align: 'right' });
+    y += 18;
+
+    // BTW-toelichting onder totaal
+    y += 6;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8.5);
+    doc.setTextColor(122, 132, 144);
+    const toelichting = cijfers.isIncl
+      ? 'Kosten zijn omgerekend van excl btw naar incl btw (×1,21) zodat alle bedragen in dezelfde basis staan.'
+      : 'Bedrijfswagen — alle bedragen zijn excl btw.';
+    doc.text(toelichting, margin, y, { maxWidth: W - 2 * margin });
 
     // Footer
     y = 272;
@@ -226,8 +266,9 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
   // RESULTAAT-scherm
   if (klaar) {
     const datum = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+    const vpLbl = cijfers.isIncl ? 'Verkoopprijs (incl. btw/bpm)' : 'Verkoopprijs (excl. btw)';
     const regels = [
-      { lbl: 'Verkoopprijs (incl. btw/bpm)', val: cijfers.vp, type: 'pos', sep: false },
+      { lbl: vpLbl, val: cijfers.vp, type: 'pos', sep: false },
       { lbl: 'Garantie / herstelkosten', val: cijfers.garantie, type: cijfers.garantie ? 'neg' : 'zero', sep: true },
       { lbl: 'Poetsen', val: cijfers.poetsen, type: cijfers.poetsen ? 'neg' : 'zero', sep: false },
       { lbl: 'Tanken', val: cijfers.tanken, type: cijfers.tanken ? 'neg' : 'zero', sep: false },
@@ -271,6 +312,12 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
               <span className={styles.totaalLbl}>Netto opbrengst klant</span>
               <span className={styles.totaalVal}>€ {fmtEuro(cijfers.totaal)}</span>
             </div>
+
+            <p className={styles.uitleg} style={{ textAlign: 'center', marginTop: 4 }}>
+              {cijfers.isIncl
+                ? 'Kosten zijn omgerekend van excl btw naar incl btw (×1,21) zodat alle bedragen in dezelfde basis staan.'
+                : 'Bedrijfswagen — alle bedragen zijn excl btw.'}
+            </p>
           </div>
 
           <div className={styles.modalFooter}>
@@ -310,11 +357,36 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
           {stap === 0 && (
             <>
               <div className={styles.fg}>
+                <label>Type kenteken</label>
+                <div className={styles.chipGroep}>
+                  <button
+                    type="button"
+                    className={`${styles.chip} ${form.kentekenType === 'personenauto' ? styles.chipActief : ''}`}
+                    onClick={() => stel('kentekenType', 'personenauto')}
+                  >🟨 Personenauto</button>
+                  <button
+                    type="button"
+                    className={`${styles.chip} ${form.kentekenType === 'bedrijfswagen' ? styles.chipActief : ''}`}
+                    onClick={() => stel('kentekenType', 'bedrijfswagen')}
+                  >⬜ Bedrijfswagen (grijs)</button>
+                </div>
+                <p className={styles.uitleg}>
+                  {form.kentekenType === 'personenauto'
+                    ? 'Verkoopprijs is incl. btw/bpm; kosten worden ex btw ingevoerd en automatisch omgerekend naar incl btw in de eindrekening.'
+                    : 'Alle bedragen zijn excl. btw — geen omrekening.'}
+                </p>
+              </div>
+              <div className={styles.fg}>
                 <label>Auto (merk, model of kenteken)</label>
                 <input className="fi" placeholder="bijv. Tesla Model 3, AB-123-C" value={form.auto} onChange={(e) => stel('auto', e.target.value)} />
               </div>
               <div className={styles.fg}>
-                <label>Verkoopprijs <span className={styles.btwBadge}>incl. btw / bpm</span></label>
+                <label>
+                  Verkoopprijs{' '}
+                  <span className={form.kentekenType === 'personenauto' ? styles.btwBadge : styles.btwBadgeExcl}>
+                    {form.kentekenType === 'personenauto' ? 'incl. btw / bpm' : 'excl. btw'}
+                  </span>
+                </label>
                 <EuroInput value={form.verkoopprijs} onChange={(v) => stel('verkoopprijs', v)} placeholder="70000" />
               </div>
             </>
