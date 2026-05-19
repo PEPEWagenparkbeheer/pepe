@@ -7,9 +7,14 @@ import styles from './Sidebar.module.css';
 
 const NAV_ITEMS = [
   { section: 'Overzicht', items: [{ href: '/dashboard', label: 'Dashboard', icon: '🏠' }] },
-  { section: 'Zoeken', items: [{ href: '/zoeken', label: 'Zoekopdrachten', icon: '🔍' }] },
-  { section: 'Leads', items: [{ href: '/leads', label: 'Leads', icon: '📞' }] },
-  { section: 'Verkoop', items: [{ href: '/lease', label: 'Lease aanvragen', icon: '📋' }] },
+  {
+    section: 'Verkoop',
+    items: [
+      { href: '/zoeken', label: 'Zoekopdrachten', icon: '🔍' },
+      { href: '/leads', label: 'Leads', icon: '📞' },
+      { href: '/lease', label: 'Lease aanvragen', icon: '📋' },
+    ],
+  },
   {
     section: 'Operations',
     items: [
