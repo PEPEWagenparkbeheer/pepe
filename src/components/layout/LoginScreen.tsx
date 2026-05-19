@@ -31,10 +31,7 @@ export default function LoginScreen() {
     <div className={styles.screen}>
       <div className={styles.box}>
         <div className={styles.logoArea}>
-          <svg viewBox="0 0 88.7 120.8" className={styles.shield} fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#921B39" d="M88.7,0H0v62c0,7.8,1.3,24.6,11.4,35.4c12,12.9,27.6,20.8,30.6,22.3l2.3,1.1l2.3-1.1c3-1.5,18.6-9.4,30.6-22.3C87.2,86.6,88.5,69.8,88.7,62V0z"/>
-          </svg>
-          <span className={styles.logoText}>PEPE <span>Flow</span></span>
+          <img src="/pepe-logo-cmyk-wit.svg" alt="PEPE" className={styles.logoImg} />
         </div>
         <div className={styles.title}>Welkom terug</div>
         <div className={styles.sub}>Wagenparkbeheer — log in om verder te gaan</div>

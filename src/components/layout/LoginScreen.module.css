@@ -26,21 +26,10 @@
   margin-bottom: 28px;
 }
 
-.shield {
-  width: 28px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
-.logoText {
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  color: #fff;
-}
-
-.logoText span {
-  color: #921939;
+.logoImg {
+  height: 38px;
+  width: auto;
+  display: block;
 }
 
 .title {
