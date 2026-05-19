@@ -137,60 +137,91 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
     onSluiten();
   }
 
-  function downloadPDF() {
+  async function downloadPDF() {
+    // Laad logo en converteer naar data-URL voor jsPDF
+    let logoDataUrl: string | null = null;
+    let logoDims: { w: number; h: number } | null = null;
+    try {
+      const res = await fetch('/pepe-logo-rgb.png');
+      const blob = await res.blob();
+      logoDataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onloadend = () => resolve(r.result as string);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      // Krijg de native dimensies om aspect ratio te behouden
+      logoDims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = reject;
+        img.src = logoDataUrl!;
+      });
+    } catch {
+      // fallback: geen logo
+    }
+
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const W = 210;
     const margin = 18;
     const col2 = W - margin;
     let y = 0;
 
-    // Header bar (donker)
-    doc.setFillColor(28, 32, 38);
-    doc.rect(0, 0, W, 30, 'F');
+    // Witte header met logo + accent lijn
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, W, 32, 'F');
 
-    // PEPE titel
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.setTextColor(255, 255, 255);
-    doc.text('PEPE', margin, 14);
-    doc.setFontSize(11);
-    doc.setTextColor(146, 25, 57);
-    doc.text('Wagenparkbeheer', margin + 17, 14);
+    if (logoDataUrl && logoDims) {
+      const targetH = 14;
+      const targetW = (logoDims.w / logoDims.h) * targetH;
+      doc.addImage(logoDataUrl, 'PNG', margin, 9, targetW, targetH);
+    } else {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.setTextColor(146, 25, 57);
+      doc.text('PEPE', margin, 18);
+    }
 
     // Tag rechts
-    doc.setFillColor(146, 25, 57);
-    doc.roundedRect(W - margin - 60, 9, 60, 9, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.setTextColor(255, 255, 255);
-    doc.text('CONSIGNATIE EINDAFREKENING', W - margin - 30, 14.5, { align: 'center' });
-
-    y = 30;
-
-    // Hero
-    doc.setFillColor(146, 25, 57);
-    doc.rect(0, y, 4, 38, 'F');
-    doc.setFillColor(249, 249, 255);
-    doc.rect(4, y, W - 4, 38, 'F');
-
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(146, 25, 57);
-    doc.text('EINDAFREKENING VOOR KLANT', margin, y + 10);
-
-    doc.setFontSize(20);
-    doc.setTextColor(21, 28, 39);
-    doc.text(form.auto.toUpperCase(), margin, y + 22);
-
+    doc.text('CONSIGNATIE EINDAFREKENING', col2, 15, { align: 'right' });
     const datum = new Date().toLocaleDateString('nl-NL', {
       day: 'numeric', month: 'long', year: 'numeric',
     });
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(122, 132, 144);
+    doc.text(datum, col2, 21, { align: 'right' });
+
+    // Accent lijn onder header
+    doc.setFillColor(146, 25, 57);
+    doc.rect(0, 32, W, 1.2, 'F');
+
+    y = 33.2;
+
+    // Hero (licht met accent left-border)
+    doc.setFillColor(146, 25, 57);
+    doc.rect(0, y, 4, 40, 'F');
+    doc.setFillColor(252, 247, 249);
+    doc.rect(4, y, W - 4, 40, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(146, 25, 57);
+    doc.text('EINDAFREKENING VOOR KLANT', margin, y + 12);
+
+    doc.setFontSize(22);
+    doc.setTextColor(21, 28, 39);
+    doc.text(form.auto.toUpperCase(), margin, y + 26);
+
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(122, 132, 144);
-    doc.text(datum, margin, y + 32);
+    doc.text(cijfers.isIncl ? 'Personenauto · prijzen incl. btw/bpm' : 'Bedrijfswagen · prijzen excl. btw', margin, y + 35);
 
-    y += 38 + 6;
+    y += 40 + 8;
 
     // Regels
     const vpLbl = cijfers.isIncl ? 'Verkoopprijs (incl. btw/bpm)' : 'Verkoopprijs (excl. btw)';
@@ -205,40 +236,40 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
       { lbl: `PEPE commissie ${cijfers.feeP}%`, val: cijfers.fee, type: cijfers.fee ? 'neg' : 'zero' },
     ];
 
-    doc.setDrawColor(220, 220, 226);
-    regels.forEach((r, i) => {
+    regels.forEach((r) => {
       const pfx = r.type === 'zero' ? '' : r.type === 'pos' ? '+ ' : '− ';
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      if (r.type === 'zero') doc.setTextColor(150, 150, 156);
-      else doc.setTextColor(80, 86, 96);
-      doc.text(r.lbl, margin, y + 5);
+      doc.setFontSize(10.5);
+      if (r.type === 'zero') doc.setTextColor(180, 180, 186);
+      else doc.setTextColor(90, 96, 106);
+      doc.text(r.lbl, margin, y + 5.5);
 
       doc.setFont('helvetica', 'bold');
       if (r.type === 'pos') doc.setTextColor(22, 163, 74);
-      else if (r.type === 'zero') doc.setTextColor(150, 150, 156);
+      else if (r.type === 'zero') doc.setTextColor(180, 180, 186);
       else doc.setTextColor(21, 28, 39);
-      doc.text(`${pfx}€ ${fmtEuro(r.val)}`, col2, y + 5, { align: 'right' });
+      doc.text(`${pfx}€ ${fmtEuro(r.val)}`, col2, y + 5.5, { align: 'right' });
 
+      doc.setDrawColor(232, 232, 236);
       doc.setLineWidth(0.2);
-      doc.line(margin, y + 9, col2, y + 9);
-      y += 11;
+      doc.line(margin, y + 10, col2, y + 10);
+      y += 11.5;
     });
 
     // Totaal balk
-    y += 4;
+    y += 6;
     doc.setFillColor(146, 25, 57);
-    doc.rect(0, y, W, 18, 'F');
+    doc.rect(margin - 4, y, W - 2 * (margin - 4), 22, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
-    doc.text('NETTO OPBRENGST KLANT', margin, y + 7);
-    doc.setFontSize(16);
-    doc.text(`€ ${fmtEuro(cijfers.totaal)}`, col2, y + 12, { align: 'right' });
-    y += 18;
+    doc.text('NETTO OPBRENGST KLANT', margin, y + 9);
+    doc.setFontSize(18);
+    doc.text(`€ ${fmtEuro(cijfers.totaal)}`, col2, y + 15, { align: 'right' });
+    y += 22;
 
     // BTW-toelichting onder totaal
-    y += 6;
+    y += 7;
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(8.5);
     doc.setTextColor(122, 132, 144);
@@ -248,14 +279,15 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
     doc.text(toelichting, margin, y, { maxWidth: W - 2 * margin });
 
     // Footer
-    y = 272;
+    y = 278;
     doc.setDrawColor(146, 25, 57);
-    doc.setLineWidth(0.8);
-    doc.line(0, y, W, y);
+    doc.setLineWidth(0.6);
+    doc.line(margin, y, col2, y);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
+    doc.setFontSize(8);
     doc.setTextColor(122, 132, 144);
-    doc.text('PEPE Wagenparkbeheer · pepewagenparkbeheer.nl', margin, y + 8);
+    doc.text('PEPE Wagenparkbeheer', margin, y + 6);
+    doc.text('pepewagenparkbeheer.nl', col2, y + 6, { align: 'right' });
 
     const safe = form.auto.replace(/[^a-zA-Z0-9\-_\s]/g, '').trim().replace(/\s+/g, '-');
     doc.save(`PEPE-Eindafrekening-${safe}.pdf`);
