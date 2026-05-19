@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
 import { useAuth } from '@/hooks/useAuth';
 import type { AfterSalesAuto } from '@/types';
@@ -20,16 +20,6 @@ export default function PartnerPage({ wie }: { wie: string }) {
   const { autos, updateAuto } = useAfterSales();
   const { signOut } = useAuth();
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
-
-  // Forceer desktop-breedte op mobiel — telefoon scaled automatisch down,
-  // pinch-zoom werkt voor detail. Gebruiker wilde "uitgezoomd desktop view".
-  useEffect(() => {
-    const meta = document.querySelector('meta[name="viewport"]');
-    if (!meta) return;
-    const orig = meta.getAttribute('content') ?? '';
-    meta.setAttribute('content', 'width=1100, initial-scale=1, maximum-scale=5, user-scalable=yes');
-    return () => { meta.setAttribute('content', orig); };
-  }, []);
 
   const wieUpper = wie.toUpperCase();
   const mijnAutos = autos
@@ -98,6 +88,9 @@ export default function PartnerPage({ wie }: { wie: string }) {
                           {r.klant && <span>{r.klant}</span>}
                           {r.type && <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>}
                           {r.partner_binnen && <span className={styles.binnenBadge}>📍 Staat hier</span>}
+                          {r.partner_datum && <span style={{ color: 'var(--green)', fontWeight: 600 }}>📅 {datumFmt(r.partner_datum)}</span>}
+                          {r.partner_onderdelen_besteld && <span className={styles.ondelBadge}>✓ Besteld</span>}
+                          {updates.length > 0 && <span className={styles.updatesBadge}>💬 {updates.length}</span>}
                         </div>
                       </td>
                       <td className={styles.mobielVerbergen}>{r.klant || '—'}</td>
