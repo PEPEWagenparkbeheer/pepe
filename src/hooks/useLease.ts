@@ -125,26 +125,40 @@ export function useLease() {
   }, []);
 
   // ── Aanvragen ─────────────────────────────────────────────
+  // Pessimistic save: pas in lokale state zetten NA DB-bevestiging.
+  // Voorkomt de illusie van een succesvolle save als de DB-call eigenlijk faalt.
   const addAanvraag = useCallback(async (rec: Omit<LeaseAanvraag, 'id' | 'created_at'>) => {
     const nieuw: LeaseAanvraag = { ...rec, id: crypto.randomUUID(), created_at: new Date().toISOString() };
-    const lokaal = { ...nieuw, inkoper: cap(nieuw.inkoper), akkoord_door: cap(nieuw.akkoord_door) };
-    updateAanvragen([lokaal, ...aanvraagRef.current]);
-    const { error } = await supabase.from('lease_aanvragen').insert(schoonAanvraag(nieuw));
+    const { data, error } = await supabase
+      .from('lease_aanvragen')
+      .insert(schoonAanvraag(nieuw))
+      .select()
+      .single();
     if (error) {
-      console.error('lease_aanvragen insert fout:', error.message, error.details);
-      alert('Opslaan mislukt: ' + (error.message || 'onbekende fout'));
+      console.error('lease_aanvragen insert fout:', error);
+      alert('Opslaan mislukt: ' + (error.message || 'onbekende fout') + (error.details ? '\n' + error.details : ''));
+      throw error;
     }
+    const bevestigd = deserializeAanvraag(data as Record<string, unknown>);
+    const lokaal = { ...bevestigd, inkoper: cap(bevestigd.inkoper), akkoord_door: cap(bevestigd.akkoord_door) };
+    updateAanvragen([lokaal, ...aanvraagRef.current]);
     return lokaal;
   }, []);
 
   const saveAanvraag = useCallback(async (rec: LeaseAanvraag) => {
-    const lokaal = { ...rec, inkoper: cap(rec.inkoper), akkoord_door: cap(rec.akkoord_door) };
-    updateAanvragen(aanvraagRef.current.map((r) => (r.id === rec.id ? lokaal : r)));
-    const { error } = await supabase.from('lease_aanvragen').upsert(schoonAanvraag(rec));
+    const { data, error } = await supabase
+      .from('lease_aanvragen')
+      .upsert(schoonAanvraag(rec))
+      .select()
+      .single();
     if (error) {
-      console.error('lease_aanvragen upsert fout:', error.message, error.details);
-      alert('Opslaan mislukt: ' + (error.message || 'onbekende fout'));
+      console.error('lease_aanvragen upsert fout:', error);
+      alert('Opslaan mislukt: ' + (error.message || 'onbekende fout') + (error.details ? '\n' + error.details : ''));
+      throw error;
     }
+    const bevestigd = deserializeAanvraag(data as Record<string, unknown>);
+    const lokaal = { ...bevestigd, inkoper: cap(bevestigd.inkoper), akkoord_door: cap(bevestigd.akkoord_door) };
+    updateAanvragen(aanvraagRef.current.map((r) => (r.id === rec.id ? lokaal : r)));
   }, []);
 
   const removeAanvraag = useCallback(async (id: string) => {
