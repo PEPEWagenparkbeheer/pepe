@@ -990,11 +990,21 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
             const volgende = idx < partnerLijst.length - 1 ? partnerLijst[idx + 1] : null;
             const nieuwToewijzingen = toewijzingen.filter((t) => t.taak !== item);
             if (volgende) nieuwToewijzingen.push({ taak: item, partner: volgende });
-            // Sync: zorg dat de toegewezen partner ook in partners_toegewezen staat
-            const huidigePartners = r!.partners_toegewezen ?? [];
-            const nieuwePartners = volgende && !huidigePartners.some((p) => p.toUpperCase() === volgende.toUpperCase())
-              ? [...huidigePartners, volgende]
-              : huidigePartners;
+
+            // Sync partners_toegewezen op basis van wie er nog taken heeft
+            let nieuwePartners = [...(r!.partners_toegewezen ?? [])];
+            // Verwijder oude partner als die geen andere taken meer heeft
+            if (huidigPartner) {
+              const heeftNogTaken = nieuwToewijzingen.some((t) => t.partner.toUpperCase() === huidigPartner.toUpperCase());
+              if (!heeftNogTaken) {
+                nieuwePartners = nieuwePartners.filter((p) => p.toUpperCase() !== huidigPartner.toUpperCase());
+              }
+            }
+            // Voeg nieuwe partner toe als hij er nog niet bij staat
+            if (volgende && !nieuwePartners.some((p) => p.toUpperCase() === volgende.toUpperCase())) {
+              nieuwePartners.push(volgende);
+            }
+
             onUpdate({ ...r!, taak_toewijzingen: nieuwToewijzingen, partners_toegewezen: nieuwePartners });
           }
           return (
