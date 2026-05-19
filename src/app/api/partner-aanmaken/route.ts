@@ -15,23 +15,49 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await caller.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 });
 
-  const { naam, wie, email: opgegeven_email } = await req.json().catch(() => ({}));
-  if (!naam?.trim()) return NextResponse.json({ error: 'Naam vereist' }, { status: 400 });
-  if (!wie?.trim())  return NextResponse.json({ error: 'Wie-koppeling vereist' }, { status: 400 });
+  const { naam, wie, email: opgegeven_email, wachtwoord } = await req.json().catch(() => ({}));
+  if (!naam?.trim())      return NextResponse.json({ error: 'Naam vereist' }, { status: 400 });
+  if (!wie?.trim())       return NextResponse.json({ error: 'Wie-koppeling vereist' }, { status: 400 });
+  if (!wachtwoord?.trim()) return NextResponse.json({ error: 'Wachtwoord vereist' }, { status: 400 });
 
   const voornaam = naam.trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, '');
   if (!voornaam) return NextResponse.json({ error: 'Ongeldige naam' }, { status: 400 });
 
   const email = opgegeven_email?.trim() || `${voornaam}@pepewagenparkbeheer.nl`;
+  const metadata = { naam: naam.trim(), rol: 'partner', wie: wie.trim().toUpperCase() };
 
-  const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    data: { naam: naam.trim(), rol: 'partner', wie: wie.trim().toUpperCase() },
+  // Probeer nieuw account aan te maken
+  const { data: nieuw, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password: wachtwoord.trim(),
+    email_confirm: true,
+    user_metadata: metadata,
   });
 
-  const bestaatAl = !!inviteError && inviteError.message.toLowerCase().includes('already');
-  if (inviteError && !bestaatAl) {
-    return NextResponse.json({ error: inviteError.message }, { status: 500 });
+  if (!createError) {
+    return NextResponse.json({ ok: true, email, bestaatAl: false });
   }
 
-  return NextResponse.json({ ok: true, email, bestaatAl });
+  // Bestaat al — wachtwoord + metadata bijwerken
+  const bestaatAl = createError.message.toLowerCase().includes('already') ||
+                    createError.message.toLowerCase().includes('exists');
+  if (!bestaatAl) {
+    return NextResponse.json({ error: createError.message }, { status: 500 });
+  }
+
+  const { data: lijst } = await supabaseAdmin.auth.admin.listUsers();
+  const bestaande = lijst?.users.find((u) => u.email === email);
+  if (!bestaande) {
+    return NextResponse.json({ error: 'Gebruiker bestaat al maar kon niet gevonden worden' }, { status: 500 });
+  }
+
+  const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(bestaande.id, {
+    password: wachtwoord.trim(),
+    user_metadata: metadata,
+  });
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, email, bestaatAl: true });
 }

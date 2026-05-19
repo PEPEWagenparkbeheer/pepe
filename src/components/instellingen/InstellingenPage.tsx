@@ -286,11 +286,12 @@ function PartnersBeheer() {
   const [naam, setNaam] = useState('');
   const [wie, setWie] = useState('');
   const [email, setEmail] = useState('');
+  const [wachtwoord, setWachtwoord] = useState('');
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState<{ type: 'ok' | 'fout'; tekst: string } | null>(null);
 
   async function uitnodigen() {
-    if (!naam.trim() || !wie.trim()) return;
+    if (!naam.trim() || !wie.trim() || !wachtwoord.trim()) return;
     setBezig(true);
     setMelding(null);
     const { data: { session } } = await supabase.auth.getSession();
@@ -300,18 +301,18 @@ function PartnersBeheer() {
         'Content-Type': 'application/json',
         ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
       },
-      body: JSON.stringify({ naam: naam.trim(), wie: wie.trim(), email: email.trim() || undefined }),
+      body: JSON.stringify({ naam: naam.trim(), wie: wie.trim(), email: email.trim() || undefined, wachtwoord: wachtwoord.trim() }),
     });
     const data = await res.json();
     if (!res.ok) {
       setMelding({ type: 'fout', tekst: data.error ?? 'Onbekende fout' });
     } else {
       const tekst = data.bestaatAl
-        ? `${data.email} bestond al — uitnodiging opnieuw verstuurd`
-        : `Uitnodiging verstuurd naar ${data.email}`;
+        ? `${data.email} bijgewerkt — wachtwoord opnieuw ingesteld`
+        : `Account aangemaakt: ${data.email}`;
       setMelding({ type: 'ok', tekst });
       setPartners(prev => [...prev, { naam: naam.trim(), wie: wie.trim().toUpperCase(), email: data.email }]);
-      setNaam(''); setWie(''); setEmail('');
+      setNaam(''); setWie(''); setEmail(''); setWachtwoord('');
     }
     setBezig(false);
     setTimeout(() => setMelding(null), 6000);
@@ -364,13 +365,22 @@ function PartnersBeheer() {
             placeholder="E-mailadres (optioneel)..."
             value={email}
             onChange={e => setEmail(e.target.value)}
+            disabled={bezig}
+          />
+          <input
+            className={styles.toevoegInput}
+            placeholder="Wachtwoord..."
+            type="password"
+            value={wachtwoord}
+            onChange={e => setWachtwoord(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') uitnodigen(); }}
             disabled={bezig}
+            style={{ maxWidth: 160 }}
           />
           <button
             className={styles.toevoegKnop}
             onClick={uitnodigen}
-            disabled={!naam.trim() || !wie.trim() || bezig}
+            disabled={!naam.trim() || !wie.trim() || !wachtwoord.trim() || bezig}
           >
             {bezig ? 'Bezig...' : '+ Uitnodigen'}
           </button>
