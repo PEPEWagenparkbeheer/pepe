@@ -114,6 +114,22 @@
   align-items: center;
 }
 
+.prijsWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.prijsPfx {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-weight: 600;
+  pointer-events: none;
+  font-size: 13px;
+}
+
 .verwijderKnop {
   background: none;
   border: 1px solid var(--border);

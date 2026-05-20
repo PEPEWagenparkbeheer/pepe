@@ -24,6 +24,16 @@ Retourneer ALLEEN geldige JSON met deze velden:
 Regels:
 - Filter signatures, forwarding-headers en disclaimers uit
 - Opties: pak ALLE genoemde opties/accessoires/pakketten, ook als ze opgesomd staan zonder prijs
+- BELANGRIJK voor optie-prijzen: prijs als puur getal (NUMBER, geen string), zonder valutateken/komma/punt-scheiding. Voorbeelden:
+  * "€ 525,-" → 525
+  * "€ 1.250,00" → 1250
+  * "€ 1.250,50" → 1250.50
+  * "525 euro" → 525
+  * "EUR 1.250" → 1250
+  * Geen prijs genoemd → null
+  Decimalen: gebruik punt (.) NIET komma. Honderdtallen-scheiding altijd weglaten.
+- Prijzen kunnen in tabellen, bullet-points of inline tussen haakjes staan (bijv. "Sunset glas (€ 525,-)").
+  Pak per optie de bijbehorende prijs, niet algemene prijzen van de auto/totalen.
 - Als een veld niet duidelijk staat: gebruik null
 - Bij geen lease-aanvraag (factuur/spam/iets anders): { "geen_aanvraag": true }`;
 

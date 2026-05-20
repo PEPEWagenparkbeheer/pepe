@@ -144,7 +144,7 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
           </Sectie>
 
           {/* Opties */}
-          <Sectie titel={`Opties (${form.opties.length})`}>
+          <Sectie titel={`Opties (${form.opties.length})${form.opties.some(o => o.prijs) ? ` · Totaal € ${fmtEuro(form.opties.reduce((s, o) => s + (o.prijs ?? 0), 0))}` : ''}`}>
             {form.opties.length === 0 && (
               <div style={{ color: 'var(--muted)', fontSize: 12, fontStyle: 'italic' }}>Geen opties uit Groq.</div>
             )}
@@ -152,14 +152,28 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
               <div key={i} className={styles.optieRij}>
                 <input
                   className="fi"
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, minWidth: 0 }}
                   value={o.naam}
                   onChange={(e) => updateOptie(i, { ...o, naam: e.target.value })}
                   placeholder="Naam optie"
                 />
+                <div className={styles.prijsWrap}>
+                  <span className={styles.prijsPfx}>€</span>
+                  <input
+                    className="fi"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    style={{ width: 90, paddingLeft: 22 }}
+                    value={o.prijs ?? ''}
+                    onChange={(e) => updateOptie(i, { ...o, prijs: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="—"
+                    title="Prijs (voor matching tussen portalen)"
+                  />
+                </div>
                 <select
                   className="fi"
-                  style={{ width: 130 }}
+                  style={{ width: 110 }}
                   value={o.type ?? 'optie'}
                   onChange={(e) => updateOptie(i, { ...o, type: e.target.value as OptieItem['type'] })}
                 >
@@ -171,6 +185,10 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
               </div>
             ))}
             <button className="btn" onClick={voegOptieToe} style={{ marginTop: 6 }}>+ Optie toevoegen</button>
+            <p style={{ fontSize: 11, color: 'var(--muted)', margin: '6px 0 0' }}>
+              💡 Prijzen worden gebruikt als &quot;fingerprint&quot; voor optie-matching tussen portalen
+              (bijv. &quot;privacy glass&quot; vs &quot;getinte ramen&quot; — zelfde prijs = waarschijnlijk dezelfde optie).
+            </p>
           </Sectie>
 
           {/* Portalen */}
@@ -201,6 +219,13 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
       </div>
     </div>
   );
+}
+
+function fmtEuro(n: number): string {
+  return new Intl.NumberFormat('nl-NL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
 }
 
 // ─── kleine helpers ──────────────────────────────────────────
