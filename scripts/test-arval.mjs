@@ -35,6 +35,40 @@ const stagehand = new Stagehand({
   localBrowserLaunchOptions: { headless: false },
 });
 
+// Roep echte agent aan via dynamic import
+const { runArval } = await import('../src/lib/agents/arval.ts');
+
+const tender = {
+  naam: 'Nico Timmerman',
+  merk: 'Skoda',
+  model: 'Fabia',
+  uitvoering: '1.0tsi greentech selection 85kW dsg-7 aut',
+  kleur: 'Candy White signaal unilak',
+  looptijd: 48,
+  km_jaar: 30000,
+  brandstof: 'Benzine',
+  prijzen_incl_btw: true,
+  opties: [
+    { naam: 'Candy White signaal unilak', prijs: 490 },
+    { naam: "Bekleding 'Loft'", prijs: 0 },
+    { naam: 'Sunset (Extra donker getinte ramen achter)', prijs: 190 },
+    { naam: 'Bagagenetten zwart 4-delig', prijs: 63 },
+    { naam: 'Dubbelzijdige kofferbak mat', prijs: 78 },
+  ],
+  leasenorm: { winterbanden: 'all_season', vervangend_vervoer: '24u', eigen_risico: 'laag' },
+};
+
+process.env.STAGEHAND_ENV = 'LOCAL';
+console.log('▶ Arval agent test\n');
+const result = await runArval({
+  tender,
+  credentials: { url: URL, user: USER, pass: PASS },
+});
+console.log('\n══════ Resultaat ══════');
+console.log(JSON.stringify(result, null, 2));
+process.exit(0);
+
+// Onbereikbaar — oude code houdt skelet onderhoudbaar
 try {
   await stagehand.init();
   const page = await stagehand.context.newPage();

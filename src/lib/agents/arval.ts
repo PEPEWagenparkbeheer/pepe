@@ -168,16 +168,17 @@ export async function runArval(ctx: AgentContext): Promise<AgentResult> {
     const opSelect = await waitForText(page, ['Selecteer rol', 'Fleetmanager'], 15000);
     if (!opSelect) throw new Error(`Niet op rol-selectie geland (${page.url()})`);
 
-    // ── 4. Kies PEPE Holding B.V. ──
-    await page.evaluate(() => {
-      const rijen = Array.from(document.querySelectorAll('tr, a'));
-      const rij = rijen.find((e) => /PEPE Holding/i.test(e.textContent || ''));
-      if (rij) {
-        const clickable = rij.querySelector('a') || rij;
-        (clickable as HTMLElement).click();
-      }
-    });
+    // ── 4. Kies PEPE Holding B.V. via Stagehand.act ──
+    // BELANGRIJK: programmatic DOM-click breekt ASP.NET ViewState → redirect
+    // naar login. Stagehand.act simuleert echte mouse-event → werkt wel.
+    await stagehand.act('Klik op de rij van "PEPE Holding B.V." in de SELECTEER ROL lijst');
     await page.waitForTimeout(5000);
+
+    // ── 4b. Mogelijke tussenstap: SelectClient.aspx (extra klant-keuze) ──
+    if (/SelectClient/i.test(page.url())) {
+      await stagehand.act('Klik op de rij van "PEPE Holding B.V." in de klanten-lijst');
+      await page.waitForTimeout(5000);
+    }
 
     // ── 5. Klik "Nieuwe offerte" ──
     await page.evaluate(() => {
