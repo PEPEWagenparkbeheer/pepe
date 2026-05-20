@@ -47,28 +47,42 @@ export interface ParseResult {
  * /api/leads-inbound te splitsen.
  */
 export function isLeaseAanvraag(subject: string, body: string): boolean {
+  const subjectLow = subject.toLowerCase();
   const text = (subject + '\n' + body).toLowerCase();
   let score = 0;
 
-  // Sterke signalen (typisch voor lease-tender mails)
+  // ── Subject signalen (zwaar wegen) ──────────────────────────
+  if (/calculator/.test(subjectLow))                            score += 4;
+  if (/lease[\s-]?aanvraag/.test(subjectLow))                   score += 4;
+  if (/tender/.test(subjectLow))                                score += 3;
+  if (/lease[\s-]?prijs/.test(subjectLow))                      score += 3;
+  if (/offerte\s+aanvraag/.test(subjectLow))                    score += 2;
+
+  // ── Sterke body signalen ────────────────────────────────────
   if (/leasenorm/.test(text))                                   score += 3;
-  if (/lease[\s-]?aanvraag/.test(text))                         score += 3;
-  if (/tender/.test(text))                                      score += 3;
+  // 'leaseprijs' meerdere keren = duidelijke tender (per voorkomen +1, max +3)
+  const leaseprijsCount = (text.match(/lease[\s-]?prijs/g) || []).length;
+  if (leaseprijsCount > 0)                                      score += Math.min(leaseprijsCount, 3);
+  if (/lease[\s-]?aanvraag/.test(text))                         score += 2;
+  if (/tender/.test(text))                                      score += 2;
+  if (/calculator/.test(text))                                  score += 2;
 
-  // Looptijd in maanden
+  // ── Looptijd / km ───────────────────────────────────────────
   if (/looptijd\s*:?\s*\d+\s*(?:maanden|mnd|m)\b/.test(text))   score += 2;
-
-  // Km per jaar
+  if (/\d+\s*maanden|\d+\s*mnd\b/.test(text))                   score += 1;
   if (/km\s*\/?\s*(?:p\.?)?j(?:aar)?\b/.test(text))             score += 2;
   if (/kilometers?\s+per\s+jaar/.test(text))                    score += 2;
+  if (/\d+\.?\d*\s*km\s*\/\s*jaar/.test(text))                  score += 1;
 
-  // Lease-specifieke termen
+  // ── Lease-specifieke termen ─────────────────────────────────
   if (/winterbanden|all\s+season/.test(text))                   score += 1;
   if (/vervangend\s+vervoer/.test(text))                        score += 1;
   if (/eigen\s+risico/.test(text))                              score += 1;
   if (/categorie\s+[a-z]\b/.test(text))                         score += 1;
   if (/brandstofvoorschot/.test(text))                          score += 1;
   if (/uitvoering\s*:/.test(text))                              score += 1;
+  if (/bijtelling/.test(text))                                  score += 1;
+  if (/catalogusprijs|fiscale\s+waarde/.test(text))             score += 1;
 
   return score >= 3;
 }
