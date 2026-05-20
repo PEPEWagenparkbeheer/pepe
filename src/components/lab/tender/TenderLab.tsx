@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { TenderInput, Tender } from '@/lib/types/tender';
 import TenderConfirmModal from './TenderConfirmModal';
@@ -9,6 +10,7 @@ import styles from './TenderLab.module.css';
 type Fase = 'invoer' | 'bezig' | 'bevestigen';
 
 export default function TenderLab() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [fase, setFase] = useState<Fase>('invoer');
   const [fout, setFout] = useState<string | null>(null);
@@ -16,6 +18,7 @@ export default function TenderLab() {
   const [rawEmail, setRawEmail] = useState('');
 
   const [inbox, setInbox] = useState<Tender[]>([]);
+  const [verwerkt, setVerwerkt] = useState<Tender[]>([]);
   const [inboxLaden, setInboxLaden] = useState(true);
 
   // Laad pending tenders + realtime updates
@@ -23,14 +26,23 @@ export default function TenderLab() {
     let actief = true;
 
     async function laad() {
-      const { data } = await supabase
-        .from('tenders')
-        .select('*')
-        .in('status', ['pending', 'failed'])
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const [pendingRes, doneRes] = await Promise.all([
+        supabase
+          .from('tenders')
+          .select('*')
+          .in('status', ['pending', 'failed'])
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('tenders')
+          .select('*')
+          .in('status', ['running', 'done', 'confirmed'])
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ]);
       if (actief) {
-        setInbox((data as Tender[]) ?? []);
+        setInbox((pendingRes.data as Tender[]) ?? []);
+        setVerwerkt((doneRes.data as Tender[]) ?? []);
         setInboxLaden(false);
       }
     }
@@ -153,6 +165,37 @@ export default function TenderLab() {
           </div>
         )}
       </div>
+
+      {/* Verwerkte tenders */}
+      {verwerkt.length > 0 && (
+        <div className={styles.card}>
+          <div className={styles.cardKop}>
+            <div className={styles.cardTitel}>📊 Verwerkte vergelijkingen</div>
+            <span className={styles.aantal}>{verwerkt.length}</span>
+          </div>
+          <div className={styles.inboxLijst}>
+            {verwerkt.map((t) => (
+              <div key={t.id} className={styles.inboxRij}>
+                <div className={styles.inboxInfo} onClick={() => router.push(`/lab/tender/${t.id}`)}>
+                  <div className={styles.inboxNaam}>
+                    {t.klant_naam || 'Onbekend'}
+                    <span className={`${styles.failedBadge} ${t.status === 'done' ? styles.doneBadge : ''}`}>{t.status}</span>
+                  </div>
+                  <div className={styles.inboxAuto}>
+                    {t.parsed_data?.merk} {t.parsed_data?.model}
+                  </div>
+                  <div className={styles.inboxDatum}>
+                    {t.created_at ? new Date(t.created_at).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </div>
+                </div>
+                <div className={styles.inboxActies}>
+                  <button className="btn" onClick={() => router.push(`/lab/tender/${t.id}`)}>Bekijk →</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Handmatige plak-input */}
       <div className={styles.card}>

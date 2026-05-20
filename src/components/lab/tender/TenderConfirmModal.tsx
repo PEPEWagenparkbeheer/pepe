@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { TenderInput, LeasenormConfig, OptieItem } from '@/lib/types/tender';
 import { PORTALEN } from '@/lib/types/tender';
 import styles from './TenderConfirmModal.module.css';
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset }: Props) {
+  const router = useRouter();
   const [form, setForm] = useState<TenderInput>(input);
   const [opslaan, setOpslaan] = useState(false);
 
@@ -55,8 +57,9 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
         setOpslaan(false);
         return;
       }
-      alert(`✓ Tender gestart!\n\nTender ID: ${data.tender_id}\n\nDe Hiltermann-agent draait nu. Check de tender_results-tabel in Supabase, of refresh de inbox.`);
+      // Modal sluiten + naar resultaat-pagina navigeren
       onReset();
+      router.push(`/lab/tender/${data.tender_id}`);
     } catch (e) {
       alert('Netwerkfout: ' + (e as Error).message);
     } finally {
