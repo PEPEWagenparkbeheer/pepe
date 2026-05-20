@@ -35,13 +35,33 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
   }
 
   async function startVergelijking() {
+    if (form.prijzen_incl_btw === undefined) {
+      if (!confirm('De btw-status is nog niet gezet. Doorgaan zonder dit (matching kan minder nauwkeurig zijn)?')) return;
+    }
     setOpslaan(true);
-    // TODO: POST naar /api/tender/start (komt in fase 2)
-    // Voor nu: log + sluit
-    console.log('Tender input klaar voor portalen:', form);
-    alert('✓ Aanvraag ziet er goed uit!\n\nIn de volgende fase: dit triggert de 5 portaal-agents via Stagehand. Voor nu staat de input in de console (F12).');
-    setOpslaan(false);
-    onReset();
+    try {
+      const res = await fetch('/api/tender/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tender: form,
+          raw_email: rawEmail,
+          portalen: ['hiltermann'],   // start met 1 portaal, rest komt later
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Start mislukt: ' + (data.error ?? 'onbekend'));
+        setOpslaan(false);
+        return;
+      }
+      alert(`✓ Tender gestart!\n\nTender ID: ${data.tender_id}\n\nDe Hiltermann-agent draait nu. Check de tender_results-tabel in Supabase, of refresh de inbox.`);
+      onReset();
+    } catch (e) {
+      alert('Netwerkfout: ' + (e as Error).message);
+    } finally {
+      setOpslaan(false);
+    }
   }
 
   return (
