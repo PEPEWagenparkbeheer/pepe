@@ -8,6 +8,18 @@ import KentekenPlaat from '@/components/aftersales/KentekenPlaat';
 import PartnerModal from './PartnerModal';
 import styles from './PartnerPage.module.css';
 
+type Tab = 'actief' | 'klaar';
+
+/** Een auto is "klaar" voor deze partner als:
+ *  - partner in partners_klaar (nieuwe systeem), OF
+ *  - wie_rijklaar_klaar=true én wie_rijklaar matcht (oude systeem), OF
+ *  - de auto in PEPE algemeen klaar/gearchiveerd is */
+function isKlaarVoorPartner(r: AfterSalesAuto, wieUpper: string): boolean {
+  const inPartnersKlaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === wieUpper);
+  const inWieRijklaarKlaar = !!r.wie_rijklaar_klaar && r.wie_rijklaar?.toUpperCase() === wieUpper;
+  return inPartnersKlaar || inWieRijklaarKlaar || !!r.klaar || !!r.gearchiveerd;
+}
+
 const TYPE_LABEL: Record<string, string> = { import: 'Import', nl: 'NL', nieuw: 'Nieuw', voorraad: 'Voorraad' };
 const TYPE_CSS:   Record<string, string> = { import: styles.typeImport, nl: styles.typeNl, nieuw: styles.typeNieuw, voorraad: styles.typeVoorraad };
 
@@ -20,24 +32,34 @@ export default function PartnerPage({ wie }: { wie: string }) {
   const { autos, updateAuto } = useAfterSales();
   const { signOut } = useAuth();
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
+  const [tab, setTab] = useState<Tab>('actief');
 
   const wieUpper = wie.toUpperCase();
-  const mijnAutos = autos
-    .filter((r) => {
-      if (r.gearchiveerd || !r.binnen) return false;
-      const inToegewezen = (r.partners_toegewezen ?? []).some((p) => p.toUpperCase() === wieUpper);
-      const inWieRijklaar = r.wie_rijklaar?.toUpperCase() === wieUpper;
-      if (!inToegewezen && !inWieRijklaar) return false;
-      // Verdwijn als deze partner klaar heeft gemeld
-      const isKlaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === wieUpper);
-      return !isKlaar;
-    })
+
+  // Alle auto's waarbij deze partner ooit betrokken was (toegewezen of via wie_rijklaar)
+  const alleVoorPartner = autos.filter((r) => {
+    const inToegewezen = (r.partners_toegewezen ?? []).some((p) => p.toUpperCase() === wieUpper);
+    const inWieRijklaar = r.wie_rijklaar?.toUpperCase() === wieUpper;
+    return inToegewezen || inWieRijklaar;
+  });
+
+  const actieveAutos = alleVoorPartner
+    .filter((r) => !r.gearchiveerd && r.binnen && !isKlaarVoorPartner(r, wieUpper))
     .sort((a, b) => {
-      // 1. Auto's die fysiek bij partner staan eerst
       if (!!a.partner_binnen !== !!b.partner_binnen) return a.partner_binnen ? -1 : 1;
-      // 2. Daarna op binnen_op (oudste eerst)
       return (a.binnen_op ?? '') < (b.binnen_op ?? '') ? -1 : 1;
     });
+
+  const klareAutos = alleVoorPartner
+    .filter((r) => isKlaarVoorPartner(r, wieUpper))
+    .sort((a, b) => {
+      // Nieuwste klaar eerst — laatste partner_update is een goede proxy
+      const aDatum = a.partner_updates?.[0]?.op ?? a.binnen_op ?? '';
+      const bDatum = b.partner_updates?.[0]?.op ?? b.binnen_op ?? '';
+      return aDatum > bDatum ? -1 : 1;
+    });
+
+  const mijnAutos = tab === 'actief' ? actieveAutos : klareAutos;
 
   return (
     <div className={styles.pagina}>
@@ -50,10 +72,32 @@ export default function PartnerPage({ wie }: { wie: string }) {
         <button className={styles.uitlogKnop} onClick={signOut}>Uitloggen</button>
       </div>
 
+      {/* Tabs */}
+      <div className={styles.tabs}>
+        <button
+          className={`${styles.tab} ${tab === 'actief' ? styles.tabActief : ''}`}
+          onClick={() => setTab('actief')}
+        >
+          Actief
+          <span className={styles.tabBadge}>{actieveAutos.length}</span>
+        </button>
+        <button
+          className={`${styles.tab} ${tab === 'klaar' ? styles.tabActief : ''}`}
+          onClick={() => setTab('klaar')}
+        >
+          Archief — klaar gemeld
+          <span className={styles.tabBadge}>{klareAutos.length}</span>
+        </button>
+      </div>
+
       {/* Tabel */}
       <div className={styles.content}>
         {mijnAutos.length === 0 ? (
-          <div className={styles.leeg}>Geen auto's toegewezen aan {wie}</div>
+          <div className={styles.leeg}>
+            {tab === 'actief'
+              ? `Geen openstaande auto's voor ${wie}`
+              : `Nog geen klaar gemelde auto's voor ${wie}`}
+          </div>
         ) : (
           <div className={styles.tabelWrapper}>
             <table className={styles.tabel}>
