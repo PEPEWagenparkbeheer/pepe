@@ -5,18 +5,8 @@ import type { AgentContext, AgentResult } from './types';
 /**
  * Hiltermann agent — template voor de andere 4 portalen.
  *
- * Workflow:
- * 1. Inloggen
- * 2. Configurator openen
- * 3. Auto + uitvoering + kleur kiezen
- * 4. Looptijd / km
- * 5. Opties aanvinken
- * 6. Norm-instellingen (winterbanden / vervangend vervoer / eigen risico)
- * 7. Maandprijs extracten
- *
- * Stagehand's `act()` laat Claude zelf de juiste velden/knoppen op de pagina
- * vinden — geen hardcoded selectors nodig. Bij nieuwe portalen meestal alleen
- * deze module kopiëren en URL/wording aanpassen.
+ * Belangrijk: in Stagehand v3 moet je echte navigatie via `page.goto()` doen,
+ * niet via `stagehand.act("Open ...")`. Acts werken alleen op de huidige pagina.
  */
 export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
   const start = Date.now();
@@ -34,7 +24,7 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
     return {
       portaal: 'hiltermann',
       status: 'failed',
-      error_message: 'ANTHROPIC_API_KEY ontbreekt in env (Stagehand gebruikt Claude voor AI-acties)',
+      error_message: 'ANTHROPIC_API_KEY ontbreekt in env',
       duration_ms: Date.now() - start,
     };
   }
@@ -49,30 +39,45 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
   try {
     await stagehand.init();
 
-    // 1. Inloggen
-    await stagehand.act(`Open de pagina ${credentials.url}`);
-    await stagehand.act(`Vul gebruikersnaam in: ${credentials.user}`);
-    await stagehand.act(`Vul wachtwoord in: ${credentials.pass}`);
+    // 1. Open de inlog-pagina via echte navigation
+    const page = await stagehand.context.newPage();
+    await page.goto(credentials.url, { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('networkidle', 5000).catch(() => {});
+
+    // 2. Inloggen
+    await stagehand.act(`Vul het gebruikersnaam/login-veld in met: ${credentials.user}`);
+    await stagehand.act(`Vul het wachtwoord-veld in met: ${credentials.pass}`);
     await stagehand.act('Klik op de inlog-knop');
+    await page.waitForLoadState('networkidle', 10000).catch(() => {});
 
-    // 2. Configurator openen
-    await stagehand.act('Navigeer naar de auto-configurator of nieuwe-aanvraag pagina');
+    // 3. "Kies een verkoper" — default doorgaan (P.J. Pellis)
+    await stagehand.act('Klik op de knop "Ga verder" om de standaard verkoper te bevestigen');
+    await page.waitForLoadState('networkidle', 8000).catch(() => {});
 
-    // 3. Auto selecteren
-    await stagehand.act(`Selecteer merk: ${tender.merk}`);
-    await stagehand.act(`Selecteer model: ${tender.model}`);
+    // 4. We staan nu op de Configurator (calculator/geel/models) met merken-grid
+    await stagehand.act(`Klik op het merk-logo of de merk-tegel van ${tender.merk} in de merkenlijst`);
+    await page.waitForLoadState('networkidle', 5000).catch(() => {});
+
+    // 5. Model selecteren
+    await stagehand.act(`Klik op het model ${tender.model} (let op de specifieke uitvoering/motor als die er ook bij staat)`);
+    await page.waitForLoadState('networkidle', 5000).catch(() => {});
+
+    // 6. Uitvoering / trim (indien meerdere)
     if (tender.uitvoering) {
-      await stagehand.act(`Selecteer uitvoering / trim: ${tender.uitvoering}`);
+      await stagehand.act(`Selecteer de uitvoering of trim: ${tender.uitvoering}`);
+      await page.waitForLoadState('networkidle', 3000).catch(() => {});
     }
+
+    // 7. Kleur
     if (tender.kleur) {
       await stagehand.act(`Kies de kleur die het meest overeenkomt met: ${tender.kleur}`);
     }
 
-    // 4. Looptijd / km
+    // 5. Looptijd / km
     await stagehand.act(`Stel de looptijd in op ${tender.looptijd} maanden`);
     await stagehand.act(`Stel kilometers per jaar in op ${tender.km_jaar}`);
 
-    // 5. Opties
+    // 6. Opties
     for (const optie of tender.opties) {
       await stagehand.act(
         `Vink de optie/accessoire aan die overeenkomt met: ${optie.naam}` +
@@ -80,7 +85,7 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
       );
     }
 
-    // 6. Norm-instellingen
+    // 7. Norm-instellingen
     if (tender.leasenorm.winterbanden) {
       await stagehand.act(`Selecteer winterbanden-optie: ${tender.leasenorm.winterbanden}`);
     }
@@ -91,11 +96,12 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
       await stagehand.act(`Selecteer eigen risico: ${tender.leasenorm.eigen_risico}`);
     }
 
-    // 7. Bereken en haal prijs op
+    // 8. Bereken en haal prijs op
     await stagehand.act('Klik op berekenen of toon prijs');
+    await page.waitForLoadState('networkidle', 5000).catch(() => {});
 
     const extracted = await stagehand.extract(
-      'Haal de maandelijkse leaseprijs op (in euros)',
+      'Haal de maandelijkse leaseprijs op (in euros). Pak alleen het bedrag dat duidelijk als "leaseprijs per maand" wordt aangeduid.',
       z.object({
         maandprijs: z.number().describe('Bedrag per maand in euro'),
       }),
