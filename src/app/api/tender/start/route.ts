@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import type { TenderInput, LeasePortaal } from '@/lib/types/tender';
 import { runHiltermann } from '@/lib/agents/hiltermann';
+import { runArval } from '@/lib/agents/arval';
 import { getPortaalCredentials } from '@/lib/agents/types';
 import type { AgentResult } from '@/lib/agents/types';
 
@@ -25,7 +26,7 @@ const AGENT_MAP: Record<LeasePortaal, ((ctx: any) => Promise<AgentResult>) | nul
   hiltermann: runHiltermann,
   alphabet:   null,
   ayvens:     null,
-  arval:      null,
+  arval:      runArval,
   mhc:        null,
 };
 
