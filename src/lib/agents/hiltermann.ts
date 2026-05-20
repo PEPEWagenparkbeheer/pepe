@@ -3,56 +3,64 @@ import { z } from 'zod';
 import type { AgentContext, AgentResult } from './types';
 
 /**
- * Hiltermann agent — complete configuratie-flow.
+ * Hiltermann agent — robuuste flow met tekst-checks en direct locator-fills.
  *
- * Stappen (uit de live walkthrough):
- *  1. goto + login
- *  2. Verkoper bevestigen ("Ga verder")
- *  3. Merk → Model → Uitvoering (klik prijs-knop in tabel-rij)
- *  4. Calculation-pagina met opties-categorieën:
- *     - Klik + naast elke categorie om uit te klappen
- *     - Vink het rondje aan bij elke matchende optie
- *     - Voor opties die NIET in een categorie zitten: 'Eigen opties toevoegen'
- *       (onderaan) met Code/Prijs incl btw/Beschrijving
- *  5. Open 'Prijsinstellingen' (linksboven):
- *     - Algemeen-tab: looptijd + km/jaar dropdowns
- *     - Toggle Verzekering / Vervangend vervoer / Winterbanden (op basis norm)
- *     - Overige instellingen-tab: provisie aanpassen (Hiltermann = €2000)
- *  6. Klik 'Hercalculeren' (zwarte knop rechtsonder)
- *  7. Lees nieuwe maandprijs van Full Operational Lease
+ * Belangrijke lessen:
+ * - SPA: URL verandert niet altijd na navigatie, gebruik tekst-checks
+ * - Stagehand.act voor login-velden vult soms leeg → gebruik direct locator.fill()
+ * - Stagehand.extract kan hallucineren → lees prijs uit DOM via evaluate
  */
 
-// Hiltermann-specifieke config
 const PROVISIE_HILTERMANN = 2000;
 
 const CATEGORIEEN = [
-  'Optiepakketten',
-  'Lakken',
-  'Bekleding',
-  'Velgen/Banden',
-  'Interieur',
-  'Exterieur',
-  'Overige accessoires',
-  'Overige opties',
+  'Optiepakketten', 'Lakken', 'Bekleding', 'Velgen/Banden',
+  'Interieur', 'Exterieur', 'Overige accessoires', 'Overige opties',
 ];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function pageText(page: any): Promise<string> {
+  try {
+    return await page.evaluate(() => (document.body as HTMLElement).innerText);
+  } catch {
+    return '';
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function waitForText(page: any, patterns: string[], timeoutMs = 15000): Promise<boolean> {
+  const eind = Date.now() + timeoutMs;
+  while (Date.now() < eind) {
+    const txt = await pageText(page);
+    if (patterns.some((p) => txt.toLowerCase().includes(p.toLowerCase()))) return true;
+    await page.waitForTimeout(400);
+  }
+  return false;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function readFolPrice(page: any): Promise<number | null> {
+  try {
+    const text: string = await pageText(page);
+    const m = text.match(/Full operational lease[\s\S]{0,200}€\s*([\d.,]+)/i);
+    if (!m) return null;
+    const cijfers = m[1].replace(/\./g, '').split(',')[0];
+    const n = parseInt(cijfers, 10);
+    return isNaN(n) ? null : n;
+  } catch {
+    return null;
+  }
+}
 
 export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
   const start = Date.now();
   const { tender, credentials } = ctx;
 
   if (!process.env.BROWSERBASE_API_KEY || !process.env.BROWSERBASE_PROJECT_ID) {
-    return {
-      portaal: 'hiltermann', status: 'failed',
-      error_message: 'BROWSERBASE_API_KEY of BROWSERBASE_PROJECT_ID ontbreekt',
-      duration_ms: Date.now() - start,
-    };
+    return { portaal: 'hiltermann', status: 'failed', error_message: 'Browserbase env ontbreekt', duration_ms: Date.now() - start };
   }
   if (!process.env.ANTHROPIC_API_KEY) {
-    return {
-      portaal: 'hiltermann', status: 'failed',
-      error_message: 'ANTHROPIC_API_KEY ontbreekt',
-      duration_ms: Date.now() - start,
-    };
+    return { portaal: 'hiltermann', status: 'failed', error_message: 'ANTHROPIC_API_KEY ontbreekt', duration_ms: Date.now() - start };
   }
 
   const stagehand = new Stagehand({
@@ -66,44 +74,59 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
     await stagehand.init();
     const page = await stagehand.context.newPage();
 
-    // ── 1. Login ──
+    // ── 1. Login (via direct locator fill — act vult soms leeg) ──
     await page.goto(credentials.url, { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle', 8000).catch(() => {});
-    await stagehand.act(`Vul het gebruikersnaam-veld in met: ${credentials.user}`);
-    await stagehand.act(`Vul het wachtwoord-veld in met: ${credentials.pass}`);
-    await stagehand.act('Klik op de inlog-knop');
-    await page.waitForLoadState('networkidle', 10000).catch(() => {});
+    await page.waitForTimeout(3000);
+
+    const userInput = page.locator('input[placeholder="Gebruikersnaam"]');
+    const passInput = page.locator('input[placeholder="Wachtwoord"]');
+    await userInput.fill(credentials.user);
+    await passInput.fill(credentials.pass);
+    await stagehand.act('Klik op de "Inloggen" knop');
+
+    const ingelogd = await waitForText(page, ['Kies een verkoper', 'Welkom'], 20000);
+    if (!ingelogd) throw new Error(`Login mislukt — pagina toont nog steeds Inloggen-formulier`);
 
     // ── 2. Verkoper bevestigen ──
+    await page.waitForTimeout(2000);
     await stagehand.act('Klik op de knop "Ga verder"');
-    await page.waitForLoadState('networkidle', 8000).catch(() => {});
 
-    // ── 3. Auto selecteren ──
-    await stagehand.act(`Klik op de merk-tegel van ${tender.merk}`);
-    await page.waitForLoadState('networkidle', 6000).catch(() => {});
+    // ── 3. Wacht op Configurator (merken-grid) ──
+    const opConfigurator = await waitForText(page, ['Type overzicht', 'Personenauto', 'Alle merken'], 20000);
+    if (!opConfigurator) throw new Error(`Configurator niet geladen (url: ${page.url()})`);
+    await page.waitForTimeout(3000);
 
-    await stagehand.act(`Klik op de model-tegel van ${tender.model}`);
-    await page.waitForLoadState('networkidle', 6000).catch(() => {});
+    // ── 4. Merk klikken ──
+    await stagehand.act(`Klik op de afbeelding-tegel van het merk ${tender.merk}`);
+    await page.waitForTimeout(3000);
+    // Wacht tot we modellen zien (zoek model-naam of een aantal model-namen)
+    const opMerk = await waitForText(page, [tender.model, 'uitvoeringen'], 15000);
+    if (!opMerk) throw new Error(`Merk-klik werkte niet, model ${tender.model} niet zichtbaar`);
 
-    // ── 4. Juiste uitvoering kiezen via prijs-knop in tabel ──
-    const uitvoeringHint = [tender.model, tender.uitvoering, tender.brandstof].filter(Boolean).join(' ');
+    // ── 5. Model klikken ──
+    await stagehand.act(`Klik op de afbeelding-tegel van model ${tender.model}`);
+    await page.waitForTimeout(3000);
+
+    // ── 6. Uitvoering kiezen via prijs-knop ──
+    const uitvoeringHint = [tender.uitvoering, tender.brandstof].filter(Boolean).join(' ');
     await stagehand.act(
       `Op deze pagina staat een tabel met uitvoeringen. Kies de rij die het beste matched met: "${uitvoeringHint}". ` +
-      `Klik op de prijs-knop (donker rond, met €-bedrag) helemaal rechts in die rij.`,
+      `Klik op de prijs-knop helemaal rechts in die rij (donker rond, met €-bedrag erop).`,
     );
-    await page.waitForLoadState('networkidle', 8000).catch(() => {});
 
-    // ── 5. Opties-categorieën uitklappen ──
+    // Wacht tot we op de calculation pagina zijn (zoek "Full operational lease" tekst)
+    const opCalc = await waitForText(page, ['Full operational lease', 'Fiscale waarde'], 15000);
+    if (!opCalc) throw new Error(`Calculation-pagina niet bereikt na uitvoering-klik`);
+    await page.waitForTimeout(2000);
+
+    const basisPrijs = await readFolPrice(page);
+
+    // ── 7. Opties-categorieën uitklappen ──
     for (const cat of CATEGORIEEN) {
-      await stagehand.act(
-        `Klik op het + icoon (uitklap-pijl) naast de categorie-titel "${cat}" om de opties uit te klappen. ` +
-        `Als hij al open staat, sla deze stap over.`,
-      ).catch(() => {});
+      await stagehand.act(`Klik op het + naast de categorie-titel "${cat}" om uit te klappen`).catch(() => {});
     }
 
-    // ── 6. Opties matchen + aanvinken (per tender-optie) ──
-    // Eerst proberen via de categorieën (rondje aanvinken).
-    // Lukt het niet, dan toevoegen als 'Eigen optie' onderaan.
+    // ── 8. Opties matchen + aanvinken ──
     const ongevondenOpties: typeof tender.opties = [];
     for (const optie of tender.opties) {
       const prijsHint = optie.prijs
@@ -111,86 +134,73 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
         : '';
       try {
         await stagehand.act(
-          `Vink in de uitgeklapte optie-categorieën het rondje/bolletje aan bij de optie die het beste matched met: "${optie.naam}"${prijsHint}. ` +
-          `Als je hem niet kunt vinden, sla dan over (doe niets).`,
+          `Vink het rondje/bolletje aan bij de optie die het beste matched met: "${optie.naam}"${prijsHint}. ` +
+          `Negeer als je hem niet kunt vinden.`,
         );
       } catch {
         ongevondenOpties.push(optie);
       }
     }
 
-    // ── 7. Niet-gevonden opties toevoegen via 'Eigen opties toevoegen' ──
+    // ── 9. Eigen opties voor niet-gevonden ──
     for (const optie of ongevondenOpties) {
       try {
         await stagehand.act(
-          `Scroll naar het "Eigen opties toevoegen" formulier onderaan de pagina. ` +
-          `Selecteer "Accessoire" in de dropdown. ` +
-          `Vul de Beschrijving in: "${optie.naam}". ` +
-          `Vul "Prijs incl. BTW" in met: ${optie.prijs ?? 0}. ` +
-          `Klik op de knop "Toevoegen".`,
+          `Scroll naar het "Eigen opties toevoegen" formulier onderaan. ` +
+          `Vul Beschrijving in: "${optie.naam}". Vul Prijs incl. BTW in: ${optie.prijs ?? 0}. Klik "Toevoegen".`,
         );
-        await page.waitForLoadState('networkidle', 3000).catch(() => {});
-      } catch {
-        // niet kritiek
-      }
+      } catch {}
     }
 
-    // ── 8. Prijsinstellingen modal openen ──
-    await stagehand.act('Klik op de knop "Prijsinstellingen" (links bovenaan, met tandwiel-icoon)');
-    await page.waitForLoadState('networkidle', 3000).catch(() => {});
+    // ── 10. Prijsinstellingen modal ──
+    await stagehand.act('Klik op de knop "Prijsinstellingen" linksboven (met tandwiel-icoon)');
+    await waitForText(page, ['Looptijd', 'Kilometrage per jaar'], 8000);
+    await page.waitForTimeout(1500);
 
-    // Looptijd dropdown
-    await stagehand.act(
-      `In de modal "Prijsinstellingen" tab "Algemeen": open de "Looptijd" dropdown en selecteer ${tender.looptijd}`,
-    );
+    await stagehand.act(`Open de "Looptijd" dropdown en kies ${tender.looptijd}`);
+    await page.waitForTimeout(800);
+    await stagehand.act(`Open de "Kilometrage per jaar" dropdown en kies ${tender.km_jaar}`);
+    await page.waitForTimeout(800);
 
-    // Km/jaar dropdown
-    await stagehand.act(
-      `Open de "Kilometrage per jaar" dropdown en selecteer ${tender.km_jaar}`,
-    );
-
-    // ── Norm-instellingen: Diversen sectie ──
-    // Verzekering staat default aan (verplicht volgens label). Vervangend vervoer + Winterbanden zijn toggleable.
     if (tender.leasenorm.vervangend_vervoer === 'geen') {
-      await stagehand.act('Vink de checkbox "Vervangend vervoer" UIT in de Diversen sectie').catch(() => {});
+      await stagehand.act('Zet de checkbox "Vervangend vervoer" UIT').catch(() => {});
     }
     if (tender.leasenorm.winterbanden === 'all_season') {
-      // All season betekent géén aparte winterbanden nodig
-      await stagehand.act('Vink de checkbox "Winterbanden" UIT in de Diversen sectie').catch(() => {});
+      await stagehand.act('Zet de checkbox "Winterbanden" UIT').catch(() => {});
     }
 
-    // ── 9. Overige instellingen tab → provisie aanpassen ──
+    // ── 11. Overige instellingen → provisie ──
     await stagehand.act('Klik op het tabblad "Overige instellingen" bovenin de modal');
-    await page.waitForLoadState('networkidle', 1500).catch(() => {});
+    await page.waitForTimeout(1500);
+    await stagehand.act('Klik op het oog-icoon naast Provisie om het bedrag-veld zichtbaar te maken').catch(() => {});
+    await page.waitForTimeout(500);
+    await stagehand.act(`Wis het Provisie veld volledig en typ ${PROVISIE_HILTERMANN}`);
+    await page.waitForTimeout(800);
 
-    // Provisie is verborgen → klik op oog-icoon om zichtbaar te maken
-    await stagehand.act('Klik op het oog-icoon naast het "Provisie" veld om het bedrag-veld zichtbaar te maken').catch(() => {});
-    // Wijzig waarde
-    await stagehand.act(
-      `Wijzig het bedrag in het Provisie veld naar ${PROVISIE_HILTERMANN} ` +
-      `(eerst de huidige waarde wissen, dan ${PROVISIE_HILTERMANN} typen)`,
-    );
+    // ── 12. Hercalculeren ──
+    await stagehand.act('Klik op de zwarte "Hercalculeren" knop rechtsonder');
+    await page.waitForTimeout(5000);
+    await stagehand.act('Sluit de prijsinstellingen-modal via de X als hij nog open is').catch(() => {});
+    await page.waitForTimeout(2000);
 
-    // ── 10. Hercalculeren ──
-    await stagehand.act('Klik op de zwarte "Hercalculeren" knop rechtsonder in de modal');
-    await page.waitForLoadState('networkidle', 8000).catch(() => {});
-    // Modal sluit automatisch (of: blijven we erin?)
-
-    // ── 11. Lees nieuwe maandprijs ──
-    const extracted = await stagehand.extract(
-      'Haal de maandelijkse leaseprijs op zoals nu getoond bij "Full operational lease" (FOL tab). ' +
-      'Dit is het grote €-bedrag dat na hercalculeren is bijgewerkt. Niet de fiscale waarde of catalogusprijs.',
-      z.object({
-        maandprijs: z.number().describe('Bedrag per maand in euro'),
-      }),
-    );
+    // ── 13. Nieuwe prijs aflezen ──
+    let prijs = await readFolPrice(page);
+    if (prijs === null || prijs === 0) {
+      const ext = await stagehand.extract(
+        'Haal het maandbedrag op zoals het GROOT in de linker zijbalk staat onder "Full operational lease". ' +
+        'Niet de fiscale waarde of een tarief per km.',
+        z.object({ maandprijs: z.number() }),
+      );
+      prijs = ext.maandprijs;
+    }
 
     return {
       portaal: 'hiltermann',
       status: 'completed',
-      maandprijs: extracted.maandprijs,
+      maandprijs: prijs ?? 0,
       raw: {
-        extracted: extracted as Record<string, unknown>,
+        basis_prijs: basisPrijs,
+        eind_prijs_dom: prijs,
         ongevonden_opties: ongevondenOpties.map((o) => o.naam),
         provisie_gebruikt: PROVISIE_HILTERMANN,
       },
