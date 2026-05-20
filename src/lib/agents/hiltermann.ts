@@ -28,11 +28,22 @@ async function pageText(page: any): Promise<string> {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function pageHtml(page: any): Promise<string> {
+  try {
+    return await page.evaluate(() => (document.body as HTMLElement).innerHTML);
+  } catch {
+    return '';
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function waitForText(page: any, patterns: string[], timeoutMs = 15000): Promise<boolean> {
   const eind = Date.now() + timeoutMs;
   while (Date.now() < eind) {
-    const txt = await pageText(page);
-    if (patterns.some((p) => txt.toLowerCase().includes(p.toLowerCase()))) return true;
+    // Check zowel innerText (visible text) als innerHTML (alt-tags, image-titels, etc.)
+    const [txt, html] = await Promise.all([pageText(page), pageHtml(page)]);
+    const combined = (txt + ' ' + html).toLowerCase();
+    if (patterns.some((p) => combined.includes(p.toLowerCase()))) return true;
     await page.waitForTimeout(400);
   }
   return false;
@@ -56,19 +67,39 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
   const start = Date.now();
   const { tender, credentials } = ctx;
 
-  if (!process.env.BROWSERBASE_API_KEY || !process.env.BROWSERBASE_PROJECT_ID) {
-    return { portaal: 'hiltermann', status: 'failed', error_message: 'Browserbase env ontbreekt', duration_ms: Date.now() - start };
-  }
   if (!process.env.ANTHROPIC_API_KEY) {
     return { portaal: 'hiltermann', status: 'failed', error_message: 'ANTHROPIC_API_KEY ontbreekt', duration_ms: Date.now() - start };
   }
 
-  const stagehand = new Stagehand({
-    env: 'BROWSERBASE',
-    apiKey: process.env.BROWSERBASE_API_KEY,
-    projectId: process.env.BROWSERBASE_PROJECT_ID,
-    verbose: 1,
-  });
+  // STAGEHAND_ENV bepaalt of we lokaal of via Browserbase draaien.
+  // - 'LOCAL': lokale Chromium via Playwright (eigen IP, geen extra kosten, voor dev/zelf-host)
+  // - 'BROWSERBASE': cloud browser via Browserbase (vereist Vercel-deploy maar bot-detection issues)
+  const useLocal = process.env.STAGEHAND_ENV === 'LOCAL';
+
+  if (!useLocal && (!process.env.BROWSERBASE_API_KEY || !process.env.BROWSERBASE_PROJECT_ID)) {
+    return { portaal: 'hiltermann', status: 'failed', error_message: 'Browserbase env ontbreekt', duration_ms: Date.now() - start };
+  }
+
+  // Standaard Groq (gratis tier voor dev). Voor productie: switch naar
+  // anthropic/claude-sonnet-4-6 via STAGEHAND_MODEL env-var.
+  // Groq's gpt-oss-120b ondersteunt json_schema (vereist voor Stagehand structured outputs).
+  // Llama-3.3 niet — bewuste keuze. Voor productie: 'anthropic/claude-sonnet-4-6' via STAGEHAND_MODEL.
+  const model = process.env.STAGEHAND_MODEL ?? 'groq/openai/gpt-oss-120b';
+
+  const stagehand = useLocal
+    ? new Stagehand({
+        env: 'LOCAL',
+        verbose: 1,
+        model,
+        localBrowserLaunchOptions: { headless: false },
+      })
+    : new Stagehand({
+        env: 'BROWSERBASE',
+        apiKey: process.env.BROWSERBASE_API_KEY!,
+        projectId: process.env.BROWSERBASE_PROJECT_ID!,
+        model,
+        verbose: 1,
+      });
 
   try {
     await stagehand.init();
@@ -91,17 +122,19 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
     await page.waitForTimeout(2000);
     await stagehand.act('Klik op de knop "Ga verder"');
 
-    // ── 3. Wacht op Configurator (merken-grid) ──
-    const opConfigurator = await waitForText(page, ['Type overzicht', 'Personenauto', 'Alle merken'], 20000);
-    if (!opConfigurator) throw new Error(`Configurator niet geladen (url: ${page.url()})`);
-    await page.waitForTimeout(3000);
+    // ── 3. Wacht tot merken écht geladen zijn (niet alleen UI-frame) ──
+    // Hiltermann SPA toont eerst "Ophalen merken.." voordat de merken-grid renderet.
+    // Wacht tot het tender-merk daadwerkelijk in de DOM staat.
+    const merkenGeladen = await waitForText(page, [tender.merk], 25000);
+    if (!merkenGeladen) throw new Error(`Merken-grid niet geladen, ${tender.merk} niet zichtbaar in DOM`);
+    await page.waitForTimeout(2000);
 
     // ── 4. Merk klikken ──
     await stagehand.act(`Klik op de afbeelding-tegel van het merk ${tender.merk}`);
     await page.waitForTimeout(3000);
-    // Wacht tot we modellen zien (zoek model-naam of een aantal model-namen)
-    const opMerk = await waitForText(page, [tender.model, 'uitvoeringen'], 15000);
-    if (!opMerk) throw new Error(`Merk-klik werkte niet, model ${tender.model} niet zichtbaar`);
+    // Wacht tot modellen écht geladen (vergelijkbaar patroon — eerst "Ophalen modellen..")
+    const modellenGeladen = await waitForText(page, [tender.model, 'uitvoeringen'], 20000);
+    if (!modellenGeladen) throw new Error(`Merk-klik werkte niet, model ${tender.model} niet zichtbaar`);
 
     // ── 5. Model klikken ──
     await stagehand.act(`Klik op de afbeelding-tegel van model ${tender.model}`);
