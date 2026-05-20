@@ -3,10 +3,21 @@ import { z } from 'zod';
 import type { AgentContext, AgentResult } from './types';
 
 /**
- * Hiltermann agent — template voor de andere 4 portalen.
+ * Hiltermann agent — Stagehand v3 flow.
  *
- * Belangrijk: in Stagehand v3 moet je echte navigatie via `page.goto()` doen,
- * niet via `stagehand.act("Open ...")`. Acts werken alleen op de huidige pagina.
+ * Werkende stappen (bevestigd via debug-screenshots):
+ * 1. goto(url) → login-pagina
+ * 2. login (user + pass + submit)
+ * 3. "Kies een verkoper" → Ga verder
+ * 4. Configurator → klik merk-tegel
+ * 5. Modellen-grid → klik model-tegel
+ * 6. Types-tabel → klik prijs-knop in de juiste uitvoering rij
+ * 7. Calculation-pagina → basisprijs zichtbaar
+ *
+ * TODO (volgende iteratie):
+ * - Looptijd/km aanpassen via "Meer/Minder cyclen" buttons
+ * - Opties-categorieën uitklappen + aanvinken (Lakken, Velgen, etc.)
+ * - Leasenorm-velden (zitten op aparte stap, nog te ontdekken)
  */
 export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
   const start = Date.now();
@@ -16,7 +27,7 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
     return {
       portaal: 'hiltermann',
       status: 'failed',
-      error_message: 'BROWSERBASE_API_KEY of BROWSERBASE_PROJECT_ID ontbreekt in env',
+      error_message: 'BROWSERBASE_API_KEY of BROWSERBASE_PROJECT_ID ontbreekt',
       duration_ms: Date.now() - start,
     };
   }
@@ -24,7 +35,7 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
     return {
       portaal: 'hiltermann',
       status: 'failed',
-      error_message: 'ANTHROPIC_API_KEY ontbreekt in env',
+      error_message: 'ANTHROPIC_API_KEY ontbreekt',
       duration_ms: Date.now() - start,
     };
   }
@@ -38,72 +49,48 @@ export async function runHiltermann(ctx: AgentContext): Promise<AgentResult> {
 
   try {
     await stagehand.init();
-
-    // 1. Open de inlog-pagina via echte navigation
     const page = await stagehand.context.newPage();
+
+    // 1. Open inlog-pagina
     await page.goto(credentials.url, { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle', 5000).catch(() => {});
+    await page.waitForLoadState('networkidle', 8000).catch(() => {});
 
     // 2. Inloggen
-    await stagehand.act(`Vul het gebruikersnaam/login-veld in met: ${credentials.user}`);
+    await stagehand.act(`Vul het gebruikersnaam-veld in met: ${credentials.user}`);
     await stagehand.act(`Vul het wachtwoord-veld in met: ${credentials.pass}`);
     await stagehand.act('Klik op de inlog-knop');
     await page.waitForLoadState('networkidle', 10000).catch(() => {});
 
-    // 3. "Kies een verkoper" — default doorgaan (P.J. Pellis)
-    await stagehand.act('Klik op de knop "Ga verder" om de standaard verkoper te bevestigen');
+    // 3. "Kies een verkoper" — default doorgaan
+    await stagehand.act('Klik op de knop "Ga verder"');
     await page.waitForLoadState('networkidle', 8000).catch(() => {});
 
-    // 4. We staan nu op de Configurator (calculator/geel/models) met merken-grid
-    await stagehand.act(`Klik op het merk-logo of de merk-tegel van ${tender.merk} in de merkenlijst`);
-    await page.waitForLoadState('networkidle', 5000).catch(() => {});
+    // 4. Configurator: klik op merk-tegel in merken-grid
+    await stagehand.act(`Klik op de merk-tegel (afbeelding/logo) van ${tender.merk} in de merkenlijst`);
+    await page.waitForLoadState('networkidle', 6000).catch(() => {});
 
-    // 5. Model selecteren
-    await stagehand.act(`Klik op het model ${tender.model} (let op de specifieke uitvoering/motor als die er ook bij staat)`);
-    await page.waitForLoadState('networkidle', 5000).catch(() => {});
+    // 5. Modellen-grid: klik op model-tegel
+    await stagehand.act(`Klik op de model-tegel (afbeelding) van ${tender.model} in de modellenlijst`);
+    await page.waitForLoadState('networkidle', 6000).catch(() => {});
 
-    // 6. Uitvoering / trim (indien meerdere)
-    if (tender.uitvoering) {
-      await stagehand.act(`Selecteer de uitvoering of trim: ${tender.uitvoering}`);
-      await page.waitForLoadState('networkidle', 3000).catch(() => {});
-    }
+    // 6. Types-tabel: klik op prijs-knop in de juiste uitvoering rij
+    // De aanvraag heeft 'model' als bv. 'Fabia 1.0 TSI DSG-7'. Op de pagina staan
+    // uitvoeringen met motor (kW), transmissie (dsg-7 aut), etc.
+    // Laat Claude de juiste rij matchen.
+    const uitvoeringHint = [tender.model, tender.uitvoering, tender.brandstof]
+      .filter(Boolean).join(' ');
+    await stagehand.act(
+      `Op deze pagina staan meerdere uitvoeringen in een tabel. Kies de rij die het beste matched met: "${uitvoeringHint}". ` +
+      `Klik op de prijs-knop (donker rond, met €-bedrag) helemaal rechts in die rij.`,
+    );
+    await page.waitForLoadState('networkidle', 8000).catch(() => {});
 
-    // 7. Kleur
-    if (tender.kleur) {
-      await stagehand.act(`Kies de kleur die het meest overeenkomt met: ${tender.kleur}`);
-    }
-
-    // 5. Looptijd / km
-    await stagehand.act(`Stel de looptijd in op ${tender.looptijd} maanden`);
-    await stagehand.act(`Stel kilometers per jaar in op ${tender.km_jaar}`);
-
-    // 6. Opties
-    for (const optie of tender.opties) {
-      await stagehand.act(
-        `Vink de optie/accessoire aan die overeenkomt met: ${optie.naam}` +
-          (optie.prijs ? ` (prijs ongeveer €${optie.prijs})` : ''),
-      );
-    }
-
-    // 7. Norm-instellingen
-    if (tender.leasenorm.winterbanden) {
-      await stagehand.act(`Selecteer winterbanden-optie: ${tender.leasenorm.winterbanden}`);
-    }
-    if (tender.leasenorm.vervangend_vervoer) {
-      await stagehand.act(`Selecteer vervangend vervoer: ${tender.leasenorm.vervangend_vervoer}`);
-    }
-    if (tender.leasenorm.eigen_risico) {
-      await stagehand.act(`Selecteer eigen risico: ${tender.leasenorm.eigen_risico}`);
-    }
-
-    // 8. Bereken en haal prijs op
-    await stagehand.act('Klik op berekenen of toon prijs');
-    await page.waitForLoadState('networkidle', 5000).catch(() => {});
-
+    // 7. We staan nu op de calculation-pagina met basisprijs zichtbaar.
+    // Lees de maandelijkse leaseprijs uit.
     const extracted = await stagehand.extract(
-      'Haal de maandelijkse leaseprijs op (in euros). Pak alleen het bedrag dat duidelijk als "leaseprijs per maand" wordt aangeduid.',
+      'Haal de maandelijkse leaseprijs op zoals getoond bij "Full operational lease". Dit is het grote €-bedrag per maand, niet de fiscale waarde of catalogusprijs.',
       z.object({
-        maandprijs: z.number().describe('Bedrag per maand in euro'),
+        maandprijs: z.number().describe('Bedrag per maand in euro (alleen het getal, geen €-teken)'),
       }),
     );
 
