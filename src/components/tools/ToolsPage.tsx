@@ -7,30 +7,51 @@ import styles from './ToolsPage.module.css';
 
 type ToolKey = 'bijtelling' | 'consignatie';
 
-interface Tool {
-  key: ToolKey;
-  icoon: string;
-  titel: string;
-  desc: string;
-}
+type Tool =
+  | { type: 'modal'; key: ToolKey; icoon: string; titel: string; desc: string }
+  | { type: 'extern'; url: string; icoon: string; titel: string; desc: string };
 
 const TOOLS: Tool[] = [
   {
+    type: 'modal',
     key: 'bijtelling',
     icoon: '🧮',
     titel: 'Bijtelling calculator',
     desc: 'Bereken bijtelling en netto loonbelasting voor zakelijke auto (2022-2026).',
   },
   {
+    type: 'modal',
     key: 'consignatie',
     icoon: '📋',
     titel: 'Consignatie eindafrekening',
     desc: 'Wizard voor netto opbrengst klant na verkoop, met PDF-download.',
   },
+  {
+    type: 'extern',
+    url: 'https://app.pepewagenparkbeheer.nl/',
+    icoon: '📲',
+    titel: 'Uitwerkapp',
+    desc: 'Open de PEPE uitwerkapp in een nieuw tabblad.',
+  },
+  {
+    type: 'extern',
+    url: 'https://mobilityonline.eu/nl/pepe/auth/grant_access?client=pepe&ticket=l1DRKTlBX8WKkJB79EOc3MQ5_zxuCj84sedzttiq0lzQPmwh4Hp6F0W9ZZ0eIqvYWaY1',
+    icoon: '🚙',
+    titel: 'Car Configurator',
+    desc: 'Open de configurator (MobilityOnline) in een nieuw tabblad.',
+  },
 ];
 
 export default function ToolsPage() {
   const [open, setOpen] = useState<ToolKey | null>(null);
+
+  function klik(t: Tool) {
+    if (t.type === 'modal') {
+      setOpen(t.key);
+    } else {
+      window.open(t.url, '_blank', 'noopener,noreferrer');
+    }
+  }
 
   return (
     <div className={styles.pagina}>
@@ -41,7 +62,12 @@ export default function ToolsPage() {
 
       <div className={styles.grid}>
         {TOOLS.map((t) => (
-          <button key={t.key} className={styles.tegel} onClick={() => setOpen(t.key)}>
+          <button
+            key={t.type === 'modal' ? t.key : t.url}
+            className={styles.tegel}
+            onClick={() => klik(t)}
+          >
+            {t.type === 'extern' && <span className={styles.externBadge} title="Opent in nieuw tabblad">↗</span>}
             <span className={styles.tegelIcoon}>{t.icoon}</span>
             <div className={styles.tegelTitel}>{t.titel}</div>
             <div className={styles.tegelDesc}>{t.desc}</div>
