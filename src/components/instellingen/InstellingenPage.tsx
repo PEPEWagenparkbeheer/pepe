@@ -4,7 +4,116 @@ import { useState, useEffect } from 'react';
 import { WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
 import { supabase } from '@/lib/supabase';
 import type { Medewerker } from '@/hooks/useMedewerkers';
+import { usePartnerLijst } from '@/hooks/usePartnerLijst';
 import styles from './InstellingenPage.module.css';
+
+// ── Wie maakt klaar (centraal in Supabase) ────────────────────────────────────
+function WieMaaktKlaarBeheer() {
+  const { partners, namen, laden, voegToe, hernoem, verwijder } = usePartnerLijst();
+  const [nieuw, setNieuw] = useState('');
+  const [bewerkenId, setBewerkenId] = useState<string | null>(null);
+  const [bewerkenWaarde, setBewerkenWaarde] = useState('');
+  const [opgeslagen, setOpgeslagen] = useState(false);
+
+  function flash() {
+    setOpgeslagen(true);
+    setTimeout(() => setOpgeslagen(false), 1800);
+  }
+
+  async function doeToevoegen() {
+    const { error } = await voegToe(nieuw);
+    if (error) { alert(error); return; }
+    setNieuw('');
+    flash();
+  }
+
+  async function doeHernoemen(id: string) {
+    const { error } = await hernoem(id, bewerkenWaarde);
+    if (error) { alert(error); return; }
+    setBewerkenId(null);
+    flash();
+  }
+
+  async function doeVerwijderen(id: string, naam: string) {
+    if (!confirm(`Verwijder "${naam}" uit de partner-lijst?`)) return;
+    const { error } = await verwijder(id);
+    if (error) { alert(error); return; }
+    flash();
+  }
+
+  return (
+    <div className={styles.kaart}>
+      <div className={styles.kaartHeader}>
+        <span className={styles.kaartIcon}>🔧</span>
+        <div style={{ flex: 1 }}>
+          <div className={styles.kaartTitel}>Wie maakt klaar</div>
+          <div className={styles.kaartSub}>
+            Externe bedrijven/personen die auto&apos;s rijklaar maken — zichtbaar voor alle PEPE-medewerkers
+          </div>
+        </div>
+        {opgeslagen && <span className={styles.savedBadge}>✓ Opgeslagen</span>}
+      </div>
+      <div className={styles.lijst}>
+        {laden ? (
+          <div className={styles.leeg}>Laden…</div>
+        ) : partners.length === 0 ? (
+          <div className={styles.leeg}>Geen partners — voeg er een toe</div>
+        ) : (
+          partners.map((p) => (
+            <div key={p.id} className={styles.rij}>
+              {bewerkenId === p.id ? (
+                <>
+                  <input
+                    className={styles.bewerkenInput}
+                    value={bewerkenWaarde}
+                    onChange={(e) => setBewerkenWaarde(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') doeHernoemen(p.id);
+                      if (e.key === 'Escape') setBewerkenId(null);
+                    }}
+                    autoFocus
+                  />
+                  <button className={styles.opslaanKnop} onClick={() => doeHernoemen(p.id)}>Opslaan</button>
+                  <button className={styles.annuleerKnop} onClick={() => setBewerkenId(null)}>✕</button>
+                </>
+              ) : (
+                <>
+                  <span className={styles.naam}>{p.naam}</span>
+                  <div className={styles.acties}>
+                    <button
+                      className={styles.bewerkKnop}
+                      onClick={() => { setBewerkenId(p.id); setBewerkenWaarde(p.naam); }}
+                    >✎</button>
+                    <button
+                      className={styles.verwijderKnop}
+                      onClick={() => doeVerwijderen(p.id, p.naam)}
+                    >✕</button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+      <div className={styles.toevoegRij}>
+        <input
+          className={styles.input}
+          placeholder="Naam bedrijf of persoon..."
+          value={nieuw}
+          onChange={(e) => setNieuw(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') doeToevoegen(); }}
+        />
+        <button className={styles.toevoegKnop} onClick={doeToevoegen} disabled={!nieuw.trim()}>
+          + Toevoegen
+        </button>
+      </div>
+      {/* Helper-tekst */}
+      <p style={{ fontSize: 11, color: 'var(--muted)', margin: '8px 14px 0' }}>
+        💡 Beschikbare namen voor &quot;Partners toewijzen&quot; in After Sales: {namen.join(', ')}
+      </p>
+    </div>
+  );
+}
 
 // ── Wie rijklaar (localStorage) ───────────────────────────────────────────────
 function leesLijst(key: string, defaults: string[]): string[] {
@@ -408,14 +517,7 @@ export default function InstellingenPage() {
         <PartnersBeheer />
         <TransConnectBeheer />
 
-        <LijstBeheer
-          titel="Wie maakt klaar"
-          sub="Externe bedrijven/personen die auto's rijklaar maken"
-          icon="🔧"
-          storageKey={WIE_KEY}
-          defaults={WIE_DEFAULT}
-          placeholder="Naam bedrijf of persoon..."
-        />
+        <WieMaaktKlaarBeheer />
 
         <div className={styles.kaart}>
           <div className={styles.kaartHeader}>

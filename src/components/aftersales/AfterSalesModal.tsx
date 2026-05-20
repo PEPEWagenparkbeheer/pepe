@@ -2,15 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import type { AfterSalesAuto, ASAutoType } from '@/types';
-import { MERKEN_LIJST, WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
+import { MERKEN_LIJST } from '@/lib/constants';
+import { usePartnerLijst } from '@/hooks/usePartnerLijst';
 import { useMedewerkers } from '@/hooks/useMedewerkers';
 import { useInname } from '@/hooks/useInname';
 import InnameDetailModal from './InnameDetailModal';
 
-function leesWie(): string[] {
-  if (typeof window === 'undefined') return WIE_DEFAULT;
-  try { const s = localStorage.getItem(WIE_KEY); return s ? JSON.parse(s) : WIE_DEFAULT; } catch { return WIE_DEFAULT; }
-}
 import styles from './AfterSalesPage.module.css';
 
 const ACC_TAGS = ['Alarm', 'Alarm keuren', 'Voertuigvolg', 'Trekhaak', 'Matten'];
@@ -41,7 +38,7 @@ interface Props {
 }
 
 export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, onVerwijder, onAfleveren }: Props) {
-  const wieLijst = leesWie();
+  const { namen: wieLijst } = usePartnerLijst();
   const { namen: medewerkers } = useMedewerkers();
   const { latest: inname } = useInname(record?.id);
   const [innameOpen, setInnameOpen] = useState(false);

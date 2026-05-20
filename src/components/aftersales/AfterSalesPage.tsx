@@ -8,15 +8,11 @@ import { useAfterSales } from '@/hooks/useAfterSales';
 import { useAuth } from '@/hooks/useAuth';
 import { schietConfetti } from '@/lib/confetti';
 import type { AfterSalesAuto, ASAutoType, ASKlacht, BtwAutoType, KlachtUpdate } from '@/types';
-import { WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
+import { usePartnerLijst } from '@/hooks/usePartnerLijst';
 import KentekenPlaat from './KentekenPlaat';
 import AfterSalesModal from './AfterSalesModal';
 import styles from './AfterSalesPage.module.css';
 
-function leesWie(): string[] {
-  if (typeof window === 'undefined') return WIE_DEFAULT;
-  try { const s = localStorage.getItem(WIE_KEY); return s ? JSON.parse(s) : WIE_DEFAULT; } catch { return WIE_DEFAULT; }
-}
 
 type HoofdTab = 'lopend' | 'import' | 'rijklaar' | 'gepland' | 'nalevering' | 'archief';
 type NalTab = 'open' | 'opgelost';
@@ -641,7 +637,7 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
   const [nieuwBericht, setNieuwBericht] = useState('');
   const [nieuweAcc, setNieuweAcc] = useState('');
   const [rdwLaden, setRdwLaden] = useState<string | null>(null);
-  const partnerLijst = leesWie();
+  const { namen: partnerLijst } = usePartnerLijst();
   const { user } = useAuth();
   const mijnNaam = (user?.user_metadata?.naam as string) ?? user?.email ?? 'PEPE';
 
