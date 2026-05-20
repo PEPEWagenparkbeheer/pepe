@@ -1,0 +1,77 @@
+.pagina {
+  padding: 28px 32px 60px;
+  max-width: 900px;
+}
+
+.kop {
+  margin-bottom: 24px;
+}
+
+.labBadge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: #0f1218;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  margin-bottom: 8px;
+}
+
+.titel {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fg label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.fout {
+  background: rgba(146, 25, 57, 0.08);
+  border: 1px solid rgba(146, 25, 57, 0.25);
+  color: var(--accent);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .pagina { padding: 16px; }
+}
