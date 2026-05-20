@@ -41,6 +41,38 @@ export interface ParseResult {
   error?: string;
 }
 
+/**
+ * Heuristische detectie of een inkomende mail een lease-aanvraag (tender) is
+ * in plaats van een gewone autosales-lead. Wordt server-side gebruikt om
+ * /api/leads-inbound te splitsen.
+ */
+export function isLeaseAanvraag(subject: string, body: string): boolean {
+  const text = (subject + '\n' + body).toLowerCase();
+  let score = 0;
+
+  // Sterke signalen (typisch voor lease-tender mails)
+  if (/leasenorm/.test(text))                                   score += 3;
+  if (/lease[\s-]?aanvraag/.test(text))                         score += 3;
+  if (/tender/.test(text))                                      score += 3;
+
+  // Looptijd in maanden
+  if (/looptijd\s*:?\s*\d+\s*(?:maanden|mnd|m)\b/.test(text))   score += 2;
+
+  // Km per jaar
+  if (/km\s*\/?\s*(?:p\.?)?j(?:aar)?\b/.test(text))             score += 2;
+  if (/kilometers?\s+per\s+jaar/.test(text))                    score += 2;
+
+  // Lease-specifieke termen
+  if (/winterbanden|all\s+season/.test(text))                   score += 1;
+  if (/vervangend\s+vervoer/.test(text))                        score += 1;
+  if (/eigen\s+risico/.test(text))                              score += 1;
+  if (/categorie\s+[a-z]\b/.test(text))                         score += 1;
+  if (/brandstofvoorschot/.test(text))                          score += 1;
+  if (/uitvoering\s*:/.test(text))                              score += 1;
+
+  return score >= 3;
+}
+
 export async function parseLeaseAanvraagMail(emailText: string): Promise<ParseResult> {
   if (!process.env.GROQ_API_KEY) {
     return { error: 'GROQ_API_KEY ontbreekt' };

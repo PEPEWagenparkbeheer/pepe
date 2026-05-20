@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { isLeaseAanvraag, parseLeaseAanvraagMail } from '@/lib/tender-parser';
 
 // Probeert een advertentielink te vinden uit HTML + tekst van de e-mail.
 // Volgorde: href in HTML → plain URL in tekst → advertentienummer opbouwen.
@@ -73,6 +74,42 @@ export async function POST(req: NextRequest) {
   const subject: string = body.Subject || '';
   const textBody: string = body.StrippedTextReply || body.TextBody || '';
   const htmlBody: string = body.HtmlBody || '';
+
+  // ── TENDER ROUTE ──
+  // Eerst kijken of het een lease-aanvraag is. Zo ja, doorgeven aan de
+  // tender-handler en hier stoppen — geen lead aanmaken.
+  if (isLeaseAanvraag(subject, textBody)) {
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+    const rawEmail = `Van: ${fromRaw}\nOnderwerp: ${subject}\n\n${textBody || htmlBody}`;
+    const result = await parseLeaseAanvraagMail(`Onderwerp: ${subject}\n\n${textBody}`);
+    if (result.geen_aanvraag) {
+      return NextResponse.json({ ok: true, routed: 'tender', skipped: 'geen_aanvraag' });
+    }
+    const fromName = fromRaw.match(/^"?([^"<]+?)"?\s*<.*>$/)?.[1]?.trim();
+    const fromEmail = fromRaw.match(/<([^>]+)>/)?.[1]?.trim()
+                      ?? fromRaw.match(/([\w.+-]+@[\w-]+\.[\w.-]+)/)?.[1]?.trim();
+    const { data, error } = await supabaseAdmin
+      .from('tenders')
+      .insert({
+        klant_naam: result.parsed?.naam || fromName || 'Onbekend',
+        klant_email: result.parsed?.email || fromEmail || null,
+        raw_email: rawEmail,
+        parsed_data: result.parsed ?? null,
+        leasenorm: result.parsed?.leasenorm ?? null,
+        status: result.error ? 'failed' : 'pending',
+      })
+      .select('id')
+      .single();
+    if (error) {
+      console.error('tender insert fout:', error);
+      return NextResponse.json({ error: 'DB insert mislukt' }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, routed: 'tender', tender_id: data.id });
+  }
 
   const isForwarded =
     fromLow.includes('info@pepewagen') ||
