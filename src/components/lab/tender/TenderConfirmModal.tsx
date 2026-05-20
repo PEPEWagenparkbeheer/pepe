@@ -144,7 +144,27 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
           </Sectie>
 
           {/* Opties */}
-          <Sectie titel={`Opties (${form.opties.length})${form.opties.some(o => o.prijs) ? ` · Totaal € ${fmtEuro(form.opties.reduce((s, o) => s + (o.prijs ?? 0), 0))}` : ''}`}>
+          <Sectie titel={`Opties (${form.opties.length})${form.opties.some(o => o.prijs) ? ` · Totaal € ${fmtEuro(form.opties.reduce((s, o) => s + (o.prijs ?? 0), 0))} ${form.prijzen_incl_btw === false ? 'ex' : form.prijzen_incl_btw === true ? 'incl' : '(btw ?)'} btw` : ''}`}>
+            {/* BTW indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Prijzen zijn:</span>
+              <select
+                className="fi"
+                style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
+                value={form.prijzen_incl_btw === true ? 'incl' : form.prijzen_incl_btw === false ? 'excl' : ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  stel('prijzen_incl_btw', v === 'incl' ? true : v === 'excl' ? false : undefined);
+                }}
+              >
+                <option value="">— onbekend —</option>
+                <option value="incl">Inclusief btw</option>
+                <option value="excl">Exclusief btw (+21%)</option>
+              </select>
+              {form.prijzen_incl_btw === undefined && (
+                <span style={{ fontSize: 11, color: '#b45309' }}>⚠ Selecteer om nauwkeurig te matchen</span>
+              )}
+            </div>
             {form.opties.length === 0 && (
               <div style={{ color: 'var(--muted)', fontSize: 12, fontStyle: 'italic' }}>Geen opties uit Groq.</div>
             )}

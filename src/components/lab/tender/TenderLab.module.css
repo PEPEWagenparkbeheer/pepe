@@ -41,6 +41,124 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  margin-bottom: 16px;
+}
+
+.cardKop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cardTitel {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.aantal {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 3px 9px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.placeholder {
+  padding: 14px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+  background: var(--surface2);
+  border-radius: 8px;
+}
+
+.inboxLijst {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.inboxRij {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+.inboxRij:last-child { border-bottom: none; }
+.inboxRij:hover { background: var(--surface2); }
+
+.inboxInfo {
+  flex: 1;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.inboxNaam {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.failedBadge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(180, 83, 9, 0.1);
+  color: #b45309;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.inboxAuto {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.inboxMeta {
+  opacity: 0.7;
+}
+
+.inboxDatum {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.inboxActies {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.archiefKnop {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.archiefKnop:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .fg {

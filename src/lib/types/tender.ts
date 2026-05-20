@@ -49,6 +49,7 @@ export interface TenderInput {
 
   // Opties / accessoires
   opties: OptieItem[];
+  prijzen_incl_btw?: boolean;            // null/undefined = onbekend; nodig voor matching
 
   // Norm
   leasenorm: LeasenormConfig;
