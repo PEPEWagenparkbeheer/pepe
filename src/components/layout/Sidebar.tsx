@@ -21,6 +21,7 @@ const NAV_ITEMS = [
       { href: '/aftersales', label: 'After Sales', icon: '🚗' },
       { href: '/inname', label: 'Inname', icon: '📋' },
       { href: '/btw', label: 'BTW / Credit', icon: '💶' },
+      { href: '/facturen', label: 'Facturen', icon: '📄' },
     ],
   },
   { section: 'Tools', items: [{ href: '/tools', label: 'Tools', icon: '🔧' }] },

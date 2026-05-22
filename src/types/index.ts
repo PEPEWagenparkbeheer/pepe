@@ -292,6 +292,61 @@ export interface Lead {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
+// ── Facturen (inbox → HubSpot) ───────────────────────────────
+
+export type FactuurStatus =
+  | 'nieuw'
+  | 'bewerkt'
+  | 'goedgekeurd'
+  | 'genegeerd'
+  | 'gefaald';
+
+export interface Factuur {
+  id: string;
+  created_at?: string;
+  updated_at?: string;
+
+  ontvangen_op?: string;
+  postmark_message_id?: string;
+  afzender?: string;
+  onderwerp?: string;
+  raw_email?: string;
+
+  pdf_storage_path?: string | null;
+  pdf_bestandsnaam?: string | null;
+
+  factuurnummer?: string | null;
+  factuurdatum?: string | null;
+  kenteken?: string | null;
+  bedrijfsnaam?: string | null;
+  kvk?: string | null;
+  berijder_naam?: string | null;
+  berijder_email?: string | null;
+  bedrag_excl_btw?: number | null;
+  bedrag_incl_btw?: number | null;
+  extracted_data?: Record<string, unknown> | null;
+  rdw_data?: {
+    merk?: string;
+    handelsbenaming?: string;
+    brandstof?: string;
+    apkDatum?: string | null;
+    recalls?: number;
+  } | null;
+
+  status: FactuurStatus;
+  wie?: string | null;
+  notitie?: string | null;
+
+  hubspot_company_id?: string | null;
+  hubspot_contact_id?: string | null;
+  hubspot_deal_id?: string | null;
+  hubspot_synced_at?: string | null;
+  hubspot_error?: string | null;
+
+  gearchiveerd: boolean;
+  veld_meta?: Record<string, { op: string; door: string }>;
+}
+
 // ── Auth ─────────────────────────────────────────────────────
 
 export interface AppUser {
