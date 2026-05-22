@@ -97,7 +97,8 @@ function TabActief({ facturen, zoek, onEdit, onAkkoord, onNegeer }: {
         </tr></thead>
         <tbody>
           {rijen.map((r) => {
-            const klaar = !!r.kenteken && !!r.bedrijfsnaam;
+            const isBedrijf = r.is_bedrijf !== false;
+            const klaar = !!r.kenteken && (isBedrijf ? !!r.bedrijfsnaam : !!r.berijder_naam);
             return (
               <tr
                 key={r.id}
@@ -141,7 +142,7 @@ function TabActief({ facturen, zoek, onEdit, onAkkoord, onNegeer }: {
                     <button
                       className={styles.akkoordKnop}
                       disabled={!klaar}
-                      title={klaar ? 'Wegschrijven naar HubSpot' : 'Kenteken en bedrijfsnaam zijn verplicht'}
+                      title={klaar ? 'Wegschrijven naar HubSpot' : (isBedrijf ? 'Kenteken en bedrijfsnaam zijn verplicht' : 'Kenteken en berijder-naam zijn verplicht')}
                       onClick={(e) => { e.stopPropagation(); onAkkoord(r); }}
                     >
                       ✅ Akkoord
@@ -226,7 +227,10 @@ export default function FacturenPage() {
   function openEdit(r: Factuur) { setEdit(r); setModalOpen(true); }
 
   async function handleAkkoord(r: Factuur) {
-    if (!window.confirm(`Factuur ${r.factuurnummer ?? ''} wegschrijven naar HubSpot?\n\nKenteken: ${r.kenteken}\nBedrijf: ${r.bedrijfsnaam}`)) return;
+    const klantLabel = r.is_bedrijf !== false
+      ? `Bedrijf: ${r.bedrijfsnaam}`
+      : `Particulier: ${r.berijder_naam}`;
+    if (!window.confirm(`Factuur ${r.factuurnummer ?? ''} wegschrijven naar HubSpot?\n\nKenteken: ${r.kenteken}\n${klantLabel}`)) return;
     const res = await akkoord(r.id);
     if (!res.ok) alert('HubSpot-fout: ' + res.error);
   }

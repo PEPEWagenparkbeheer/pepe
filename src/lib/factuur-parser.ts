@@ -8,6 +8,7 @@ export interface FactuurExtract {
   kenteken?: string | null;
   bedrijfsnaam?: string | null;
   kvk?: string | null;
+  is_bedrijf?: boolean;                // true = zakelijk, false = particulier
   berijder_naam?: string | null;
   berijder_email?: string | null;
   bedrag_excl_btw?: number | null;
@@ -19,27 +20,38 @@ export interface FactuurExtract {
   is_auto_factuur?: boolean;
 }
 
+// PEPE's eigen bedrijfsdetails — moeten NOOIT als klantdata terugkomen.
+const PEPE_KVK = '88528503';
+const PEPE_NAAM_MATCH = /pepe\s*wagenparkbeheer/i;
+
 const SYSTEM_PROMPT = `Je extraheert factuurgegevens uit (Nederlandse) verkoopfactuur-PDF tekst voor autohandelaar PEPE Wagenparkbeheer.
+
+LET OP — PEPE is de VERZENDER van de factuur, niet de klant. Negeer alles wat over PEPE gaat:
+- PEPE Wagenparkbeheer, KvK 88528503, BTW NL864470114B01
+- adres De Garven 19, 6713 TV Oudenbosch (of vergelijkbaar)
+- iban NL02INGB...
+- contactgegevens info@pepewagenparkbeheer.nl, 0165 794 100
+Geef voor "bedrijfsnaam", "kvk", "straat", "postcode", "plaats" UITSLUITEND klantdata terug — niet PEPE.
 
 Retourneer ALLEEN geldige JSON met deze velden (null als niet duidelijk):
 - factuurnummer: het factuurnummer (string)
 - factuurdatum: factuurdatum in ISO-formaat "yyyy-mm-dd"
 - kenteken: Nederlands kenteken zoals "AB-123-C" of "12-AB-34" — geef terug zonder streepjes en in HOOFDLETTERS (bijv. "AB123C")
-- bedrijfsnaam: naam van de klant (het bedrijf dat de factuur ontvangt, NIET PEPE zelf)
-- kvk: KvK-nummer van de klant als genoemd (string van 8 cijfers)
-- berijder_naam: persoonsnaam van de berijder/contactpersoon als genoemd (NIET PEPE-medewerker)
-- berijder_email: e-mail van de berijder/klant als genoemd
+- bedrijfsnaam: naam van de klant zoals op de factuur staat. Als de klant een PERSOON is zonder bedrijfsvorm (geen B.V./V.O.F./N.V./eenmanszaak/handelsnaam), zet bedrijfsnaam dan op die persoonsnaam EN is_bedrijf=false.
+- kvk: KvK-nummer van de KLANT (8 cijfers). NOOIT 88528503 (=PEPE). null als geen klant-KvK genoemd.
+- is_bedrijf: true als de klant een zakelijke entiteit is (naam bevat B.V., V.O.F., N.V., GmbH, Holding, Beheer, Bemiddeling, Trading, of er staat een KvK-nummer bij de klant). false als het een particulier is (alleen voor- en achternaam, geen bedrijfssuffix, geen KvK).
+- berijder_naam: persoonsnaam van de berijder/contactpersoon (NIET PEPE-medewerker). Bij particulier: zelfde als bedrijfsnaam.
+- berijder_email: e-mail van de berijder/klant
 - bedrag_excl_btw: totaalbedrag excl. BTW als number (puur getal, geen valutateken, punt voor decimalen)
 - bedrag_incl_btw: totaalbedrag incl. BTW als number
 - straat: factuuradres van de KLANT — straat + huisnummer (bijv. "Torenbaan 123")
 - postcode: postcode van de klant in NL-formaat "1234 AB" (4 cijfers, spatie, 2 letters hoofdletters)
 - plaats: woonplaats/vestigingsplaats van de klant
-- land: land van de klant (default "Nederland" als niet expliciet genoemd maar wel NL adres)
-- is_auto_factuur: true als de factuur duidelijk over een auto/voertuig gaat (kenteken aanwezig, autoverkoop, lease, onderhoud, etc), anders false
+- land: land van de klant (default "Nederland" bij NL adres)
+- is_auto_factuur: true als de factuur over een auto/voertuig gaat
 
 Belangrijk:
-- PEPE zelf is de verzender, niet de klant. Negeer alle PEPE-gegevens (naam, KvK, adres, IBAN).
-- Bedragen: "€ 1.250,00" → 1250.00. Honderdtallen-scheiding altijd weglaten, komma vervangen door punt.
+- Bedragen: "€ 1.250,00" → 1250.00. Komma → punt, honderdtallen-scheiding weglaten.
 - Bij onduidelijkheid: null. NIET raden.`;
 
 export async function parseFactuurTekst(tekst: string): Promise<FactuurExtract | null> {
@@ -79,12 +91,29 @@ export async function parseFactuurTekst(tekst: string): Promise<FactuurExtract |
     if (!raw) return null;
     const obj = JSON.parse(raw) as FactuurExtract;
 
+    // Veiligheidsfilter: als Groq toch PEPE-data heeft teruggegeven, wegfilteren.
+    const kvk = obj.kvk?.replace(/\D/g, '') ?? null;
+    const veiligKvk = kvk && kvk !== PEPE_KVK ? kvk : null;
+    const bedrijfsnaam = obj.bedrijfsnaam && !PEPE_NAAM_MATCH.test(obj.bedrijfsnaam)
+      ? obj.bedrijfsnaam
+      : null;
+
+    // Fallback voor is_bedrijf indien Groq het niet zette:
+    // particulier = bedrijfsnaam == berijder_naam EN geen bedrijfssuffix EN geen KvK.
+    const heeftBedrijfSuffix = bedrijfsnaam
+      ? /\b(b\.?v\.?|v\.?o\.?f\.?|n\.?v\.?|gmbh|holding|beheer|bemiddeling|trading|maatschap|stichting)\b/i.test(bedrijfsnaam)
+      : false;
+    const is_bedrijf = typeof obj.is_bedrijf === 'boolean'
+      ? obj.is_bedrijf
+      : Boolean(heeftBedrijfSuffix || veiligKvk);
+
     return {
       factuurnummer: obj.factuurnummer ?? null,
       factuurdatum: normaliseerDatum(obj.factuurdatum),
       kenteken: obj.kenteken ? obj.kenteken.replace(/[-\s]/g, '').toUpperCase() : null,
-      bedrijfsnaam: obj.bedrijfsnaam ?? null,
-      kvk: obj.kvk ?? null,
+      bedrijfsnaam,
+      kvk: veiligKvk,
+      is_bedrijf,
       berijder_naam: obj.berijder_naam ?? null,
       berijder_email: obj.berijder_email ?? null,
       bedrag_excl_btw: typeof obj.bedrag_excl_btw === 'number' ? obj.bedrag_excl_btw : null,

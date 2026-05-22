@@ -320,6 +320,7 @@ export interface Factuur {
   kenteken?: string | null;
   bedrijfsnaam?: string | null;
   kvk?: string | null;
+  is_bedrijf?: boolean;
   berijder_naam?: string | null;
   berijder_email?: string | null;
   bedrag_excl_btw?: number | null;

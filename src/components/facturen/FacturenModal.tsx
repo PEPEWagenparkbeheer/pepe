@@ -71,7 +71,12 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
   async function handleAkkoord() {
     if (!form) return;
     if (!form.kenteken?.trim()) { alert('Kenteken is verplicht'); return; }
-    if (!form.bedrijfsnaam?.trim()) { alert('Bedrijfsnaam is verplicht'); return; }
+    if (form.is_bedrijf !== false && !form.bedrijfsnaam?.trim()) {
+      alert('Bedrijfsnaam is verplicht (zakelijk)'); return;
+    }
+    if (form.is_bedrijf === false && !form.berijder_naam?.trim()) {
+      alert('Berijder-naam is verplicht (particulier)'); return;
+    }
     setBezig(true);
     // Eerst opslaan zodat backend met de laatste edits werkt
     await onOpslaan(form);
@@ -79,7 +84,10 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     setBezig(false);
   }
 
-  const klaarVoorAkkoord = !!form.kenteken?.trim() && !!form.bedrijfsnaam?.trim();
+  const isBedrijf = form.is_bedrijf !== false;
+  const klaarVoorAkkoord = !!form.kenteken?.trim() && (
+    isBedrijf ? !!form.bedrijfsnaam?.trim() : !!form.berijder_naam?.trim()
+  );
   const rdw = form.rdw_data;
 
   return (
@@ -172,15 +180,37 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
             <div className={styles.sectieKop}>Klant</div>
 
             <div className={`${styles.fg} ${styles.vol}`}>
-              <label>Bedrijfsnaam *</label>
-              <input className="fi" value={form.bedrijfsnaam ?? ''}
-                onChange={(e) => stel('bedrijfsnaam', e.target.value)} />
+              <label>Type klant</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  type="button"
+                  className={`btn ${isBedrijf ? 'btn-a' : ''}`}
+                  style={{ fontSize: 12, padding: '5px 12px' }}
+                  onClick={() => stel('is_bedrijf', true)}
+                >🏢 Bedrijf</button>
+                <button
+                  type="button"
+                  className={`btn ${!isBedrijf ? 'btn-a' : ''}`}
+                  style={{ fontSize: 12, padding: '5px 12px' }}
+                  onClick={() => stel('is_bedrijf', false)}
+                >👤 Particulier</button>
+              </div>
             </div>
-            <div className={styles.fg}>
-              <label>KvK-nummer</label>
-              <input className="fi" value={form.kvk ?? ''}
-                onChange={(e) => stel('kvk', e.target.value)} />
-            </div>
+
+            {isBedrijf && (
+              <>
+                <div className={`${styles.fg} ${styles.vol}`}>
+                  <label>Bedrijfsnaam *</label>
+                  <input className="fi" value={form.bedrijfsnaam ?? ''}
+                    onChange={(e) => stel('bedrijfsnaam', e.target.value)} />
+                </div>
+                <div className={styles.fg}>
+                  <label>KvK-nummer</label>
+                  <input className="fi" value={form.kvk ?? ''}
+                    onChange={(e) => stel('kvk', e.target.value)} />
+                </div>
+              </>
+            )}
 
             <div className={`${styles.fg} ${styles.vol}`}>
               <label>Straat + huisnummer</label>

@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
     kenteken: extract?.kenteken ?? null,
     bedrijfsnaam: extract?.bedrijfsnaam ?? null,
     kvk: extract?.kvk ?? null,
+    is_bedrijf: extract?.is_bedrijf ?? true,
     berijder_naam: extract?.berijder_naam ?? null,
     berijder_email: extract?.berijder_email ?? null,
     bedrag_excl_btw: extract?.bedrag_excl_btw ?? null,

@@ -63,6 +63,97 @@ export async function searchCompanyByName(name: string): Promise<string | null> 
   return data.results?.[0]?.id ?? null;
 }
 
+// Normalisatie voor naam-vergelijking: lowercase, weggehaalde leestekens
+// en bedrijfsvorm-suffixen die vaak in/uitgeschreven worden.
+function normalizeName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\b(b\.?v\.?|v\.?o\.?f\.?|n\.?v\.?|gmbh|holding|maatschap|stichting)\b/g, '')
+    .replace(/[.,'`"&]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeZip(s: string): string {
+  return s.toUpperCase().replace(/\s+/g, '');
+}
+
+function namesSimilar(a: string, b: string): boolean {
+  const na = normalizeName(a);
+  const nb = normalizeName(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  // Een van beide ingesloten in de ander (afkortingen, extra "Beheer", etc)
+  if (na.length >= 4 && nb.length >= 4) {
+    if (nb.includes(na) || na.includes(nb)) return true;
+  }
+  return false;
+}
+
+interface CompanyMatchInput {
+  name: string;
+  postcode?: string | null;
+  plaats?: string | null;
+}
+
+// Zoekt eerst exact op naam; vindt niets → free-text query op naam +
+// scoort kandidaten op genormaliseerde naam en (indien beschikbaar)
+// matching postcode/plaats. Voorkomt duplicaten bij spelling-variaties
+// als "Job's Bemiddeling B.V." vs "Jobs Bemiddeling BV".
+export async function findCompany({ name, postcode, plaats }: CompanyMatchInput): Promise<string | null> {
+  if (!name?.trim()) return null;
+
+  const exact = await searchCompanyByName(name);
+  if (exact) return exact;
+
+  const data = await hsFetch<{ results?: { id: string; properties: Record<string, string> }[] }>(
+    `${HS_BASE}/crm/v3/objects/companies/search`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        limit: 20,
+        query: name,
+        properties: ['name', 'zip', 'city', 'address'],
+      }),
+    },
+  );
+
+  const kandidaten = data.results ?? [];
+
+  // 1. Naam similar + matching postcode → zeer zekere match
+  if (postcode) {
+    const zip = normalizeZip(postcode);
+    for (const c of kandidaten) {
+      const p = c.properties ?? {};
+      if (p.zip && normalizeZip(p.zip) === zip && namesSimilar(p.name ?? '', name)) {
+        return c.id;
+      }
+    }
+  }
+
+  // 2. Naam similar (ook zonder postcode-match) — acceptabel als adres ontbreekt
+  if (!postcode) {
+    for (const c of kandidaten) {
+      if (namesSimilar(c.properties?.name ?? '', name)) return c.id;
+    }
+  }
+
+  // 3. Exacte postcode + plaats match (zelfde adres = zelfde klant)
+  if (postcode && plaats) {
+    const zip = normalizeZip(postcode);
+    const city = plaats.toLowerCase().trim();
+    for (const c of kandidaten) {
+      const p = c.properties ?? {};
+      if (p.zip && normalizeZip(p.zip) === zip
+          && p.city && p.city.toLowerCase().trim() === city) {
+        return c.id;
+      }
+    }
+  }
+
+  return null;
+}
+
 export async function createCompany(input: CompanyInput): Promise<string> {
   const properties: Record<string, string> = { name: input.name };
   if (input.kvk) properties.kvk_nummer = input.kvk;
@@ -87,6 +178,10 @@ export interface ContactInput {
   firstname?: string;
   lastname?: string;
   phone?: string;
+  address?: string;   // straat + huisnummer
+  city?: string;
+  zip?: string;
+  country?: string;
 }
 
 export async function searchContactByEmail(email: string): Promise<string | null> {
@@ -134,6 +229,10 @@ export async function createContact(input: ContactInput): Promise<string> {
   if (input.firstname) properties.firstname = input.firstname;
   if (input.lastname) properties.lastname = input.lastname;
   if (input.phone) properties.phone = input.phone;
+  if (input.address) properties.address = input.address;
+  if (input.city) properties.city = input.city;
+  if (input.zip) properties.zip = input.zip;
+  if (input.country) properties.country = input.country;
 
   const data = await hsFetch<{ id: string }>(
     `${HS_BASE}/crm/v3/objects/contacts`,

@@ -11,7 +11,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  searchCompanyByName, createCompany,
+  findCompany, createCompany,
   searchContactByEmail, searchContactByName, createContact,
   searchDealByKenteken, createDeal,
   associateDealCompany, associateDealContact, associateContactCompany,
@@ -57,22 +57,33 @@ export async function POST(
   if (!factuur.kenteken?.trim()) {
     return NextResponse.json({ error: 'Kenteken ontbreekt' }, { status: 400 });
   }
-  if (!factuur.bedrijfsnaam?.trim()) {
-    return NextResponse.json({ error: 'Bedrijfsnaam ontbreekt' }, { status: 400 });
+  const isBedrijf = factuur.is_bedrijf !== false; // default true bij oude rijen
+  if (isBedrijf && !factuur.bedrijfsnaam?.trim()) {
+    return NextResponse.json({ error: 'Bedrijfsnaam ontbreekt (zakelijk)' }, { status: 400 });
+  }
+  if (!isBedrijf && !factuur.berijder_naam?.trim()) {
+    return NextResponse.json({ error: 'Berijder-naam ontbreekt (particulier)' }, { status: 400 });
   }
 
   try {
-    // ── Company ─────────────────────────────────────────
-    let companyId = await searchCompanyByName(factuur.bedrijfsnaam);
-    if (!companyId) {
-      companyId = await createCompany({
+    // ── Company (alleen bij zakelijke klant) ────────────
+    let companyId: string | null = null;
+    if (isBedrijf && factuur.bedrijfsnaam) {
+      companyId = await findCompany({
         name: factuur.bedrijfsnaam,
-        kvk: factuur.kvk ?? undefined,
-        address: factuur.straat ?? undefined,
-        zip: factuur.postcode ?? undefined,
-        city: factuur.plaats ?? undefined,
-        country: factuur.land ?? undefined,
+        postcode: factuur.postcode,
+        plaats: factuur.plaats,
       });
+      if (!companyId) {
+        companyId = await createCompany({
+          name: factuur.bedrijfsnaam,
+          kvk: factuur.kvk ?? undefined,
+          address: factuur.straat ?? undefined,
+          zip: factuur.postcode ?? undefined,
+          city: factuur.plaats ?? undefined,
+          country: factuur.land ?? undefined,
+        });
+      }
     }
 
     // ── Contact ─────────────────────────────────────────
@@ -89,10 +100,19 @@ export async function POST(
     }
     if (!contactId && (factuur.berijder_email || factuur.berijder_naam)) {
       const [voor, ...rest] = (factuur.berijder_naam ?? '').trim().split(/\s+/);
+      // Bij particulier nemen we adres mee op het Contact-record zodat het
+      // niet als losse persoon zonder context in HubSpot staat.
+      const extra = isBedrijf ? {} : {
+        address: factuur.straat ?? undefined,
+        zip: factuur.postcode ?? undefined,
+        city: factuur.plaats ?? undefined,
+        country: factuur.land ?? undefined,
+      };
       contactId = await createContact({
         email: factuur.berijder_email ?? undefined,
         firstname: voor || undefined,
         lastname: rest.join(' ') || undefined,
+        ...extra,
       });
     }
 
@@ -128,10 +148,14 @@ export async function POST(
     }
 
     // ── Associaties ─────────────────────────────────────
-    await associateDealCompany(dealId, companyId);
+    if (companyId) {
+      await associateDealCompany(dealId, companyId);
+    }
     if (contactId) {
       await associateDealContact(dealId, contactId);
-      await associateContactCompany(contactId, companyId);
+      if (companyId) {
+        await associateContactCompany(contactId, companyId);
+      }
     }
 
     // ── Update factuur-record ───────────────────────────
