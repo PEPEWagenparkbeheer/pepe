@@ -218,7 +218,7 @@ function TabArchief({ facturen, zoek, onEdit, onTerugzetten }: {
 }
 
 export default function FacturenPage() {
-  const { facturen, loading, gebruiker, save, akkoord, negeer, terugzetten, pdfUrl } = useFacturen();
+  const { facturen, loading, gebruiker, save, akkoord, negeer, terugzetten, pdfUrl, reExtract } = useFacturen();
   const [tab, setTab] = useState<Tab>('actief');
   const [zoek, setZoek] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -283,6 +283,7 @@ export default function FacturenPage() {
           else setModalOpen(false);
         }}
         onPdfUrl={pdfUrl}
+        onReExtract={reExtract}
       />
     </div>
   );

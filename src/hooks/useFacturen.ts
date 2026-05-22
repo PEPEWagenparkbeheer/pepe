@@ -81,6 +81,24 @@ export function useFacturen() {
     await fetch(`/api/facturen/${id}/ignore`, { method: 'POST' });
   }, []);
 
+  const reExtract = useCallback(async (id: string): Promise<Factuur | null> => {
+    const res = await fetch(`/api/facturen/${id}/re-extract`, { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Onbekende fout' }));
+      console.error('re-extract:', err.error);
+      return null;
+    }
+    // Server heeft de rij geupdate; realtime triggert ook lokale state-update,
+    // maar voor de zekerheid halen we direct opnieuw op.
+    const { data } = await supabase.from('facturen').select('*').eq('id', id).single();
+    if (data) {
+      const rec = deserialize(data as Record<string, unknown>);
+      update(ref.current.map((r) => r.id === id ? rec : r));
+      return rec;
+    }
+    return null;
+  }, []);
+
   const terugzetten = useCallback(async (rec: Factuur) => {
     await save({ ...rec, gearchiveerd: false, status: 'nieuw' });
   }, [save]);
@@ -96,5 +114,5 @@ export function useFacturen() {
     return data.signedUrl;
   }, []);
 
-  return { facturen, loading, gebruiker, save, akkoord, negeer, terugzetten, pdfUrl };
+  return { facturen, loading, gebruiker, save, akkoord, negeer, terugzetten, pdfUrl, reExtract };
 }

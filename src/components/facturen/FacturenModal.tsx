@@ -13,13 +13,15 @@ interface Props {
   onOpslaan: (rec: Factuur) => Promise<unknown>;
   onAkkoord: (rec: Factuur) => Promise<unknown>;
   onPdfUrl: (path: string) => Promise<string | null>;
+  onReExtract: (id: string) => Promise<Factuur | null>;
 }
 
-export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onAkkoord, onPdfUrl }: Props) {
+export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onAkkoord, onPdfUrl, onReExtract }: Props) {
   const [form, setForm] = useState<Factuur | null>(factuur);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
   const [rdwBezig, setRdwBezig] = useState(false);
+  const [extractBezig, setExtractBezig] = useState(false);
 
   useEffect(() => {
     if (!open || !factuur) { setForm(null); setPdfUrl(null); return; }
@@ -35,6 +37,19 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
 
   function stel<K extends keyof Factuur>(veld: K, waarde: Factuur[K]) {
     setForm((f) => f ? { ...f, [veld]: waarde } : f);
+  }
+
+  async function opnieuwExtraheren() {
+    if (!form) return;
+    if (!form.pdf_storage_path) { alert('Geen PDF beschikbaar om opnieuw te extraheren'); return; }
+    setExtractBezig(true);
+    try {
+      const rec = await onReExtract(form.id);
+      if (rec) setForm(rec);
+      else alert('Re-extract mislukt — zie console');
+    } finally {
+      setExtractBezig(false);
+    }
   }
 
   async function rdwOphalen() {
@@ -98,7 +113,18 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
             📄 Factuur {form.factuurnummer ? `#${form.factuurnummer}` : ''}
             {form.afzender && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 13 }}>· {form.afzender}</span>}
           </div>
-          <button className={styles.sluit} onClick={onSluiten}>×</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="btn"
+              style={{ fontSize: 12, padding: '6px 12px' }}
+              onClick={opnieuwExtraheren}
+              disabled={extractBezig || !form.pdf_storage_path}
+              title="Run Groq + RDW opnieuw op de PDF"
+            >
+              {extractBezig ? '⏳ Bezig...' : '🔄 Opnieuw extraheren'}
+            </button>
+            <button className={styles.sluit} onClick={onSluiten}>×</button>
+          </div>
         </div>
 
         <div className={styles.body}>

@@ -21,17 +21,32 @@ export interface FactuurExtract {
 }
 
 // PEPE's eigen bedrijfsdetails — moeten NOOIT als klantdata terugkomen.
-const PEPE_KVK = '88528503';
+// Twinfield-template print de KvK soms met een typo (88528502), dus filter
+// alles wat met de eerste 7 cijfers begint.
+const PEPE_KVK_PREFIX = '8852850';
 const PEPE_NAAM_MATCH = /pepe\s*wagenparkbeheer/i;
 
 const SYSTEM_PROMPT = `Je extraheert factuurgegevens uit (Nederlandse) verkoopfactuur-PDF tekst voor autohandelaar PEPE Wagenparkbeheer.
 
-LET OP — PEPE is de VERZENDER van de factuur, niet de klant. Negeer alles wat over PEPE gaat:
-- PEPE Wagenparkbeheer, KvK 88528503, BTW NL864470114B01
-- adres De Garven 19, 6713 TV Oudenbosch (of vergelijkbaar)
-- iban NL02INGB...
-- contactgegevens info@pepewagenparkbeheer.nl, 0165 794 100
-Geef voor "bedrijfsnaam", "kvk", "straat", "postcode", "plaats" UITSLUITEND klantdata terug — niet PEPE.
+LAYOUT VAN DE PDF:
+- LINKS-BOVEN staat een KLANT-blok van 3-5 regels onder elkaar:
+    [Bedrijfsnaam of persoonsnaam]
+    [Straat huisnummer]
+    [Postcode plaats]
+    [Land]
+  ALLE klantvelden (bedrijfsnaam, straat, postcode, plaats, land) komen HIER vandaan.
+- RECHTS-BOVEN staat een PEPE/header-blok met telefoonnummer, e-mail, website,
+  PEPE-adres, KvK, BTW, IBAN. Dit is PEPE's eigen administratie. NEEM HIER NIETS UIT.
+- DAARONDER staat een gele/oranje strook met factuur-meta (factuurnummer, datum, vervaldatum).
+- DAARONDER staat het kenteken, km-stand, autodetails.
+
+LET OP — PEPE-gegevens NOOIT teruggeven als klant-data:
+- PEPE Wagenparkbeheer, KvK 88528503 (kan met typo 88528502 staan), BTW NL864470114B01
+- adres De Garven 19, 6713 TV Oudenbosch
+- iban NL02INGB0106922696
+- info@pepewagenparkbeheer.nl, 0165 794 100
+Als de enige KvK die je vindt in/bij de PEPE-header staat: kvk = null.
+Klant-KvK staat ALLEEN als het in het LINKER klant-blok geschreven is.
 
 Retourneer ALLEEN geldige JSON met deze velden (null als niet duidelijk):
 - factuurnummer: het factuurnummer (string)
@@ -93,7 +108,7 @@ export async function parseFactuurTekst(tekst: string): Promise<FactuurExtract |
 
     // Veiligheidsfilter: als Groq toch PEPE-data heeft teruggegeven, wegfilteren.
     const kvk = obj.kvk?.replace(/\D/g, '') ?? null;
-    const veiligKvk = kvk && kvk !== PEPE_KVK ? kvk : null;
+    const veiligKvk = kvk && !kvk.startsWith(PEPE_KVK_PREFIX) ? kvk : null;
     const bedrijfsnaam = obj.bedrijfsnaam && !PEPE_NAAM_MATCH.test(obj.bedrijfsnaam)
       ? obj.bedrijfsnaam
       : null;
