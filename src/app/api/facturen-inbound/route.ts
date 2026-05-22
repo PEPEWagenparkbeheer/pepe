@@ -149,6 +149,10 @@ export async function POST(req: NextRequest) {
     berijder_email: extract?.berijder_email ?? null,
     bedrag_excl_btw: extract?.bedrag_excl_btw ?? null,
     bedrag_incl_btw: extract?.bedrag_incl_btw ?? null,
+    straat: extract?.straat ?? null,
+    postcode: extract?.postcode ?? null,
+    plaats: extract?.plaats ?? null,
+    land: extract?.land ?? null,
     extracted_data: extract ?? null,
     rdw_data: rdwData,
     // Als RDW een APK heeft maar Groq geen factuurdatum, vullen we het

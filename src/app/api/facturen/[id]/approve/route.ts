@@ -53,6 +53,10 @@ export async function POST(
       companyId = await createCompany({
         name: factuur.bedrijfsnaam,
         kvk: factuur.kvk ?? undefined,
+        address: factuur.straat ?? undefined,
+        zip: factuur.postcode ?? undefined,
+        city: factuur.plaats ?? undefined,
+        country: factuur.land ?? undefined,
       });
     }
 

@@ -324,6 +324,10 @@ export interface Factuur {
   berijder_email?: string | null;
   bedrag_excl_btw?: number | null;
   bedrag_incl_btw?: number | null;
+  straat?: string | null;
+  postcode?: string | null;
+  plaats?: string | null;
+  land?: string | null;
   extracted_data?: Record<string, unknown> | null;
   rdw_data?: {
     merk?: string;

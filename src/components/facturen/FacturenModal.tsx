@@ -179,12 +179,34 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
               <input className="fi" value={form.kvk ?? ''}
                 onChange={(e) => stel('kvk', e.target.value)} />
             </div>
+
+            <div className={`${styles.fg} ${styles.vol}`}>
+              <label>Straat + huisnummer</label>
+              <input className="fi" placeholder="Torenbaan 123" value={form.straat ?? ''}
+                onChange={(e) => stel('straat', e.target.value)} />
+            </div>
+            <div className={styles.fg}>
+              <label>Postcode</label>
+              <input className="fi" placeholder="1234 AB" value={form.postcode ?? ''}
+                onChange={(e) => stel('postcode', e.target.value.toUpperCase())} />
+            </div>
+            <div className={styles.fg}>
+              <label>Plaats</label>
+              <input className="fi" value={form.plaats ?? ''}
+                onChange={(e) => stel('plaats', e.target.value)} />
+            </div>
+            <div className={`${styles.fg} ${styles.vol}`}>
+              <label>Land</label>
+              <input className="fi" placeholder="Nederland" value={form.land ?? ''}
+                onChange={(e) => stel('land', e.target.value)} />
+            </div>
+
             <div className={styles.fg}>
               <label>Berijder</label>
               <input className="fi" placeholder="Voornaam Achternaam" value={form.berijder_naam ?? ''}
                 onChange={(e) => stel('berijder_naam', e.target.value)} />
             </div>
-            <div className={`${styles.fg} ${styles.vol}`}>
+            <div className={styles.fg}>
               <label>Berijder e-mail</label>
               <input className="fi" type="email" value={form.berijder_email ?? ''}
                 onChange={(e) => stel('berijder_email', e.target.value)} />

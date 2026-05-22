@@ -142,11 +142,19 @@ function TabActief({ facturen, zoek, onEdit, onAkkoord, onNegeer }: {
                       className={styles.akkoordKnop}
                       disabled={!klaar}
                       title={klaar ? 'Wegschrijven naar HubSpot' : 'Kenteken en bedrijfsnaam zijn verplicht'}
-                      onClick={() => onAkkoord(r)}
+                      onClick={(e) => { e.stopPropagation(); onAkkoord(r); }}
                     >
                       ✅ Akkoord
                     </button>
-                    <button className={styles.negeerKnop} onClick={() => onNegeer(r.id)}>
+                    <button
+                      className={styles.negeerKnop}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Factuur ${r.factuurnummer ?? r.onderwerp ?? ''} negeren en archiveren?`)) {
+                          onNegeer(r.id);
+                        }
+                      }}
+                    >
                       Negeer
                     </button>
                   </div>

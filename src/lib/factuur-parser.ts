@@ -12,7 +12,11 @@ export interface FactuurExtract {
   berijder_email?: string | null;
   bedrag_excl_btw?: number | null;
   bedrag_incl_btw?: number | null;
-  is_auto_factuur?: boolean;           // model-inschatting of dit over een auto gaat
+  straat?: string | null;              // "Torenbaan 123"
+  postcode?: string | null;            // "4726 AW"
+  plaats?: string | null;              // "Cruquius"
+  land?: string | null;                // "Nederland"
+  is_auto_factuur?: boolean;
 }
 
 const SYSTEM_PROMPT = `Je extraheert factuurgegevens uit (Nederlandse) verkoopfactuur-PDF tekst voor autohandelaar PEPE Wagenparkbeheer.
@@ -27,6 +31,10 @@ Retourneer ALLEEN geldige JSON met deze velden (null als niet duidelijk):
 - berijder_email: e-mail van de berijder/klant als genoemd
 - bedrag_excl_btw: totaalbedrag excl. BTW als number (puur getal, geen valutateken, punt voor decimalen)
 - bedrag_incl_btw: totaalbedrag incl. BTW als number
+- straat: factuuradres van de KLANT — straat + huisnummer (bijv. "Torenbaan 123")
+- postcode: postcode van de klant in NL-formaat "1234 AB" (4 cijfers, spatie, 2 letters hoofdletters)
+- plaats: woonplaats/vestigingsplaats van de klant
+- land: land van de klant (default "Nederland" als niet expliciet genoemd maar wel NL adres)
 - is_auto_factuur: true als de factuur duidelijk over een auto/voertuig gaat (kenteken aanwezig, autoverkoop, lease, onderhoud, etc), anders false
 
 Belangrijk:
@@ -81,6 +89,10 @@ export async function parseFactuurTekst(tekst: string): Promise<FactuurExtract |
       berijder_email: obj.berijder_email ?? null,
       bedrag_excl_btw: typeof obj.bedrag_excl_btw === 'number' ? obj.bedrag_excl_btw : null,
       bedrag_incl_btw: typeof obj.bedrag_incl_btw === 'number' ? obj.bedrag_incl_btw : null,
+      straat: obj.straat ?? null,
+      postcode: obj.postcode ? obj.postcode.toUpperCase().replace(/\s+/g, ' ').trim() : null,
+      plaats: obj.plaats ?? null,
+      land: obj.land ?? null,
       is_auto_factuur: obj.is_auto_factuur ?? false,
     };
   } catch (e) {

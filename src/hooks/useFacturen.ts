@@ -68,10 +68,16 @@ export function useFacturen() {
     const res = await fetch(`/api/facturen/${id}/approve`, { method: 'POST' });
     const json = await res.json();
     if (!res.ok) return { ok: false, error: json.error ?? 'Onbekende fout' };
+    update(ref.current.map((r) =>
+      r.id === id ? { ...r, status: 'goedgekeurd', gearchiveerd: true, hubspot_synced_at: new Date().toISOString() } : r,
+    ));
     return { ok: true };
   }, []);
 
   const negeer = useCallback(async (id: string) => {
+    update(ref.current.map((r) =>
+      r.id === id ? { ...r, status: 'genegeerd', gearchiveerd: true } : r,
+    ));
     await fetch(`/api/facturen/${id}/ignore`, { method: 'POST' });
   }, []);
 

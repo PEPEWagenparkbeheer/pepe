@@ -39,6 +39,10 @@ export interface CompanyInput {
   kvk?: string;
   domain?: string;
   phone?: string;
+  address?: string;   // straat + huisnummer
+  city?: string;      // plaats
+  zip?: string;       // postcode
+  country?: string;   // land
 }
 
 export async function searchCompanyByName(name: string): Promise<string | null> {
@@ -64,6 +68,10 @@ export async function createCompany(input: CompanyInput): Promise<string> {
   if (input.kvk) properties.kvk_nummer = input.kvk;
   if (input.domain) properties.domain = input.domain;
   if (input.phone) properties.phone = input.phone;
+  if (input.address) properties.address = input.address;
+  if (input.city) properties.city = input.city;
+  if (input.zip) properties.zip = input.zip;
+  if (input.country) properties.country = input.country;
 
   const data = await hsFetch<{ id: string }>(
     `${HS_BASE}/crm/v3/objects/companies`,
