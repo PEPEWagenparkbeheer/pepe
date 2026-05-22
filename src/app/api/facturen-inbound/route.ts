@@ -109,7 +109,8 @@ export async function POST(req: NextRequest) {
         rdwData = {
           merk: rdw.voertuig.merk,
           handelsbenaming: rdw.voertuig.handelsbenaming,
-          brandstof: rdw.voertuig.brandstof_omschrijving,
+          brandstof: rdw.brandstof,
+          catalogusprijs: rdw.catalogusprijs,
           apkDatum: rdw.apkDatum,
           recalls: rdw.recalls.length,
         };

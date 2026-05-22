@@ -20,6 +20,21 @@ import {
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+// RDW geeft labels als "Benzine", "Diesel", "Elektriciteit", "LPG", "Waterstof",
+// "CNG", "Alcohol". HubSpot enum verwacht specifieke waarden zoals "Elektrisch"
+// en "LPG Benzine". Mapping naar het dichtstbijzijnde HubSpot-label.
+function mapBrandstof(rdwLabel?: string | null): string | undefined {
+  if (!rdwLabel) return undefined;
+  const l = rdwLabel.trim().toLowerCase();
+  if (l.startsWith('benzine')) return 'Benzine';
+  if (l.startsWith('diesel'))  return 'Diesel';
+  if (l.startsWith('elektri')) return 'Elektrisch';
+  if (l.startsWith('waterstof')) return 'Waterstof';
+  if (l.startsWith('lpg'))     return 'LPG Benzine';
+  // CNG / Alcohol / overig — geen exact equivalent, laten ophalen via UI
+  return undefined;
+}
+
 export async function POST(
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
@@ -82,7 +97,10 @@ export async function POST(
     }
 
     // ── Deal (auto) ─────────────────────────────────────
-    const rdw = factuur.rdw_data as { merk?: string; handelsbenaming?: string; brandstof?: string; apkDatum?: string } | null;
+    const rdw = factuur.rdw_data as {
+      merk?: string; handelsbenaming?: string; brandstof?: string | null;
+      catalogusprijs?: number | null; apkDatum?: string | null;
+    } | null;
     const merkType = rdw?.merk && rdw?.handelsbenaming
       ? `${rdw.merk} ${rdw.handelsbenaming}`.trim()
       : undefined;
@@ -99,8 +117,13 @@ export async function POST(
         kenteken: factuur.kenteken,
         inzetdatum: factuur.factuurdatum ?? undefined,
         merk_type: merkType,
-        brandstof: rdw?.brandstof,
+        brandstof: mapBrandstof(rdw?.brandstof ?? undefined),
         apk_datum: apkIso,
+        fiscale_waarde: rdw?.catalogusprijs ?? undefined,
+        // Defaults voor PEPE-verkoop via factuur:
+        type_aanschaf: 'Aanschaf',          // toont in HubSpot als "Eigendom"
+        leverancier: 'PEPE Wagenparkbeheer',
+        land_kenteken: 'NL',
       });
     }
 

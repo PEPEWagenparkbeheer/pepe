@@ -332,7 +332,8 @@ export interface Factuur {
   rdw_data?: {
     merk?: string;
     handelsbenaming?: string;
-    brandstof?: string;
+    brandstof?: string | null;
+    catalogusprijs?: number | null;
     apkDatum?: string | null;
     recalls?: number;
   } | null;

@@ -50,7 +50,8 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
       stel('rdw_data', {
         merk: v.merk,
         handelsbenaming: v.handelsbenaming,
-        brandstof: v.brandstof_omschrijving,
+        brandstof: rdw.brandstof,
+        catalogusprijs: rdw.catalogusprijs,
         apkDatum: rdw.apkDatum,
         recalls: rdw.recalls.length,
       });
@@ -164,6 +165,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
                 <div><label>Model</label><div>{rdw.handelsbenaming ?? '—'}</div></div>
                 <div><label>Brandstof</label><div>{rdw.brandstof ?? '—'}</div></div>
                 <div><label>APK</label><div>{rdw.apkDatum ?? '—'}</div></div>
+                <div><label>Fiscale waarde</label><div>{rdw.catalogusprijs != null ? `€ ${rdw.catalogusprijs.toLocaleString('nl-NL')}` : '—'}</div></div>
               </div>
             )}
 

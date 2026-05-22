@@ -147,10 +147,14 @@ export async function createContact(input: ContactInput): Promise<string> {
 export interface DealInput {
   kenteken: string;
   merk_type?: string;
-  brandstof?: string;
+  brandstof?: string;            // HubSpot enum: "Benzine"|"Diesel"|"Elektrisch"|...
   type_voertuig?: string;
-  inzetdatum?: string;   // ISO yyyy-mm-dd
-  apk_datum?: string;    // ISO yyyy-mm-dd
+  type_aanschaf?: string;        // HubSpot enum, "Aanschaf" = Eigendom (default bij factuur)
+  leverancier?: string;
+  land_kenteken?: string;        // "NL"|"BE"|"DE"|"GB"
+  fiscale_waarde?: number;       // cataloguswaarde
+  inzetdatum?: string;           // ISO yyyy-mm-dd
+  apk_datum?: string;            // ISO yyyy-mm-dd
   kilometerstand_huidig?: number;
   dealstage?: string;
   pipeline?: string;
@@ -184,6 +188,10 @@ export async function createDeal(input: DealInput): Promise<string> {
   if (input.merk_type) properties.merk___type = input.merk_type;
   if (input.brandstof) properties.brandstof = input.brandstof;
   if (input.type_voertuig) properties.type_voertuig = input.type_voertuig;
+  if (input.type_aanschaf) properties.type_aanschaf = input.type_aanschaf;
+  if (input.leverancier) properties.leverancier = input.leverancier;
+  if (input.land_kenteken) properties.land_kenteken = input.land_kenteken;
+  if (input.fiscale_waarde != null) properties.fiscale_waarde = String(input.fiscale_waarde);
   if (input.inzetdatum) properties.inzetdatum = input.inzetdatum;
   if (input.apk_datum) properties.apk_datum = input.apk_datum;
   if (input.kilometerstand_huidig != null) {

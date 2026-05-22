@@ -2,6 +2,8 @@ export interface RdwVoertuig {
   apkDatum: string | null;
   recalls: RdwRecall[];
   voertuig: Record<string, string>;
+  brandstof: string | null;       // bv "Benzine", "Diesel", "Elektriciteit"
+  catalogusprijs: number | null;  // bruto cataloguswaarde — geschikt als fiscale waarde
 }
 
 export interface RdwRecall {
@@ -14,13 +16,15 @@ export interface RdwRecall {
 export async function rdwOpzoeken(kenteken: string): Promise<RdwVoertuig | null> {
   const kt = kenteken.replace(/-/g, '').toUpperCase();
   try {
-    const [voertuigRes, terugroepRes] = await Promise.all([
+    const [voertuigRes, terugroepRes, brandstofRes] = await Promise.all([
       fetch(`https://opendata.rdw.nl/resource/m9d7-ebf2.json?kenteken=${kt}`),
       fetch(`https://opendata.rdw.nl/resource/t49b-isb7.json?`),
+      fetch(`https://opendata.rdw.nl/resource/8ys7-d773.json?kenteken=${kt}`),
     ]);
 
     const voertuigen = await voertuigRes.json();
     const terugroepAll: RdwRecall[] = await terugroepRes.json();
+    const brandstoffen: { brandstof_omschrijving?: string }[] = await brandstofRes.json();
 
     if (!voertuigen.length) return null;
     const v = voertuigen[0];
@@ -34,7 +38,12 @@ export async function rdwOpzoeken(kenteken: string): Promise<RdwVoertuig | null>
     const tg = v.typegoedkeuringsnummer || '';
     const recalls = terugroepAll.filter((r) => tg && r.typegoedkeuringsnummer === tg);
 
-    return { apkDatum, recalls, voertuig: v };
+    // Brandstof kan meerdere rijen bevatten bij hybrides — neem de eerste.
+    const brandstof = brandstoffen[0]?.brandstof_omschrijving ?? null;
+
+    const catalogusprijs = v.catalogusprijs ? Number(v.catalogusprijs) : null;
+
+    return { apkDatum, recalls, voertuig: v, brandstof, catalogusprijs };
   } catch (e) {
     console.error('RDW fout:', e);
     return null;
