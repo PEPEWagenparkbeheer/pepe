@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Factuur } from '@/types';
 import { rdwOpzoeken } from '@/lib/rdw';
 import styles from './FacturenModal.module.css';
@@ -22,16 +22,35 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
   const [bezig, setBezig] = useState(false);
   const [rdwBezig, setRdwBezig] = useState(false);
   const [extractBezig, setExtractBezig] = useState(false);
+  const laatsteRdwKenteken = useRef<string>('');
 
   useEffect(() => {
     if (!open || !factuur) { setForm(null); setPdfUrl(null); return; }
     setForm(factuur);
+    // Beschouw bestaande rdw_data van factuur als 'laatste lookup' zodat
+    // we niet onnodig opnieuw fetchen bij openen.
+    laatsteRdwKenteken.current = factuur.rdw_data?.merk
+      ? (factuur.kenteken ?? '').replace(/[-\s]/g, '').toUpperCase()
+      : '';
     if (factuur.pdf_storage_path) {
       onPdfUrl(factuur.pdf_storage_path).then(setPdfUrl);
     } else {
       setPdfUrl(null);
     }
   }, [open, factuur, onPdfUrl]);
+
+  // Auto-RDW zodra er een compleet kenteken (6 tekens) in het veld staat
+  // dat verschilt van wat we de vorige keer hebben opgehaald. Debounce 600ms
+  // zodat we niet bij elke keystroke vuren.
+  const kenteken = form?.kenteken ?? '';
+  useEffect(() => {
+    const norm = kenteken.replace(/[-\s]/g, '').toUpperCase();
+    if (norm.length !== 6) return;
+    if (norm === laatsteRdwKenteken.current) return;
+    const t = setTimeout(() => { void rdwOphalen(true); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kenteken]);
 
   if (!open || !form) return null;
 
@@ -52,15 +71,20 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     }
   }
 
-  async function rdwOphalen() {
+  async function rdwOphalen(stil = false) {
     if (!form?.kenteken?.trim()) {
-      alert('Vul eerst een kenteken in');
+      if (!stil) alert('Vul eerst een kenteken in');
       return;
     }
+    const norm = form.kenteken.replace(/[-\s]/g, '').toUpperCase();
+    laatsteRdwKenteken.current = norm;
     setRdwBezig(true);
     try {
       const rdw = await rdwOpzoeken(form.kenteken);
-      if (!rdw) { alert('Geen RDW-data voor dit kenteken'); return; }
+      if (!rdw) {
+        if (!stil) alert('Geen RDW-data voor dit kenteken');
+        return;
+      }
       const v = rdw.voertuig;
       stel('rdw_data', {
         merk: v.merk,
@@ -187,7 +211,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
                   value={form.kenteken ?? ''}
                   onChange={(e) => stel('kenteken', e.target.value.toUpperCase().replace(/[-\s]/g, ''))}
                 />
-                <button className="btn" type="button" onClick={rdwOphalen} disabled={rdwBezig || !form.kenteken}>
+                <button className="btn" type="button" onClick={() => rdwOphalen()} disabled={rdwBezig || !form.kenteken}>
                   {rdwBezig ? '⏳ RDW...' : '🔍 RDW ophalen'}
                 </button>
               </div>
