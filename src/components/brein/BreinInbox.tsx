@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   useBreinMessages,
   type BreinMessage,
@@ -68,10 +68,26 @@ function relatieveTijd(iso: string | null): string {
 }
 
 export default function BreinInbox() {
-  const { messages, loading, error, refresh, setStatus, classify } = useBreinMessages();
+  const { messages, loading, error, refresh, sync, setStatus, classify, genereerConcept, saveConcept, verstuur } =
+    useBreinMessages();
   const [classifying, setClassifying] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [tab, setTab] = useState<BreinStatus | 'alle'>('nieuw');
   const [geselecteerd, setGeselecteerd] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [conceptDraft, setConceptDraft] = useState('');
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      await sync();
+    } catch (e) {
+      alert('Ophalen mislukt: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const tellingen = useMemo(() => {
     const t: Record<string, number> = { alle: messages.length };
@@ -98,6 +114,43 @@ export default function BreinInbox() {
     }
   }
 
+  // Houd het bewerkbare concept-veld in sync met het geselecteerde bericht.
+  useEffect(() => {
+    setConceptDraft(actief?.concept_antwoord ?? '');
+  }, [actief?.id, actief?.concept_antwoord]);
+
+  async function handleGenereer() {
+    if (!actief) return;
+    setGenerating(true);
+    try {
+      const c = await genereerConcept(actief.id);
+      setConceptDraft(c);
+    } catch (e) {
+      alert('Concept genereren mislukt: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleVerstuur() {
+    if (!actief) return;
+    const naar = actief.afzender_naam || actief.afzender_email || 'de afzender';
+    if (conceptDraft !== (actief.concept_antwoord ?? '')) {
+      await saveConcept(actief.id, conceptDraft);
+    }
+    if (!confirm(`Dit concept nu versturen naar ${naar}?\n\nDe officiële handtekening wordt automatisch toegevoegd.`)) {
+      return;
+    }
+    setSending(true);
+    try {
+      await verstuur(actief.id);
+    } catch (e) {
+      alert('Versturen mislukt: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <div className={styles.pagina}>
       <header className={styles.kop}>
@@ -109,6 +162,9 @@ export default function BreinInbox() {
             {messages[0]?.mailbox ?? 'fues@pepewagenparkbeheer.nl'}
           </p>
         </div>
+        <button className={styles.vernieuwKnop} onClick={() => void handleSync()} disabled={syncing}>
+          {syncing ? 'Ophalen…' : '📥 Ophalen'}
+        </button>
         <button className={styles.vernieuwKnop} onClick={() => void refresh()} disabled={loading}>
           {loading ? 'Laden…' : '↻ Vernieuwen'}
         </button>
@@ -140,7 +196,7 @@ export default function BreinInbox() {
           {zichtbaar.map((m) => (
             <button
               key={m.id}
-              className={`${styles.rij} ${geselecteerd === m.id ? styles.rijActief : ''}`}
+              className={`${styles.rij} ${geselecteerd === m.id ? styles.rijActief : ''} ${!m.is_read ? styles.rijOngelezen : ''}`}
               onClick={() => setGeselecteerd(m.id)}
               data-prio={m.prioriteit}
             >
@@ -148,6 +204,7 @@ export default function BreinInbox() {
               <span className={styles.avatar}>{initialen(m.afzender_naam, m.afzender_email)}</span>
               <span className={styles.rijMidden}>
                 <span className={styles.rijTop}>
+                  {!m.is_read && <span className={styles.ongelezenStip} title="Ongelezen in Outlook" />}
                   <span className={styles.afzender}>{m.afzender_naam || m.afzender_email || 'Onbekend'}</span>
                   <span className={styles.tijd}>{relatieveTijd(m.ontvangen_op)}</span>
                 </span>
@@ -210,12 +267,57 @@ export default function BreinInbox() {
                 </div>
               )}
 
-              {actief.concept_antwoord && (
-                <div className={`${styles.blok} ${styles.concept}`}>
+              <div className={`${styles.blok} ${styles.concept}`}>
+                <div className={styles.conceptKop}>
                   <span className={styles.blokLabel}>Concept-antwoord</span>
-                  <p>{actief.concept_antwoord}</p>
+                  <div className={styles.conceptActies}>
+                    <button
+                      className={styles.miniKnop}
+                      onClick={() => void handleGenereer()}
+                      disabled={generating}
+                    >
+                      {generating ? 'Genereren…' : actief.concept_antwoord ? '↻ Opnieuw' : '✨ Genereer concept'}
+                    </button>
+                    {conceptDraft.trim() !== '' && (
+                      <button
+                        className={`${styles.miniKnop} ${styles.miniKnopPrimair}`}
+                        onClick={() => void saveConcept(actief.id, conceptDraft)}
+                        disabled={conceptDraft === (actief.concept_antwoord ?? '')}
+                        title={conceptDraft === (actief.concept_antwoord ?? '') ? 'Al opgeslagen' : 'Wijziging opslaan'}
+                      >
+                        {conceptDraft === (actief.concept_antwoord ?? '') ? '✓ Opgeslagen' : 'Opslaan'}
+                      </button>
+                    )}
+                    {conceptDraft.trim() !== '' && actief.status !== 'verzonden' && (
+                      <button
+                        className={`${styles.miniKnop} ${styles.miniKnopVerstuur}`}
+                        onClick={() => void handleVerstuur()}
+                        disabled={sending}
+                      >
+                        {sending ? 'Versturen…' : '📨 Versturen'}
+                      </button>
+                    )}
+                    {actief.status === 'verzonden' && (
+                      <span className={styles.verzondenLabel}>
+                        ✓ Verzonden{actief.verzonden_op ? ' ' + new Date(actief.verzonden_op).toLocaleString('nl-NL') : ''}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              )}
+                {actief.concept_antwoord || conceptDraft ? (
+                  <textarea
+                    className={styles.conceptVeld}
+                    value={conceptDraft}
+                    onChange={(e) => setConceptDraft(e.target.value)}
+                    rows={10}
+                  />
+                ) : (
+                  <p className={styles.muted}>
+                    Nog geen concept. Klik op “Genereer concept” om Claude een antwoord te laten opstellen in
+                    de stijl van fues@.
+                  </p>
+                )}
+              </div>
 
               <div className={styles.blok}>
                 <span className={styles.blokLabel}>Origineel bericht</span>

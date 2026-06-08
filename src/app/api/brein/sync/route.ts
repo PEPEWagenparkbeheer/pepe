@@ -48,6 +48,15 @@ export async function POST(req: NextRequest) {
 
     const existingIds = new Set((existing ?? []).map((r) => r.graph_message_id))
 
+    // 3b. Gelezen-status bijwerken voor reeds bekende berichten
+    //     (iemand kan een mail in Outlook gelezen/ongelezen hebben gezet).
+    const bestaand = messages.filter((m) => existingIds.has(m.id))
+    await Promise.allSettled(
+      bestaand.map((m) =>
+        supabaseAdmin.from('brein_messages').update({ is_read: m.isRead }).eq('graph_message_id', m.id),
+      ),
+    )
+
     // 4. Filter op nieuwe berichten
     const newMessages = messages.filter((m) => !existingIds.has(m.id))
 
@@ -65,6 +74,7 @@ export async function POST(req: NextRequest) {
       ontvangen_op: m.ontvangenOp,
       body_preview: m.bodyPreview,
       body_html: m.bodyHtml,
+      is_read: m.isRead,
       status: 'nieuw',
     }))
 

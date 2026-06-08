@@ -35,12 +35,13 @@ export interface BreinMessage {
   verzonden_op: string | null;
   behandeld_door: string | null;
   historie: HistorieStap[];
+  is_read: boolean;
 }
 
 const COLS =
   'id,graph_message_id,mailbox,onderwerp,afzender_email,afzender_naam,ontvangen_op,' +
   'body_preview,body_html,categorie,prioriteit,samenvatting,hubspot_deal_id,' +
-  'hubspot_company_id,kenteken,status,concept_antwoord,verzonden_op,behandeld_door,historie';
+  'hubspot_company_id,kenteken,status,concept_antwoord,verzonden_op,behandeld_door,historie,is_read';
 
 /**
  * Leest BREIN-mailberichten uit Supabase.
@@ -119,6 +120,16 @@ export function useBreinMessages() {
     if (error) console.error('brein status update fout:', error.message);
   }, []);
 
+  /** Haalt nieuwe mail uit Outlook (Graph → DB) en herlaadt daarna de lijst. */
+  const sync = useCallback(async () => {
+    const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
+    const res = await fetch(`/api/brein/sync?secret=${secret}`, { method: 'POST' });
+    if (!res.ok) throw new Error(`sync ${res.status}`);
+    const data = (await res.json()) as { synced: number; skipped: number };
+    await refresh();
+    return data;
+  }, [refresh]);
+
   /** Stuur onverwerkte berichten naar de classifier (server-side). */
   const classify = useCallback(async () => {
     const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
@@ -129,5 +140,76 @@ export function useBreinMessages() {
     return data;
   }, [refresh]);
 
-  return { messages, loading, error, gebruiker, refresh, setStatus, classify };
+  /** Laat Claude een concept-antwoord genereren (server-side) en zet het in state. */
+  const genereerConcept = useCallback(async (id: string) => {
+    const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
+    const res = await fetch(`/api/brein/concept?secret=${secret}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) {
+      const e = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(e.error ?? `concept ${res.status}`);
+    }
+    const data = (await res.json()) as { concept: string };
+    update(ref.current.map((m) => (m.id === id ? { ...m, concept_antwoord: data.concept } : m)));
+    return data.concept;
+  }, []);
+
+  /** Door medewerker aangepast concept opslaan (client-side, RLS authenticated). */
+  const saveConcept = useCallback(async (id: string, tekst: string) => {
+    update(ref.current.map((m) => (m.id === id ? { ...m, concept_antwoord: tekst } : m)));
+    const { error } = await supabase
+      .from('brein_messages')
+      .update({ concept_antwoord: tekst })
+      .eq('id', id);
+    if (error) console.error('concept opslaan fout:', error.message);
+  }, []);
+
+  /** Verstuurt het concept als reply namens fues@ (server-side) en markeert verzonden. */
+  const verstuur = useCallback(async (id: string) => {
+    const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
+    const door = gebruikerRef.current || '?';
+    const res = await fetch(`/api/brein/send?secret=${secret}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, door }),
+    });
+    if (!res.ok) {
+      const e = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(e.error ?? `send ${res.status}`);
+    }
+    const data = (await res.json()) as { verzonden_op?: string };
+    const op = data.verzonden_op ?? new Date().toISOString();
+    const stap: HistorieStap = { status: 'verzonden', op, door };
+    update(
+      ref.current.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              status: 'verzonden' as BreinStatus,
+              verzonden_op: op,
+              behandeld_door: door,
+              historie: [...(m.historie ?? []), stap],
+            }
+          : m,
+      ),
+    );
+    return data;
+  }, []);
+
+  return {
+    messages,
+    loading,
+    error,
+    gebruiker,
+    refresh,
+    sync,
+    setStatus,
+    classify,
+    genereerConcept,
+    saveConcept,
+    verstuur,
+  };
 }

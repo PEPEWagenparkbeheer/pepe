@@ -210,12 +210,28 @@
   gap: 8px;
 }
 .afzender {
+  flex: 1;
+  min-width: 0;
   font-weight: 700;
   font-size: 0.95rem;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.ongelezenStip {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.rijOngelezen .afzender {
+  color: var(--accent);
+}
+.rijOngelezen .onderwerp {
+  font-weight: 700;
 }
 .tijd {
   flex-shrink: 0;
@@ -397,4 +413,75 @@
 }
 .historie li:last-child {
   border-bottom: none;
+}
+
+/* ── Concept-antwoord ── */
+.conceptKop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.conceptActies {
+  display: flex;
+  gap: 6px;
+}
+.miniKnop {
+  border: 1px solid var(--card-border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.miniKnop:hover:not(:disabled) {
+  background: var(--row-hover);
+  border-color: var(--accent);
+}
+.miniKnop:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.miniKnopPrimair {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.miniKnopPrimair:hover {
+  background: var(--accent2);
+  border-color: var(--accent2);
+}
+.miniKnopVerstuur {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.miniKnopVerstuur:hover:not(:disabled) {
+  filter: brightness(0.93);
+}
+.verzondenLabel {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--green);
+}
+.conceptVeld {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: #fff;
+}
+.conceptVeld:focus {
+  outline: none;
+  border-color: var(--accent);
 }
