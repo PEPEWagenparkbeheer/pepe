@@ -1,10 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import type { TenderInput, LeasePortaal } from '@/lib/types/tender';
-import { runHiltermann } from '@/lib/agents/hiltermann';
-import { runArval } from '@/lib/agents/arval';
+import { runHiltermannSkyvern, runArvalSkyvern } from '@/lib/agents/skyvern/portals';
 import { getPortaalCredentials } from '@/lib/agents/types';
-import type { AgentResult } from '@/lib/agents/types';
+import type { AgentResult, AgentContext } from '@/lib/agents/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 min — vereist Vercel Pro
@@ -22,11 +21,12 @@ interface Body {
   portalen?: LeasePortaal[];
 }
 
-const AGENT_MAP: Record<LeasePortaal, ((ctx: any) => Promise<AgentResult>) | null> = {
-  hiltermann: runHiltermann,
+// Skyvern Cloud host de browser zelf — geen Anthropic-credits of lokale Chromium nodig.
+const AGENT_MAP: Record<LeasePortaal, ((ctx: AgentContext) => Promise<AgentResult>) | null> = {
+  hiltermann: runHiltermannSkyvern,
   alphabet:   null,
   ayvens:     null,
-  arval:      runArval,
+  arval:      runArvalSkyvern,
   mhc:        null,
 };
 

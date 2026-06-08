@@ -1,4 +1,4 @@
-﻿-- BREIN: mail-berichten tabel
+-- BREIN: mail-berichten tabel
 -- Slaat verwerkte e-mails op van de fues@pepewagenparkbeheer.nl mailbox.
 -- graph_message_id is de Microsoft Graph ID – uniek per bericht.
 

@@ -19,6 +19,10 @@ export async function POST(req: NextRequest) {
   const { naam } = await req.json().catch(() => ({}));
   if (!naam?.trim()) return NextResponse.json({ error: 'Naam vereist' }, { status: 400 });
   if (naam.trim().length > 100) return NextResponse.json({ error: 'Naam te lang' }, { status: 400 });
+  // Voorkom dat een geplakt e-mailadres een verminkte account aanmaakt (bv. "rik@..." -> "rikpepewagenparkbeheernl@...")
+  if (naam.includes('@')) {
+    return NextResponse.json({ error: 'Vul alleen de voornaam in, geen e-mailadres' }, { status: 400 });
+  }
 
   const voornaam = naam.trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, '');
   if (!voornaam) return NextResponse.json({ error: 'Ongeldige naam' }, { status: 400 });
@@ -30,16 +34,19 @@ export async function POST(req: NextRequest) {
   });
 
   const bestaatAl = !!inviteError && inviteError.message.toLowerCase().includes('already');
+  const rateLimited = !!inviteError && /rate limit/i.test(inviteError.message);
 
-  if (inviteError && !bestaatAl) {
+  // Alleen echte fouten (niet "bestaat al" of mail-limiet) blokkeren het toevoegen
+  if (inviteError && !bestaatAl && !rateLimited) {
     return NextResponse.json({ error: inviteError.message }, { status: 500 });
   }
 
+  // Medewerker wordt altijd aan de lijst toegevoegd, ook als de uitnodigingsmail niet verstuurd kon worden
   const { error: dbError } = await supabaseAdmin
     .from('medewerkers')
     .upsert({ naam: naam.trim(), email, actief: true }, { onConflict: 'email' });
 
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, email, bestaatAl });
+  return NextResponse.json({ ok: true, email, bestaatAl, rateLimited });
 }

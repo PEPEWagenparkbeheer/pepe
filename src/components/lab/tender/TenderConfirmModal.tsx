@@ -2,9 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { TenderInput, LeasenormConfig, OptieItem } from '@/lib/types/tender';
+import type { TenderInput, LeasenormConfig, OptieItem, LeasePortaal } from '@/lib/types/tender';
 import { PORTALEN } from '@/lib/types/tender';
 import styles from './TenderConfirmModal.module.css';
+
+// Portalen met een werkende agent. Rest is nog niet geïmplementeerd (uitgegrijsd).
+const GEIMPLEMENTEERD: LeasePortaal[] = ['hiltermann', 'arval'];
 
 interface Props {
   input: TenderInput;
@@ -17,6 +20,11 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
   const router = useRouter();
   const [form, setForm] = useState<TenderInput>(input);
   const [opslaan, setOpslaan] = useState(false);
+  const [gekozenPortalen, setGekozenPortalen] = useState<LeasePortaal[]>(GEIMPLEMENTEERD);
+
+  function togglePortaal(key: LeasePortaal) {
+    setGekozenPortalen((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]));
+  }
 
   function stel<K extends keyof TenderInput>(veld: K, w: TenderInput[K]) {
     setForm((f) => ({ ...f, [veld]: w }));
@@ -48,7 +56,7 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
         body: JSON.stringify({
           tender: form,
           raw_email: rawEmail,
-          portalen: ['hiltermann'],   // start met 1 portaal, rest komt later
+          portalen: gekozenPortalen,
         }),
       });
       const data = await res.json();
@@ -237,12 +245,31 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
           {/* Portalen */}
           <Sectie titel="Portalen">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {PORTALEN.map((p) => (
-                <span key={p.key} className={styles.portaalChip}>✓ {p.label}</span>
-              ))}
+              {PORTALEN.map((p) => {
+                const beschikbaar = GEIMPLEMENTEERD.includes(p.key);
+                const aan = gekozenPortalen.includes(p.key);
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    disabled={!beschikbaar}
+                    onClick={() => beschikbaar && togglePortaal(p.key)}
+                    className={styles.portaalChip}
+                    style={{
+                      cursor: beschikbaar ? 'pointer' : 'not-allowed',
+                      opacity: beschikbaar ? 1 : 0.4,
+                      border: aan ? '1px solid var(--accent, #e8552d)' : '1px solid transparent',
+                      background: aan ? 'var(--accent-bg, rgba(232,85,45,0.12))' : undefined,
+                    }}
+                    title={beschikbaar ? '' : 'Agent nog niet geïmplementeerd'}
+                  >
+                    {aan ? '✓ ' : beschikbaar ? '○ ' : '— '}{p.label}
+                  </button>
+                );
+              })}
             </div>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
-              In fase 2 worden alle 5 portalen parallel bevraagd via Stagehand/Browserbase.
+              Alleen Hiltermann en Arval hebben een werkende agent. De rest volgt.
             </p>
           </Sectie>
 
@@ -255,8 +282,8 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
 
         <div className={styles.footer}>
           <button className="btn" onClick={onSluiten}>Annuleer</button>
-          <button className="btn btn-a" onClick={startVergelijking} disabled={opslaan}>
-            {opslaan ? 'Bezig...' : 'Start vergelijking →'}
+          <button className="btn btn-a" onClick={startVergelijking} disabled={opslaan || gekozenPortalen.length === 0}>
+            {opslaan ? 'Bezig...' : `Start vergelijking (${gekozenPortalen.length}) →`}
           </button>
         </div>
       </div>

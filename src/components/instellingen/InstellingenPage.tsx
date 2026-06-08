@@ -253,9 +253,11 @@ function MedewerkersBeheer() {
     if (!res.ok) {
       setMelding({ type: 'fout', tekst: data.error ?? 'Onbekende fout' });
     } else {
-      const tekst = data.bestaatAl
-        ? `${data.email} bestond al in Supabase — toegevoegd aan medewerkerslijst`
-        : `Uitnodiging verstuurd naar ${data.email}`;
+      const tekst = data.rateLimited
+        ? `${data.email} toegevoegd aan lijst — uitnodigingsmail niet verstuurd (mail-limiet bereikt), login later regelen`
+        : data.bestaatAl
+          ? `${data.email} bestond al in Supabase — toegevoegd aan medewerkerslijst`
+          : `Uitnodiging verstuurd naar ${data.email}`;
       setMelding({ type: 'ok', tekst });
       setNieuwNaam('');
       await laadMedewerkers();
