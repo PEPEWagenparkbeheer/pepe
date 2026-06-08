@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
       { href: '/facturen', label: 'Facturen', icon: '📄' },
     ],
   },
+  { section: 'BREIN', items: [{ href: '/brein', label: 'Inbox', icon: '🧠' }] },
   { section: 'Tools', items: [{ href: '/tools', label: 'Tools', icon: '🔧' }] },
   { section: 'Systeem', items: [{ href: '/instellingen', label: 'Instellingen', icon: '⚙️' }] },
 ];
