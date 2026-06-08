@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { genereerConcept } from '@/lib/brein/concept';
 import { PEPE_PROCEDURES } from '@/lib/brein/kennis';
+import { getDealFields, getContactFields } from '@/lib/hubspot';
 import { readAzureConfig, getAccessToken, getSentMessages } from '@/lib/graph';
 
 export const runtime = 'nodejs';
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
   // 1. Bericht ophalen
   const { data: bericht, error: fetchError } = await supabaseAdmin
     .from('brein_messages')
-    .select('id, mailbox, onderwerp, afzender_naam, afzender_email, categorie, body_html, body_preview, hubspot_deal_id, kenteken')
+    .select('id, mailbox, onderwerp, afzender_naam, afzender_email, categorie, body_html, body_preview, hubspot_deal_id, hubspot_company_id, kenteken')
     .eq('id', id)
     .single();
 
@@ -64,10 +65,37 @@ export async function POST(req: NextRequest) {
     console.warn('[brein/concept] Verzonden items ophalen mislukt:', err instanceof Error ? err.message : err);
   }
 
-  // 3. Context (lichtgewicht v1: alleen aanwezigheid van koppelingen benoemen)
+  // 3. Context uit HubSpot (zodat BREIN de juiste leasemaatschappij-URLs e.d. kiest).
+  //    Pincode bewust NIET meegegeven aan de LLM (privacy) — markeer met placeholder.
   const contextDelen: string[] = [];
-  if (bericht.kenteken) contextDelen.push(`Kenteken in bericht: ${bericht.kenteken}`);
-  if (bericht.hubspot_deal_id) contextDelen.push('Er is een gekoppelde HubSpot-deal (voertuig/contract) bekend.');
+  if (bericht.kenteken) contextDelen.push(`Kenteken: ${bericht.kenteken}`);
+
+  if (bericht.hubspot_deal_id) {
+    try {
+      const f = await getDealFields(bericht.hubspot_deal_id, [
+        'leasemaatschappij_goed', 'type_aanschaf', 'brandstof',
+        'fiscale_waarde', 'apk_datum', 'winterbanden_in_contract', 'verwachte_einddatum',
+      ]);
+      if (f.leasemaatschappij_goed) contextDelen.push(`Leasemaatschappij van de berijder: ${f.leasemaatschappij_goed}`);
+      if (f.type_aanschaf) contextDelen.push(`Contracttype: ${f.type_aanschaf}`);
+      if (f.brandstof) contextDelen.push(`Brandstof: ${f.brandstof}`);
+      if (f.fiscale_waarde) contextDelen.push(`Fiscale waarde: ${f.fiscale_waarde}`);
+      if (f.apk_datum) contextDelen.push(`APK-datum: ${f.apk_datum}`);
+      if (f.winterbanden_in_contract) contextDelen.push(`Bandenprofiel: ${f.winterbanden_in_contract}`);
+      if (f.verwachte_einddatum) contextDelen.push(`Einddatum contract: ${f.verwachte_einddatum}`);
+    } catch (err) {
+      console.warn('[brein/concept] HubSpot deal-velden ophalen mislukt:', err instanceof Error ? err.message : err);
+    }
+  }
+
+  if (bericht.hubspot_company_id) {
+    try {
+      const c = await getContactFields(bericht.hubspot_company_id, ['city', 'zip']);
+      if (c.city) contextDelen.push(`Woonplaats berijder: ${c.city}${c.zip ? ' (' + c.zip + ')' : ''}`);
+    } catch (err) {
+      console.warn('[brein/concept] HubSpot contact-velden ophalen mislukt:', err instanceof Error ? err.message : err);
+    }
+  }
 
   const body = bericht.body_html
     ? htmlNaarTekst(bericht.body_html)

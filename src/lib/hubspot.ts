@@ -278,6 +278,30 @@ export async function searchDealByKenteken(kenteken: string): Promise<string | n
   return data.results?.[0]?.id ?? null;
 }
 
+/** Haalt specifieke velden van een deal (= voertuig/contract) op. */
+export async function getDealFields(
+  dealId: string,
+  props: string[],
+): Promise<Record<string, string>> {
+  if (!dealId?.trim()) return {};
+  const data = await hsFetch<{ properties?: Record<string, string> }>(
+    `${HS_BASE}/crm/v3/objects/deals/${dealId}?properties=${props.join(',')}`,
+  );
+  return data.properties ?? {};
+}
+
+/** Haalt specifieke velden van een contact (= berijder) op. */
+export async function getContactFields(
+  contactId: string,
+  props: string[],
+): Promise<Record<string, string>> {
+  if (!contactId?.trim()) return {};
+  const data = await hsFetch<{ properties?: Record<string, string> }>(
+    `${HS_BASE}/crm/v3/objects/contacts/${contactId}?properties=${props.join(',')}`,
+  );
+  return data.properties ?? {};
+}
+
 export async function createDeal(input: DealInput): Promise<string> {
   const properties: Record<string, string> = {
     dealname: input.kenteken.replace(/\s+/g, '').toUpperCase(),
