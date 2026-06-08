@@ -79,5 +79,16 @@ export function useBreinMessages() {
     if (error) console.error('brein status update fout:', error.message);
   }, []);
 
-  return { messages, loading, error, refresh, setStatus };
+
+  /** Stuur onverwerkte berichten naar de classifier (server-side). */
+  const classify = useCallback(async () => {
+    const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
+    const res = await fetch(`/api/brein/classify?secret=${secret}`, { method: 'POST' });
+    if (!res.ok) throw new Error(`classify ${res.status}`);
+    const data = (await res.json()) as { classified: number; errors: number; total_onverwerkt: number };
+    if (data.classified > 0) await refresh();
+    return data;
+  }, [refresh]);
+
+  return { messages, loading, error, refresh, setStatus, classify };
 }

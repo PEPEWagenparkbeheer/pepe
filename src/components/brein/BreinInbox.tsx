@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useMemo, useState } from 'react';
 import {
@@ -46,7 +46,8 @@ function relatieveTijd(iso: string | null): string {
 }
 
 export default function BreinInbox() {
-  const { messages, loading, error, refresh, setStatus } = useBreinMessages();
+  const { messages, loading, error, refresh, setStatus, classify } = useBreinMessages();
+  const [classifying, setClassifying] = useState(false);
   const [tab, setTab] = useState<BreinStatus | 'alle'>('nieuw');
   const [geselecteerd, setGeselecteerd] = useState<string | null>(null);
 
@@ -66,6 +67,15 @@ export default function BreinInbox() {
     [messages, geselecteerd],
   );
 
+  async function handleClassify() {
+    setClassifying(true);
+    try {
+      await classify();
+    } finally {
+      setClassifying(false);
+    }
+  }
+
   return (
     <div className={styles.pagina}>
       <header className={styles.kop}>
@@ -79,6 +89,9 @@ export default function BreinInbox() {
         </div>
         <button className={styles.vernieuwKnop} onClick={() => void refresh()} disabled={loading}>
           {loading ? 'Laden…' : '↻ Vernieuwen'}
+        </button>
+        <button className={styles.vernieuwKnop} onClick={() => void handleClassify()} disabled={loading || classifying}>
+          {classifying ? 'Classificeren…' : '🧠 Classificeer'}
         </button>
       </header>
 
