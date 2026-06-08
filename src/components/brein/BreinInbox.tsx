@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import {
@@ -10,9 +10,10 @@ import styles from './BreinInbox.module.css';
 
 const STATUS_TABS: { key: BreinStatus | 'alle'; label: string }[] = [
   { key: 'nieuw', label: 'Nieuw' },
-  { key: 'concept_klaar', label: 'Concept klaar' },
-  { key: 'verzonden', label: 'Verzonden' },
-  { key: 'genegeerd', label: 'Genegeerd' },
+  { key: 'opgepakt', label: 'Opgepakt' },
+  { key: 'in_behandeling', label: 'In behandeling' },
+  { key: 'afgehandeld', label: 'Afgehandeld' },
+  { key: 'overgeslagen', label: 'Overgeslagen' },
   { key: 'alle', label: 'Alle' },
 ];
 
@@ -191,15 +192,15 @@ export default function BreinInbox() {
               </div>
 
               <div className={styles.acties}>
-                {actief.status !== 'genegeerd' && (
+                {actief.status !== 'overgeslagen' && (
                   <button
                     className={styles.actieKnop}
-                    onClick={() => void setStatus(actief.id, 'genegeerd')}
+                    onClick={() => void setStatus(actief.id, 'overgeslagen')}
                   >
                     Negeren
                   </button>
                 )}
-                {actief.status === 'genegeerd' && (
+                {actief.status === 'overgeslagen' && (
                   <button
                     className={styles.actieKnop}
                     onClick={() => void setStatus(actief.id, 'nieuw')}
