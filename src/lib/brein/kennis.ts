@@ -1,4 +1,4 @@
-// src/lib/brein/kennis.ts
+﻿// src/lib/brein/kennis.ts
 // PEPE Wagenparkbeheer — volledige beslislogica + kenniskaart voor het
 // beantwoorden van berijdersmails. Bron: technisch plan §5 (beslislogica),
 // §7 (tankpas), §8 (banden), §9 (einde contract), §10 (leasemaatschappijen).
@@ -13,16 +13,16 @@ export const PEPE_PROCEDURES = `
 - Pincode vergeten: pincode bekend (HubSpot brandstofpas_pincode gevuld) → pincode terugmailen. Leeg → verwijzen naar de leasemaatschappij/pasleverancier.
 - Onderhoud lease-auto: informeren + dichtstbijzijnde merkdealer op basis van woonplaats.
 - Onderhoud eigendom (eigen wagenpark): offerte loopt via WBP (Wagenparkbeheer) ter akkoord.
-- Fiscale waarde / bijtelling: RDW-lookup → fiscale waarde + brandstof → bijtelling berekenen.
-- APK-datum: RDW-lookup → APK-datum + advies wanneer actie nodig is.
+- Fiscale waarde / bijtelling: gebruik de Fiscale waarde / Catalogusprijs uit de context (RDW of HubSpot) + Brandstof → bijtellingspercentage berekenen en communiceren. Als de context geen waarde bevat, meld dit dan netjes.
+- APK-datum: gebruik APK-datum uit de context (RDW of HubSpot) + advies wanneer actie nodig. Als er geen datum in de context staat, meld dit dan netjes.
 - Schade melden: schadeformulier + instructie van de leasemaatschappij (zie KENNISKAART).
 - Ruitschade: instructie + voorkeursleverancier van de leasemaatschappij (zie KENNISKAART).
 - Adreswijziging: HubSpot-contact bijwerken + doorsturen naar de leasemaatschappij.
 - Kentekenbewijs opvragen: LEASE → verwijzen naar leasemaatschappij; EIGENDOM → [ACTIE MEDEWERKER].
 - Groene kaart opvragen: LEASE → verwijzen naar leasemaatschappij (zie KENNISKAART); EIGENDOM → [ACTIE MEDEWERKER].
 - Leasecontract opvragen: direct versturen vanuit HubSpot/SharePoint.
-- Shortlease-aanvraag / lease-calculatie: complex — niet zelf afhandelen, [ACTIE MEDEWERKER].
-- Onbekend / past nergens bij: net en voorzichtig antwoorden, [ACTIE MEDEWERKER].
+- Shortlease-aanvraag / lease-calculatie: dit vereist handmatige beoordeling en mag NIET zelf worden afgehandeld. Stuur een bevestiging dat de aanvraag is ontvangen en dat een medewerker contact opneemt. Sluit af met [ACTIE MEDEWERKER: shortlease-aanvraag doorzetten naar wagenparkbeheerder].
+- Onbekend / past nergens bij: stuur een nette ontvangstbevestiging; doe GEEN toezeggingen en geef GEEN procedures uit eigen hoofd. Sluit altijd af met [ACTIE MEDEWERKER: beoordelen en beantwoorden].
 
 == TANKPAS (§7) ==
 - Pincode 3x verkeerd / pas GEBLOKKEERD: wordt AUTOMATISCH na 24 uur gedeblokkeerd. Antwoord: 24 uur wachten en opnieuw proberen. NOOIT een nieuwe pas bestellen.
@@ -50,5 +50,5 @@ Stuur ALTIJD de directe webpagina of het telefoonnummer van de leasemaatschappij
 - Hiltermann — schade: hiltermannlease.nl/schade-melden | ruitschade: hiltermannlease.nl/ruitschade | onderhoud: hiltermannlease.nl/reparatie-en-onderhoud | groene kaart: via website | tel: 088 554 39 87
 - Van Mossel — schade: vanmossel.nl/autolease/mijn-leaseauto (schade melden) | ruitschade: zelfde schadepagina | onderhoud: vanmossel.nl/autolease/mijn-leaseauto | groene kaart: vanmossel.nl/autolease (groene kaart) | tel: via website
 
-ALGEMEEN: volg deze procedures EXACT. Verzin nooit een eigen procedure, URL, telefoonnummer of toezegging. Weet je iets niet zeker of ontbreekt informatie (bv. welke leasemaatschappij), markeer dat met [ACTIE MEDEWERKER] of vraag er netjes naar.
+ALGEMEEN: volg deze procedures EXACT. Verzin nooit een eigen procedure, URL, telefoonnummer of toezegging. Weet je iets niet zeker of ontbreekt informatie (bv. welke leasemaatschappij), markeer dat met [ACTIE MEDEWERKER] of vraag er netjes naar. Gebruik RDW/HubSpot-waarden uit de context voor bijtelling en APK — reken nooit zelf kentekens of fiscale waarden uit zonder dat die in de context staan.
 `.trim();

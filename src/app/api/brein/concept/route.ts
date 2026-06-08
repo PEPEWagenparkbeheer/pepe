@@ -1,4 +1,4 @@
-// POST /api/brein/concept
+﻿// POST /api/brein/concept
 // Genereert een concept-antwoord voor één bericht (body: { id }).
 // Leest live een paar verzonden mails als stijlvoorbeeld (tone-of-voice, niet opgeslagen).
 // Auth: ?secret=BREIN_SYNC_SECRET
@@ -7,8 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { genereerConcept } from '@/lib/brein/concept';
 import { PEPE_PROCEDURES } from '@/lib/brein/kennis';
-import { getDealFields, getContactFields } from '@/lib/hubspot';
+import { getDealFields, getContactFields, searchContactByEmail, searchDealByKenteken } from '@/lib/hubspot';
 import { readAzureConfig, getAccessToken, getSentMessages } from '@/lib/graph';
+import { rdwOpzoeken } from '@/lib/rdw';
 
 export const runtime = 'nodejs';
 
@@ -70,9 +71,19 @@ export async function POST(req: NextRequest) {
   const contextDelen: string[] = [];
   if (bericht.kenteken) contextDelen.push(`Kenteken: ${bericht.kenteken}`);
 
-  if (bericht.hubspot_deal_id) {
+  // Zoek contact/deal zelf op (niet afhankelijk van of classify al draaide).
+  let contactId = bericht.hubspot_company_id as string | null;
+  let dealId = bericht.hubspot_deal_id as string | null;
+  if (!contactId && bericht.afzender_email) {
+    contactId = await searchContactByEmail(bericht.afzender_email).catch(() => null);
+  }
+  if (!dealId && bericht.kenteken) {
+    dealId = await searchDealByKenteken(bericht.kenteken).catch(() => null);
+  }
+
+  if (dealId) {
     try {
-      const f = await getDealFields(bericht.hubspot_deal_id, [
+      const f = await getDealFields(dealId, [
         'leasemaatschappij_goed', 'type_aanschaf', 'brandstof',
         'fiscale_waarde', 'apk_datum', 'winterbanden_in_contract', 'verwachte_einddatum',
       ]);
@@ -88,12 +99,33 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (bericht.hubspot_company_id) {
+  if (contactId) {
     try {
-      const c = await getContactFields(bericht.hubspot_company_id, ['city', 'zip']);
+      const c = await getContactFields(contactId, ['city', 'zip']);
       if (c.city) contextDelen.push(`Woonplaats berijder: ${c.city}${c.zip ? ' (' + c.zip + ')' : ''}`);
     } catch (err) {
       console.warn('[brein/concept] HubSpot contact-velden ophalen mislukt:', err instanceof Error ? err.message : err);
+    }
+  }
+
+  // 4. RDW-fallback: APK-datum, catalogusprijs en brandstof ophalen als HubSpot die niet heeft.
+  if (bericht.kenteken) {
+    const heeftApk = contextDelen.some(d => d.startsWith('APK-datum'));
+    const heeftFiscaal = contextDelen.some(d => d.startsWith('Fiscale waarde'));
+    const heeftBrandstof = contextDelen.some(d => d.startsWith('Brandstof'));
+    if (!heeftApk || !heeftFiscaal || !heeftBrandstof) {
+      try {
+        const rdw = await rdwOpzoeken(bericht.kenteken);
+        if (rdw) {
+          if (!heeftApk && rdw.apkDatum) contextDelen.push(`APK-datum (RDW): ${rdw.apkDatum}`);
+          if (!heeftFiscaal && rdw.catalogusprijs) {
+            contextDelen.push(`Catalogusprijs/fiscale waarde (RDW): €${rdw.catalogusprijs.toLocaleString('nl-NL')}`);
+          }
+          if (!heeftBrandstof && rdw.brandstof) contextDelen.push(`Brandstof (RDW): ${rdw.brandstof}`);
+        }
+      } catch (err) {
+        console.warn('[brein/concept] RDW-lookup mislukt:', err instanceof Error ? err.message : err);
+      }
     }
   }
 
@@ -101,7 +133,7 @@ export async function POST(req: NextRequest) {
     ? htmlNaarTekst(bericht.body_html)
     : (bericht.body_preview ?? '');
 
-  // 4. Concept genereren
+  // 5. Concept genereren
   let concept: string;
   try {
     concept = await genereerConcept({
@@ -120,7 +152,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  // 5. Opslaan
+  // 6. Opslaan
   const { error: updateError } = await supabaseAdmin
     .from('brein_messages')
     .update({ concept_antwoord: concept })
