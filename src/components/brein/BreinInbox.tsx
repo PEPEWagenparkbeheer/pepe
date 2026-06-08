@@ -24,6 +24,28 @@ const PRIO_LABEL: Record<string, string> = {
   urgent: 'Urgent',
 };
 
+const STATUS_LABEL: Record<BreinStatus, string> = {
+  nieuw: 'Nieuw',
+  opgepakt: 'Opgepakt',
+  in_behandeling: 'In behandeling',
+  afgehandeld: 'Afgehandeld',
+  overgeslagen: 'Overgeslagen',
+};
+
+// Werkstroom-acties in volgorde; de huidige status wordt eruit gefilterd.
+const STATUS_ACTIES: { label: string; status: BreinStatus }[] = [
+  { label: 'Oppakken', status: 'opgepakt' },
+  { label: 'In behandeling', status: 'in_behandeling' },
+  { label: 'Afgehandeld', status: 'afgehandeld' },
+  { label: 'Negeren', status: 'overgeslagen' },
+];
+
+function tijdLang(iso: string): string {
+  return new Date(iso).toLocaleString('nl-NL', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+}
+
 function initialen(naam: string | null, email: string | null): string {
   const bron = (naam || email || '?').trim();
   const delen = bron.split(/[\s@.]+/).filter(Boolean);
@@ -172,7 +194,12 @@ export default function BreinInbox() {
                   {actief.kenteken && (
                     <span className={`${styles.badge} ${styles.badgeKenteken}`}>{actief.kenteken}</span>
                   )}
-                  <span className={`${styles.badge} ${styles.badgeStatus}`}>{actief.status}</span>
+                  <span className={`${styles.badge} ${styles.badgeStatus}`}>
+                    {STATUS_LABEL[actief.status] ?? actief.status}
+                  </span>
+                  {actief.behandeld_door && (
+                    <span className={styles.muted}>· door {actief.behandeld_door}</span>
+                  )}
                 </div>
               </div>
 
@@ -204,16 +231,33 @@ export default function BreinInbox() {
                 )}
               </div>
 
+              {actief.historie?.length > 0 && (
+                <div className={styles.blok}>
+                  <span className={styles.blokLabel}>Historie</span>
+                  <ul className={styles.historie}>
+                    {actief.historie.map((h, i) => (
+                      <li key={i}>
+                        <strong>{STATUS_LABEL[h.status] ?? h.status}</strong>
+                        {' · '}door {h.door}
+                        {' · '}
+                        <span className={styles.muted}>{tijdLang(h.op)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className={styles.acties}>
-                {actief.status !== 'overgeslagen' && (
+                {STATUS_ACTIES.filter((a) => a.status !== actief.status).map((a) => (
                   <button
-                    className={styles.actieKnop}
-                    onClick={() => void setStatus(actief.id, 'overgeslagen')}
+                    key={a.status}
+                    className={`${styles.actieKnop} ${a.status === 'afgehandeld' ? styles.actieKnopPrimair : ''}`}
+                    onClick={() => void setStatus(actief.id, a.status)}
                   >
-                    Negeren
+                    {a.label}
                   </button>
-                )}
-                {actief.status === 'overgeslagen' && (
+                ))}
+                {actief.status !== 'nieuw' && (
                   <button
                     className={styles.actieKnop}
                     onClick={() => void setStatus(actief.id, 'nieuw')}

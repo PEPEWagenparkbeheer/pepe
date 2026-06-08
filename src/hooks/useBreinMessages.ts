@@ -7,6 +7,13 @@ import { supabase } from '@/lib/supabase';
 export type BreinStatus = 'nieuw' | 'opgepakt' | 'in_behandeling' | 'afgehandeld' | 'overgeslagen';
 export type BreinPrioriteit = 'laag' | 'normaal' | 'hoog' | 'urgent';
 
+/** Eén stap in de behandel-historie van een bericht (wie deed wat, wanneer). */
+export interface HistorieStap {
+  status: BreinStatus;
+  op: string; // ISO-tijd
+  door: string; // medewerkersnaam
+}
+
 export interface BreinMessage {
   id: string;
   graph_message_id: string;
@@ -26,12 +33,14 @@ export interface BreinMessage {
   status: BreinStatus;
   concept_antwoord: string | null;
   verzonden_op: string | null;
+  behandeld_door: string | null;
+  historie: HistorieStap[];
 }
 
 const COLS =
   'id,graph_message_id,mailbox,onderwerp,afzender_email,afzender_naam,ontvangen_op,' +
   'body_preview,body_html,categorie,prioriteit,samenvatting,hubspot_deal_id,' +
-  'hubspot_company_id,kenteken,status,concept_antwoord,verzonden_op';
+  'hubspot_company_id,kenteken,status,concept_antwoord,verzonden_op,behandeld_door,historie';
 
 /**
  * Leest BREIN-mailberichten uit Supabase.
@@ -42,7 +51,9 @@ export function useBreinMessages() {
   const [messages, setMessages] = useState<BreinMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [gebruiker, setGebruiker] = useState('');
   const ref = useRef<BreinMessage[]>([]);
+  const gebruikerRef = useRef('');
 
   function update(next: BreinMessage[]) {
     ref.current = next;
@@ -66,19 +77,47 @@ export function useBreinMessages() {
   }, []);
 
   useEffect(() => {
+    // Ingelogde medewerker bepalen (voor de stamps), zelfde afleiding als useLeads.
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user;
+      if (!u) return;
+      const rawNaam =
+        (u.user_metadata?.full_name as string | undefined) ??
+        (u.user_metadata?.name as string | undefined) ??
+        u.email?.split('@')[0] ??
+        '?';
+      const naam = rawNaam.charAt(0).toUpperCase() + rawNaam.slice(1);
+      gebruikerRef.current = naam;
+      setGebruiker(naam);
+    });
+
     void refresh();
   }, [refresh]);
 
-  /** Zet de status van een bericht (optimistisch + persistent). */
+  /**
+   * Zet de status van een bericht en stempelt wie + wanneer.
+   * Optimistisch in de UI, daarna persistent in Supabase (incl. historie).
+   */
   const setStatus = useCallback(async (id: string, status: BreinStatus) => {
-    update(ref.current.map((m) => (m.id === id ? { ...m, status } : m)));
+    const huidige = ref.current.find((m) => m.id === id);
+    if (!huidige) return;
+
+    const door = gebruikerRef.current || '?';
+    const stap: HistorieStap = { status, op: new Date().toISOString(), door };
+    const historie = [...(huidige.historie ?? []), stap];
+
+    update(
+      ref.current.map((m) =>
+        m.id === id ? { ...m, status, behandeld_door: door, historie } : m,
+      ),
+    );
+
     const { error } = await supabase
       .from('brein_messages')
-      .update({ status })
+      .update({ status, behandeld_door: door, historie })
       .eq('id', id);
     if (error) console.error('brein status update fout:', error.message);
   }, []);
-
 
   /** Stuur onverwerkte berichten naar de classifier (server-side). */
   const classify = useCallback(async () => {
@@ -90,5 +129,5 @@ export function useBreinMessages() {
     return data;
   }, [refresh]);
 
-  return { messages, loading, error, refresh, setStatus, classify };
+  return { messages, loading, error, gebruiker, refresh, setStatus, classify };
 }
