@@ -1,13 +1,13 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 // Matches brein_messages.status column values in the DB migration
-export type BreinStatus = 'nieuw' | 'opgepakt' | 'in_behandeling' | 'afgehandeld' | 'overgeslagen';
+export type BreinStatus = 'nieuw' | 'opgepakt' | 'in_behandeling' | 'afgehandeld' | 'overgeslagen' | 'verzonden';
 export type BreinPrioriteit = 'laag' | 'normaal' | 'hoog' | 'urgent';
 
-/** Eén stap in de behandel-historie van een bericht (wie deed wat, wanneer). */
+/** EÃ©n stap in de behandel-historie van een bericht (wie deed wat, wanneer). */
 export interface HistorieStap {
   status: BreinStatus;
   op: string; // ISO-tijd
@@ -120,7 +120,7 @@ export function useBreinMessages() {
     if (error) console.error('brein status update fout:', error.message);
   }, []);
 
-  /** Haalt nieuwe mail uit Outlook (Graph → DB) en herlaadt daarna de lijst. */
+  /** Haalt nieuwe mail uit Outlook (Graph â†’ DB) en herlaadt daarna de lijst. */
   const sync = useCallback(async () => {
     const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
     const res = await fetch(`/api/brein/sync?secret=${secret}`, { method: 'POST' });
@@ -213,3 +213,4 @@ export function useBreinMessages() {
     verstuur,
   };
 }
+
