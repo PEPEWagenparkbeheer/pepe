@@ -142,6 +142,79 @@
   overflow-y: auto;
 }
 
+.savedBox {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.savedHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.savedTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.savedMeta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.savedList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.savedItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+}
+
+.savedActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sectionHeading {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.rowGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.inkoopHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 .fg {
   display: flex;
   flex-direction: column;
@@ -391,4 +464,7 @@
   .stepItem { min-width: 44px; }
   .totaalVal { font-size: 22px; }
   .heroAuto { font-size: 20px; }
+  .rowGrid {
+    grid-template-columns: 1fr;
+  }
 }

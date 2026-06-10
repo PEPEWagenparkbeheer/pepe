@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import styles from './ConsignatieModal.module.css';
 
@@ -11,6 +11,7 @@ interface Props {
 
 type KentekenType = 'personenauto' | 'bedrijfswagen';
 
+// ─── Consignatie eindafrekening ────────────────────────────────
 interface Form {
   auto: string;
   kentekenType: KentekenType;
@@ -36,6 +37,45 @@ const LEEG: Form = {
   accessoires: '',
   feePercent: '4',
 };
+
+// ─── Inkoopfactuur (marge) — losgekoppeld document ─────────────
+interface InkoopForm {
+  merk: string;
+  kenteken: string;
+  kilometerstand: string;
+  inkoopbedrag: string;
+  verkoperNaam: string;
+  verkoperStraat: string;
+  verkoperPostcode: string;
+  verkoperPlaats: string;
+  verkoperTelefoon: string;
+  verkoperEmail: string;
+  inkoperEmail: string;
+}
+
+const INKOOP_LEEG: InkoopForm = {
+  merk: '',
+  kenteken: '',
+  kilometerstand: '',
+  inkoopbedrag: '',
+  verkoperNaam: '',
+  verkoperStraat: '',
+  verkoperPostcode: '',
+  verkoperPlaats: '',
+  verkoperTelefoon: '',
+  verkoperEmail: '',
+  inkoperEmail: '',
+};
+
+interface SavedInkoop extends InkoopForm {
+  id: string;
+  createdAt: string;
+  docusignEnvelopeId?: string;
+  docusignStatus?: string;
+  docusignSentAt?: string;
+}
+
+const STORAGE_KEY = 'pepe_inkoopfacturen';
 
 const BTW = 0.21;
 
@@ -105,13 +145,105 @@ async function loadWitLogoAsPng(): Promise<{ data: string; aspect: number } | nu
   }
 }
 
+// Gedeelde PEPE-header (kentekenplaat-stijl) — geeft start-y terug
+function drawPepeHeader(doc: jsPDF, titel: string, witLogo: { data: string; aspect: number } | null): number {
+  const W = 210;
+  const margin = 18;
+  const col2 = W - margin;
+
+  doc.setFillColor(15, 18, 24); // bijna zwart
+  doc.rect(0, 0, W, 30, 'F');
+
+  if (witLogo) {
+    const targetH = 12;
+    const targetW = targetH * witLogo.aspect;
+    doc.addImage(witLogo.data, 'PNG', margin, 9, targetW, targetH);
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
+    doc.text('PEPE®', margin, 18);
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(220, 60, 90); // rood accent
+  doc.text(titel, col2, 14, { align: 'right' });
+
+  const datum = new Date().toLocaleDateString('nl-NL', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(180, 188, 200);
+  doc.text(datum, col2, 21, { align: 'right' });
+
+  // Dunne rode accent-streep onder header
+  doc.setFillColor(146, 25, 57);
+  doc.rect(0, 30, W, 0.6, 'F');
+
+  return 30.6;
+}
+
+// Gedeelde PEPE-footer
+function drawPepeFooter(doc: jsPDF): void {
+  const W = 210;
+  const margin = 18;
+  const col2 = W - margin;
+  const y = 283;
+
+  doc.setDrawColor(15, 18, 24);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, col2, y);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(15, 18, 24);
+  doc.text('PEPE®  WAGENPARKBEHEER', margin, y + 5.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(160, 168, 178);
+  doc.text('pepewagenparkbeheer.nl', col2, y + 5.5, { align: 'right' });
+}
+
 export default function ConsignatieModal({ open, onSluiten }: Props) {
   const [form, setForm] = useState<Form>(LEEG);
   const [stap, setStap] = useState(0);
   const [klaar, setKlaar] = useState(false);
 
+  // Inkoopfactuur — losgekoppelde flow vanaf het resultaatscherm
+  const [toonInkoop, setToonInkoop] = useState(false);
+  const [inkoop, setInkoop] = useState<InkoopForm>(INKOOP_LEEG);
+  const [savedInkoop, setSavedInkoop] = useState<SavedInkoop[]>([]);
+  const [showSavedList, setShowSavedList] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{ envelopeId: string; status: string } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      setSavedInkoop(raw ? JSON.parse(raw) : []);
+    } catch {
+      setSavedInkoop([]);
+    }
+  }, [open]);
+
   function stel<K extends keyof Form>(veld: K, w: Form[K]) {
     setForm((f) => ({ ...f, [veld]: w }));
+  }
+
+  function stelInkoop<K extends keyof InkoopForm>(veld: K, w: InkoopForm[K]) {
+    setInkoop((f) => ({ ...f, [veld]: w }));
+  }
+
+  function persistSavedInkoop(entries: SavedInkoop[]) {
+    setSavedInkoop(entries);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    } catch {
+      // fail silently
+    }
   }
 
   const cijfers = useMemo(() => {
@@ -153,7 +285,7 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
   }, [form]);
 
   function volgende() {
-    // Validatie stap 0
+    // Validatie stap 0: Auto
     if (stap === 0) {
       if (!form.auto.trim()) return alert('Vul een auto-naam of kenteken in.');
       if (cijfers.vp <= 0) return alert('Vul een verkoopprijs in.');
@@ -173,6 +305,9 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
     setForm(LEEG);
     setStap(0);
     setKlaar(false);
+    setToonInkoop(false);
+    setInkoop(INKOOP_LEEG);
+    setSendResult(null);
   }
 
   function handleSluiten() {
@@ -180,49 +315,16 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
     onSluiten();
   }
 
-  async function downloadPDF() {
-    // Laad het witte SVG-logo, render naar PNG op canvas voor jsPDF
+  // ─── Consignatie eindafrekening PDF ──────────────────────────
+  async function createPdfDocument(): Promise<jsPDF> {
     const witLogo = await loadWitLogoAsPng();
 
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const W = 210;
     const margin = 18;
     const col2 = W - margin;
-    let y = 0;
 
-    // ─── Donkere header (kentekenplaat-stijl) ────────────────
-    doc.setFillColor(15, 18, 24); // bijna zwart
-    doc.rect(0, 0, W, 30, 'F');
-
-    if (witLogo) {
-      const targetH = 12;
-      const targetW = targetH * witLogo.aspect;
-      doc.addImage(witLogo.data, 'PNG', margin, 9, targetW, targetH);
-    } else {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(20);
-      doc.setTextColor(255, 255, 255);
-      doc.text('PEPE®', margin, 18);
-    }
-
-    // Tag rechts: titel + datum
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(220, 60, 90); // rood accent
-    doc.text('CONSIGNATIE · EINDAFREKENING', col2, 14, { align: 'right' });
-    const datum = new Date().toLocaleDateString('nl-NL', {
-      day: 'numeric', month: 'long', year: 'numeric',
-    });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(180, 188, 200);
-    doc.text(datum, col2, 21, { align: 'right' });
-
-    // Dunne rode accent-streep onder header
-    doc.setFillColor(146, 25, 57);
-    doc.rect(0, 30, W, 0.6, 'F');
-
-    y = 30.6;
+    let y = drawPepeHeader(doc, 'CONSIGNATIE · EINDAFREKENING', witLogo);
 
     // ─── Hero blok ───────────────────────────────────────────
     y += 14;
@@ -241,7 +343,7 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
     doc.setFontSize(9);
     doc.setTextColor(122, 132, 144);
     doc.text(
-      cijfers.isIncl ? 'Personenauto · alle bedragen incl. btw/bpm' : 'Bedrijfswagen · alle bedragen excl. btw',
+      cijfers.isIncl ? 'Personenauto · alle bedragen incl. btw/bpm' : 'Bedrijfswagen · alle bedragen zijn excl. btw',
       margin, y
     );
 
@@ -331,28 +433,353 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
       : 'Bedrijfswagen — alle bedragen zijn excl btw.';
     doc.text(toelichting, margin, y, { maxWidth: W - 2 * margin });
 
-    // ─── Footer ──────────────────────────────────────────────
-    y = 283;
-    doc.setDrawColor(15, 18, 24);
-    doc.setLineWidth(0.3);
-    doc.line(margin, y, col2, y);
+    drawPepeFooter(doc);
+    return doc;
+  }
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.setTextColor(15, 18, 24);
-    doc.text('PEPE®  WAGENPARKBEHEER', margin, y + 5.5);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(160, 168, 178);
-    doc.text('pepewagenparkbeheer.nl', col2, y + 5.5, { align: 'right' });
-
+  async function downloadPDF() {
+    const doc = await createPdfDocument();
     const safe = form.auto.replace(/[^a-zA-Z0-9\-_\s]/g, '').trim().replace(/\s+/g, '-');
     doc.save(`PEPE-Eindafrekening-${safe}.pdf`);
   }
 
+  // ─── Inkoopfactuur PDF (losgekoppeld) ────────────────────────
+  async function createInkoopPdf(): Promise<jsPDF> {
+    const witLogo = await loadWitLogoAsPng();
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210;
+    const margin = 18;
+    const col2 = W - margin;
+
+    let y = drawPepeHeader(doc, 'INKOOPFACTUUR', witLogo);
+
+    // Hero — ingekocht voertuig
+    y += 14;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(146, 25, 57);
+    doc.text('INGEKOCHT VOERTUIG', margin, y);
+
+    y += 11;
+    doc.setFontSize(28);
+    doc.setTextColor(15, 18, 24);
+    doc.text((inkoop.merk || '—').toUpperCase(), margin, y);
+
+    y += 7;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(122, 132, 144);
+    const voertuigregel = [
+      inkoop.kenteken ? `Kenteken: ${inkoop.kenteken}` : '',
+      inkoop.kilometerstand ? `${Number(inkoop.kilometerstand).toLocaleString('nl-NL')} km` : '',
+    ].filter(Boolean).join('   ·   ');
+    if (voertuigregel) doc.text(voertuigregel, margin, y);
+
+    // Verkoper NAW
+    y += 13;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(146, 25, 57);
+    doc.text('VERKOPER', margin, y);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(75, 82, 92);
+    const naw = [
+      inkoop.verkoperNaam,
+      inkoop.verkoperStraat,
+      `${inkoop.verkoperPostcode} ${inkoop.verkoperPlaats}`.trim(),
+      inkoop.verkoperTelefoon,
+      inkoop.verkoperEmail,
+    ].filter(Boolean);
+    if (naw.length === 0) {
+      doc.setTextColor(190, 192, 198);
+      doc.text('—', margin, y + 6);
+      y += 6;
+    } else {
+      naw.forEach((regel) => {
+        y += 6;
+        doc.text(regel, margin, y);
+      });
+    }
+
+    // Scheidingslijn
+    y += 9;
+    doc.setDrawColor(232, 232, 236);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, col2, y);
+
+    // ─── Bedragbalk: ZWART, premium ──────────────────────────
+    y += 10;
+    doc.setFillColor(15, 18, 24);
+    doc.rect(margin - 4, y, W - 2 * (margin - 4), 24, 'F');
+    doc.setFillColor(146, 25, 57);
+    doc.rect(margin - 4, y, 3, 24, 'F');
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(220, 60, 90);
+    doc.text('TOTAAL INKOOPBEDRAG', margin + 2, y + 9);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`€ ${fmtEuro(parseG(inkoop.inkoopbedrag))}`, col2, y + 16, { align: 'right' });
+    y += 24;
+
+    // Margeregeling-toelichting
+    y += 10;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8.5);
+    doc.setTextColor(140, 148, 158);
+    doc.text(
+      'Dit voertuig is ingekocht onder de margeregeling. De btw is niet apart vermeld en niet aftrekbaar.',
+      margin, y, { maxWidth: W - 2 * margin }
+    );
+
+    drawPepeFooter(doc);
+    return doc;
+  }
+
+  async function downloadInkoopPdf() {
+    const doc = await createInkoopPdf();
+    const safe = (inkoop.merk || inkoop.kenteken || 'auto').replace(/[^a-zA-Z0-9\-_\s]/g, '').trim().replace(/\s+/g, '-');
+    doc.save(`PEPE-Inkoopfactuur-${safe}.pdf`);
+  }
+
+  async function createInkoopPdfBase64(): Promise<string> {
+    const doc = await createInkoopPdf();
+    const dataUri = doc.output('datauristring') as string;
+    const prefix = 'data:application/pdf;base64,';
+    return dataUri.startsWith(prefix) ? dataUri.slice(prefix.length) : dataUri;
+  }
+
+  function openInkoopfactuur() {
+    // Prefill vanuit de consignatie waar zinvol, zonder ingevulde inkoopdata te overschrijven
+    setInkoop((prev) => ({
+      ...prev,
+      merk: prev.merk || form.auto,
+      inkoopbedrag: prev.inkoopbedrag || form.verkoopprijs,
+    }));
+    setSendResult(null);
+    setToonInkoop(true);
+  }
+
+  function saveInkoopfactuur() {
+    if (!inkoop.kenteken.trim()) return alert('Vul het kenteken in voor de inkoopfactuur.');
+    if (!inkoop.verkoperNaam.trim()) return alert('Vul de naam van de verkoper in.');
+
+    const record: SavedInkoop = {
+      ...inkoop,
+      id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    const next = [record, ...savedInkoop];
+    persistSavedInkoop(next);
+    alert('Inkoopfactuur is opgeslagen. Je kunt deze later terughalen in de lijst.');
+  }
+
+  function openSavedInkoop(id: string) {
+    const record = savedInkoop.find((item) => item.id === id);
+    if (!record) return;
+    setInkoop(record);
+    setShowSavedList(false);
+    setSendResult(null);
+  }
+
+  function deleteSavedInkoop(id: string) {
+    if (!window.confirm('Weet je zeker dat je deze opgeslagen inkoopfactuur wilt verwijderen?')) return;
+    persistSavedInkoop(savedInkoop.filter((item) => item.id !== id));
+  }
+
+  async function sendInkoopToDocuSign() {
+    if (!inkoop.verkoperEmail.trim()) return alert('Vul het e-mailadres van de verkoper in voor DocuSign.');
+    if (!inkoop.inkoperEmail.trim()) return alert('Vul het e-mailadres van de inkoper in voor DocuSign.');
+    if (!inkoop.kenteken.trim()) return alert('Vul het kenteken in voor DocuSign.');
+
+    setIsSending(true);
+    setSendResult(null);
+
+    try {
+      const pdfBase64 = await createInkoopPdfBase64();
+      const res = await fetch('/api/consignatie/docusign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pdfBase64,
+          auto: inkoop.merk,
+          kenteken: inkoop.kenteken,
+          klantNaam: inkoop.verkoperNaam,
+          emailKlant: inkoop.verkoperEmail,
+          emailInkoper: inkoop.inkoperEmail,
+          documentNaam: `Inkoopfactuur ${inkoop.merk}`.trim(),
+          onderwerp: `Inkoopfactuur ${inkoop.merk}`.trim(),
+          bericht: `Onderteken deze inkoopfactuur voor het voertuig ${inkoop.merk}.`,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || 'Onbekende fout bij DocuSign');
+      }
+
+      setSendResult({ envelopeId: json.envelopeId, status: json.status });
+      alert(`DocuSign-verzoek verstuurd: ${json.envelopeId}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Onbekende fout';
+      console.error('DocuSign fout:', message);
+      alert(`DocuSign fout: ${message}`);
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   if (!open) return null;
 
-  // RESULTAAT-scherm
+  // ─── INKOOPFACTUUR-scherm (losgekoppeld) ─────────────────────
+  if (klaar && toonInkoop) {
+    return (
+      <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && handleSluiten()}>
+        <div className={styles.modal}>
+          <div className={styles.modalHeader}>
+            <div>
+              <div className={styles.modalSub}>Marge · inkoop onder margeregeling</div>
+              <div className={styles.modalTitel}>🧾 Inkoopfactuur</div>
+            </div>
+            <button className={styles.sluitKnop} onClick={handleSluiten}>×</button>
+          </div>
+
+          <div className={styles.modalBody}>
+            {savedInkoop.length > 0 && (
+              <div className={styles.savedBox}>
+                <div className={styles.savedHeading}>
+                  <div>
+                    <div className={styles.savedTitle}>Opgeslagen inkoopfacturen</div>
+                    <div className={styles.savedMeta}>
+                      {savedInkoop.length} record{savedInkoop.length === 1 ? '' : 's'}
+                    </div>
+                  </div>
+                  <button className="btn btn-a" type="button" onClick={() => setShowSavedList((v) => !v)}>
+                    {showSavedList ? 'Verberg' : 'Bekijk'}
+                  </button>
+                </div>
+                {showSavedList && (
+                  <div className={styles.savedList}>
+                    {savedInkoop.map((item) => (
+                      <div key={item.id} className={styles.savedItem}>
+                        <div>
+                          <strong>{item.merk || item.kenteken || 'Onbekend voertuig'}</strong>
+                          <div className={styles.savedMeta}>{new Date(item.createdAt).toLocaleString('nl-NL')}</div>
+                        </div>
+                        <div className={styles.savedActions}>
+                          <button className="btn btn-a" type="button" onClick={() => openSavedInkoop(item.id)}>
+                            Openen
+                          </button>
+                          <button className="btn" type="button" onClick={() => deleteSavedInkoop(item.id)}>
+                            Verwijderen
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className={styles.sectionHeading}>Voertuig</div>
+            <div className={styles.fg}>
+              <label>Merk / model</label>
+              <input className="fi" placeholder="bijv. Tesla Model 3" value={inkoop.merk} onChange={(e) => stelInkoop('merk', e.target.value)} />
+            </div>
+            <div className={styles.rowGrid}>
+              <div className={styles.fg}>
+                <label>Kenteken</label>
+                <input className="fi" placeholder="AB-123-C" value={inkoop.kenteken} onChange={(e) => stelInkoop('kenteken', e.target.value.toUpperCase())} />
+              </div>
+              <div className={styles.fg}>
+                <label>Kilometerstand</label>
+                <input className="fi" type="number" min={0} placeholder="123456" value={inkoop.kilometerstand} onChange={(e) => stelInkoop('kilometerstand', e.target.value)} />
+              </div>
+            </div>
+            <div className={styles.fg}>
+              <label>Inkoopbedrag <span className={styles.btwBadge}>marge</span></label>
+              <EuroInput value={inkoop.inkoopbedrag} onChange={(v) => stelInkoop('inkoopbedrag', v)} placeholder="0" />
+            </div>
+
+            <div className={styles.sectionHeading}>Verkoper (NAW)</div>
+            <div className={styles.fg}>
+              <label>Naam</label>
+              <input className="fi" placeholder="Naam verkoper" value={inkoop.verkoperNaam} onChange={(e) => stelInkoop('verkoperNaam', e.target.value)} />
+            </div>
+            <div className={styles.fg}>
+              <label>Straat + huisnummer</label>
+              <input className="fi" placeholder="Hoofdstraat 12" value={inkoop.verkoperStraat} onChange={(e) => stelInkoop('verkoperStraat', e.target.value)} />
+            </div>
+            <div className={styles.rowGrid}>
+              <div className={styles.fg}>
+                <label>Postcode</label>
+                <input className="fi" placeholder="1234 AB" value={inkoop.verkoperPostcode} onChange={(e) => stelInkoop('verkoperPostcode', e.target.value)} />
+              </div>
+              <div className={styles.fg}>
+                <label>Plaats</label>
+                <input className="fi" placeholder="Amsterdam" value={inkoop.verkoperPlaats} onChange={(e) => stelInkoop('verkoperPlaats', e.target.value)} />
+              </div>
+            </div>
+            <div className={styles.rowGrid}>
+              <div className={styles.fg}>
+                <label>Telefoon</label>
+                <input className="fi" placeholder="0612345678" value={inkoop.verkoperTelefoon} onChange={(e) => stelInkoop('verkoperTelefoon', e.target.value)} />
+              </div>
+              <div className={styles.fg}>
+                <label>E-mail verkoper</label>
+                <input className="fi" type="email" placeholder="naam@example.com" value={inkoop.verkoperEmail} onChange={(e) => stelInkoop('verkoperEmail', e.target.value)} />
+              </div>
+            </div>
+
+            <div className={styles.sectionHeading}>Digitaal ondertekenen</div>
+            <div className={styles.savedBox} style={{ padding: '14px 16px' }}>
+              <div className={styles.inkoopHeader}>
+                <div>
+                  <div className={styles.savedTitle}>Verstuur via DocuSign</div>
+                  <div className={styles.savedMeta}>Stuur verkoper en inkoper een digitaal handtekeningverzoek.</div>
+                </div>
+                <button
+                  className="btn btn-a"
+                  type="button"
+                  onClick={sendInkoopToDocuSign}
+                  disabled={isSending || !inkoop.verkoperEmail.trim() || !inkoop.inkoperEmail.trim()}
+                >
+                  {isSending ? 'Versturen…' : 'Verstuur naar DocuSign'}
+                </button>
+              </div>
+              <div className={styles.fg}>
+                <label>E-mail inkoper</label>
+                <input className="fi" type="email" placeholder="inkoper@example.com" value={inkoop.inkoperEmail} onChange={(e) => stelInkoop('inkoperEmail', e.target.value)} />
+              </div>
+              {sendResult && (
+                <div className={styles.feeLive} style={{ marginTop: 8 }}>
+                  <span>DocuSign status</span>
+                  <strong>{sendResult.status} · {sendResult.envelopeId}</strong>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.modalFooter}>
+            <button className="btn" onClick={() => setToonInkoop(false)}>← Terug naar afrekening</button>
+            <button className="btn" onClick={saveInkoopfactuur}>💾 Opslaan</button>
+            <button className="btn btn-a" onClick={downloadInkoopPdf}>⬇ Download inkoopfactuur</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── RESULTAAT-scherm (consignatie eindafrekening) ───────────
   if (klaar) {
     const datum = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
     const vpLbl = cijfers.isIncl ? 'Verkoopprijs (incl. btw/bpm)' : 'Verkoopprijs (excl. btw)';
@@ -412,13 +839,14 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
           <div className={styles.modalFooter}>
             <button className="btn" onClick={reset}>+ Nieuwe afrekening</button>
             <button className="btn btn-a" onClick={downloadPDF}>⬇ Download PDF</button>
+            <button className="btn btn-a" onClick={openInkoopfactuur}>🧾 Maak inkoopfactuur</button>
           </div>
         </div>
       </div>
     );
   }
 
-  // WIZARD-scherm
+  // ─── WIZARD-scherm ───────────────────────────────────────────
   return (
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && handleSluiten()}>
       <div className={styles.modal}>
