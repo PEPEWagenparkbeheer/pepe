@@ -7,6 +7,8 @@ import styles from './ConsignatieModal.module.css';
 interface Props {
   open: boolean;
   onSluiten: () => void;
+  // Open direct op het inkoopverklaring-scherm (los van de consignatie-wizard)
+  directInkoop?: boolean;
 }
 
 type KentekenType = 'personenauto' | 'bedrijfswagen';
@@ -294,7 +296,7 @@ function drawPepeFooter(doc: jsPDF): void {
   doc.text('pepewagenparkbeheer.nl', col2, y + 5.5, { align: 'right' });
 }
 
-export default function ConsignatieModal({ open, onSluiten }: Props) {
+export default function ConsignatieModal({ open, onSluiten, directInkoop = false }: Props) {
   const [form, setForm] = useState<Form>(LEEG);
   const [stap, setStap] = useState(0);
   const [klaar, setKlaar] = useState(false);
@@ -317,7 +319,12 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
     } catch {
       setSavedInkoop([]);
     }
-  }, [open]);
+    // Standalone-tegel: meteen het inkoopverklaring-scherm tonen
+    if (directInkoop) {
+      setKlaar(true);
+      setToonInkoop(true);
+    }
+  }, [open, directInkoop]);
 
   function stel<K extends keyof Form>(veld: K, w: Form[K]) {
     setForm((f) => ({ ...f, [veld]: w }));
@@ -1170,7 +1177,9 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
           </div>
 
           <div className={styles.modalFooter}>
-            <button className="btn" onClick={() => setToonInkoop(false)}>← Terug naar afrekening</button>
+            {!directInkoop && (
+              <button className="btn" onClick={() => setToonInkoop(false)}>← Terug naar afrekening</button>
+            )}
             <button className="btn" onClick={saveInkoopfactuur}>💾 Opslaan</button>
             <button className="btn btn-a" onClick={downloadInkoopPdf}>⬇ Download inkoopverklaring</button>
           </div>

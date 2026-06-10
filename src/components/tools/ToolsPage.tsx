@@ -5,7 +5,7 @@ import BijtellingModal from './BijtellingModal';
 import ConsignatieModal from './ConsignatieModal';
 import styles from './ToolsPage.module.css';
 
-type ToolKey = 'bijtelling' | 'consignatie';
+type ToolKey = 'bijtelling' | 'consignatie' | 'inkoopverklaring';
 
 type Tool =
   | { type: 'modal'; key: ToolKey; icoon: string; titel: string; desc: string }
@@ -25,6 +25,13 @@ const TOOLS: Tool[] = [
     icoon: '📋',
     titel: 'Consignatie eindafrekening',
     desc: 'Wizard voor netto opbrengst klant na verkoop, met PDF-download.',
+  },
+  {
+    type: 'modal',
+    key: 'inkoopverklaring',
+    icoon: '🧾',
+    titel: 'Inkoopverklaring maken',
+    desc: 'Maak inkoopverklaringen (marge) met RDW-gegevens, beheer opgeslagen verklaringen en verstuur via DocuSign.',
   },
   {
     type: 'extern',
@@ -77,6 +84,7 @@ export default function ToolsPage() {
 
       <BijtellingModal open={open === 'bijtelling'} onSluiten={() => setOpen(null)} />
       <ConsignatieModal open={open === 'consignatie'} onSluiten={() => setOpen(null)} />
+      <ConsignatieModal open={open === 'inkoopverklaring'} directInkoop onSluiten={() => setOpen(null)} />
     </div>
   );
 }
