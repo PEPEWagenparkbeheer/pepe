@@ -7,16 +7,14 @@ export const maxDuration = 60;
 // DocuSign via directe REST API + JWT (Node crypto). Bewust GEEN docusign-esign SDK:
 // dat pakket gebruikt AMD define()-modules die Turbopack (Next 16) niet kan bundelen.
 
-const OAUTH_BASE = process.env.DOCUSIGN_OAUTH_BASE_PATH ?? 'account-d.docusign.com';
-const BASE_URL = process.env.DOCUSIGN_BASE_URL ?? 'https://demo.docusign.net/restapi';
+// Var-namen identiek aan de wpb-klantportal zodat beide apps dezelfde DocuSign-config
+// delen. Private key staat base64-encoded (single-line, geen multiline-gedoe in Vercel).
+const OAUTH_BASE = process.env.DOCUSIGN_OAUTH_BASE ?? 'account-d.docusign.com';
+const BASE_URL = process.env.DOCUSIGN_BASE_URI ?? 'https://demo.docusign.net/restapi';
 const INTEGRATION_KEY = process.env.DOCUSIGN_INTEGRATION_KEY ?? '';
 const USER_ID = process.env.DOCUSIGN_USER_ID ?? '';
-const PRIVATE_KEY = process.env.DOCUSIGN_PRIVATE_KEY ?? '';
+const PRIVATE_KEY_B64 = process.env.DOCUSIGN_PRIVATE_KEY_B64 ?? '';
 const ACCOUNT_ID = process.env.DOCUSIGN_ACCOUNT_ID ?? '';
-
-function normalizePrivateKey(raw: string) {
-  return raw.replace(/\\r/g, '\n').replace(/\\n/g, '\n');
-}
 
 function stripDataUri(value: string) {
   const prefix = 'data:application/pdf;base64,';
@@ -32,9 +30,11 @@ function base64url(input: Buffer | string) {
 }
 
 async function createAccessToken(): Promise<string> {
-  if (!INTEGRATION_KEY || !USER_ID || !PRIVATE_KEY || !ACCOUNT_ID) {
+  if (!INTEGRATION_KEY || !USER_ID || !PRIVATE_KEY_B64 || !ACCOUNT_ID) {
     throw new Error('DocuSign is niet geconfigureerd. Controleer de omgevingsvariabelen.');
   }
+
+  const privateKey = Buffer.from(PRIVATE_KEY_B64, 'base64').toString('utf-8');
 
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: 'RS256', typ: 'JWT' };
@@ -51,7 +51,7 @@ async function createAccessToken(): Promise<string> {
   const signature = crypto
     .createSign('RSA-SHA256')
     .update(signingInput)
-    .sign(normalizePrivateKey(PRIVATE_KEY));
+    .sign(privateKey);
   const assertion = `${signingInput}.${base64url(signature)}`;
 
   const res = await fetch(`https://${OAUTH_BASE}/oauth/token`, {
