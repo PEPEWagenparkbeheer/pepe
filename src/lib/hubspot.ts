@@ -278,6 +278,55 @@ export async function searchDealByKenteken(kenteken: string): Promise<string | n
   return data.results?.[0]?.id ?? null;
 }
 
+// Dealstage "Rijdend" — alleen rijdende voertuigen tellen mee voor BREIN.
+// (zelfde id als DEALSTAGE_VERKOCHT hierboven, commentaar "Rijdend / Klant").
+export const DEALSTAGE_RIJDEND = '104593342';
+
+export interface RijdendeDeal {
+  id: string;
+  kenteken: string;
+  leasemaatschappij: string | null;
+  type_aanschaf: string | null;
+  brandstof: string | null;
+  fiscale_waarde: string | null;
+  apk_datum: string | null;
+  winterbanden_in_contract: string | null;
+  verwachte_einddatum: string | null;
+}
+
+/**
+ * Alle aan een contact gekoppelde deals in stage 'rijdend'.
+ * Voorwaarde: BREIN gebruikt alleen voertuigen die daadwerkelijk rijden.
+ */
+export async function getRijdendeDeals(contactId: string): Promise<RijdendeDeal[]> {
+  if (!contactId?.trim()) return [];
+  const assoc = await hsFetch<{ results?: { toObjectId: string }[] }>(
+    `${HS_BASE}/crm/v4/objects/contacts/${contactId}/associations/deals`,
+  ).catch(() => ({ results: [] as { toObjectId: string }[] }));
+
+  const ids = (assoc.results ?? []).map((r) => r.toObjectId);
+  const out: RijdendeDeal[] = [];
+  for (const id of ids) {
+    const f = await getDealFields(id, [
+      'dealname', 'dealstage', 'leasemaatschappij_goed', 'type_aanschaf',
+      'brandstof', 'fiscale_waarde', 'apk_datum', 'winterbanden_in_contract', 'verwachte_einddatum',
+    ]).catch(() => ({} as Record<string, string>));
+    if (f.dealstage !== DEALSTAGE_RIJDEND) continue;
+    out.push({
+      id,
+      kenteken: f.dealname ?? '',
+      leasemaatschappij: f.leasemaatschappij_goed ?? null,
+      type_aanschaf: f.type_aanschaf ?? null,
+      brandstof: f.brandstof ?? null,
+      fiscale_waarde: f.fiscale_waarde ?? null,
+      apk_datum: f.apk_datum ?? null,
+      winterbanden_in_contract: f.winterbanden_in_contract ?? null,
+      verwachte_einddatum: f.verwachte_einddatum ?? null,
+    });
+  }
+  return out;
+}
+
 /** Haalt specifieke velden van een deal (= voertuig/contract) op. */
 export async function getDealFields(
   dealId: string,

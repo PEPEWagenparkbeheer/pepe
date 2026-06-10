@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/brein/cron", "schedule": "*/30 * * * *" }
+  ]
+}
