@@ -47,7 +47,6 @@ interface InkoopForm {
   brandstof: string;
   vermogen: string;       // bv. "96 kW · 131 PK"
   motorinhoud: string;    // bv. "1.199 cm³"
-  transmissie: string;
   kilometerstand: string;
   inkoopbedrag: string;
   opmerkingen: string;
@@ -68,7 +67,6 @@ const INKOOP_LEEG: InkoopForm = {
   brandstof: '',
   vermogen: '',
   motorinhoud: '',
-  transmissie: '',
   kilometerstand: '',
   inkoopbedrag: '',
   opmerkingen: '',
@@ -637,7 +635,6 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
       ['Brandstof', data.brandstof],
       ['Vermogen', data.vermogen],
       ['Motorinhoud', data.motorinhoud],
-      ['Transmissie', data.transmissie],
       ['Kilometerstand', data.kilometerstand ? `${Number(data.kilometerstand).toLocaleString('nl-NL')} km` : ''],
     ] as [string, string][]).filter(([, v]) => v && v.trim());
 
@@ -1045,7 +1042,7 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
                 </button>
               </div>
               <p className={styles.uitleg}>
-                Haalt merk/model, bouwjaar (deel 1a), brandstof, vermogen en motorinhoud op uit het RDW-register. Transmissie vul je zelf in (niet in RDW open data).
+                Haalt merk/model, bouwjaar (deel 1a), brandstof, vermogen en motorinhoud op uit het RDW-register.
               </p>
             </div>
 
@@ -1079,15 +1076,9 @@ export default function ConsignatieModal({ open, onSluiten }: Props) {
                 <input className="fi" placeholder="1.199 cm³" value={inkoop.motorinhoud} onChange={(e) => stelInkoop('motorinhoud', e.target.value)} />
               </div>
             </div>
-            <div className={styles.rowGrid}>
-              <div className={styles.fg}>
-                <label>Transmissie</label>
-                <input className="fi" placeholder="Handgeschakeld / Automaat" value={inkoop.transmissie} onChange={(e) => stelInkoop('transmissie', e.target.value)} />
-              </div>
-              <div className={styles.fg}>
-                <label>Kilometerstand</label>
-                <input className="fi" type="number" min={0} placeholder="123456" value={inkoop.kilometerstand} onChange={(e) => stelInkoop('kilometerstand', e.target.value)} />
-              </div>
+            <div className={styles.fg}>
+              <label>Kilometerstand</label>
+              <input className="fi" type="number" min={0} placeholder="123456" value={inkoop.kilometerstand} onChange={(e) => stelInkoop('kilometerstand', e.target.value)} />
             </div>
             <div className={styles.fg}>
               <label>Inkoopbedrag <span className={styles.btwBadge}>marge</span></label>
