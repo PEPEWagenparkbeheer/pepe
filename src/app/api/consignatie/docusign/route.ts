@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import docusign from 'docusign-esign';
+import crypto from 'node:crypto';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const DOCUSIGN_OAUTH_BASE_PATH = process.env.DOCUSIGN_OAUTH_BASE_PATH ?? 'account-d.docusign.com';
-const DOCUSIGN_BASE_URL = process.env.DOCUSIGN_BASE_URL ?? 'https://demo.docusign.net/restapi';
-const DOCUSIGN_INTEGRATION_KEY = process.env.DOCUSIGN_INTEGRATION_KEY ?? '';
-const DOCUSIGN_USER_ID = process.env.DOCUSIGN_USER_ID ?? '';
-const DOCUSIGN_PRIVATE_KEY = process.env.DOCUSIGN_PRIVATE_KEY ?? '';
-const DOCUSIGN_ACCOUNT_ID = process.env.DOCUSIGN_ACCOUNT_ID ?? '';
+// DocuSign via directe REST API + JWT (Node crypto). Bewust GEEN docusign-esign SDK:
+// dat pakket gebruikt AMD define()-modules die Turbopack (Next 16) niet kan bundelen.
 
-function invalidEnv(message: string) {
-  return NextResponse.json({ error: message }, { status: 500 });
-}
+const OAUTH_BASE = process.env.DOCUSIGN_OAUTH_BASE_PATH ?? 'account-d.docusign.com';
+const BASE_URL = process.env.DOCUSIGN_BASE_URL ?? 'https://demo.docusign.net/restapi';
+const INTEGRATION_KEY = process.env.DOCUSIGN_INTEGRATION_KEY ?? '';
+const USER_ID = process.env.DOCUSIGN_USER_ID ?? '';
+const PRIVATE_KEY = process.env.DOCUSIGN_PRIVATE_KEY ?? '';
+const ACCOUNT_ID = process.env.DOCUSIGN_ACCOUNT_ID ?? '';
 
 function normalizePrivateKey(raw: string) {
   return raw.replace(/\\r/g, '\n').replace(/\\n/g, '\n');
@@ -24,47 +23,71 @@ function stripDataUri(value: string) {
   return value.startsWith(prefix) ? value.slice(prefix.length) : value;
 }
 
-async function createAccessToken() {
-  if (!DOCUSIGN_INTEGRATION_KEY || !DOCUSIGN_USER_ID || !DOCUSIGN_PRIVATE_KEY || !DOCUSIGN_ACCOUNT_ID) {
+function base64url(input: Buffer | string) {
+  return Buffer.from(input)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+async function createAccessToken(): Promise<string> {
+  if (!INTEGRATION_KEY || !USER_ID || !PRIVATE_KEY || !ACCOUNT_ID) {
     throw new Error('DocuSign is niet geconfigureerd. Controleer de omgevingsvariabelen.');
   }
 
-  const apiClient = new docusign.ApiClient();
-  apiClient.setOAuthBasePath(DOCUSIGN_OAUTH_BASE_PATH);
-  apiClient.setBasePath(DOCUSIGN_BASE_URL);
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const payload = {
+    iss: INTEGRATION_KEY,
+    sub: USER_ID,
+    aud: OAUTH_BASE,
+    iat: now,
+    exp: now + 3600,
+    scope: 'signature impersonation',
+  };
 
-  const privateKey = Buffer.from(normalizePrivateKey(DOCUSIGN_PRIVATE_KEY), 'utf-8');
-  const tokenResponse = await apiClient.requestJWTUserToken(
-    DOCUSIGN_INTEGRATION_KEY,
-    DOCUSIGN_USER_ID,
-    ['signature'],
-    privateKey,
-    3600,
-  );
+  const signingInput = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
+  const signature = crypto
+    .createSign('RSA-SHA256')
+    .update(signingInput)
+    .sign(normalizePrivateKey(PRIVATE_KEY));
+  const assertion = `${signingInput}.${base64url(signature)}`;
 
-  const accessToken = tokenResponse.body?.access_token;
-  if (!accessToken) {
-    throw new Error('Geen DocuSign access token ontvangen.');
+  const res = await fetch(`https://${OAUTH_BASE}/oauth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`DocuSign OAuth mislukt (${res.status}): ${text}`);
   }
 
-  apiClient.addDefaultHeader('Authorization', `Bearer ${accessToken}`);
-  return apiClient;
+  const data = (await res.json()) as { access_token?: string };
+  if (!data.access_token) {
+    throw new Error('Geen DocuSign access token ontvangen.');
+  }
+  return data.access_token;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = (await req.json()) as Record<string, unknown>;
     const {
       pdfBase64,
       auto,
-      kenteken,
       klantNaam,
       emailKlant,
       emailInkoper,
       documentNaam,
       onderwerp,
       bericht,
-    } = body as Record<string, unknown>;
+    } = body;
 
     if (typeof pdfBase64 !== 'string' || !pdfBase64.trim()) {
       return NextResponse.json({ error: 'PDF ontbreekt.' }, { status: 400 });
@@ -76,56 +99,74 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'E-mail inkoper ontbreekt.' }, { status: 400 });
     }
 
-    const client = await createAccessToken();
-    const envelopesApi = new docusign.EnvelopesApi(client);
+    const accessToken = await createAccessToken();
 
-    const document = new docusign.Document();
-    document.documentBase64 = stripDataUri(pdfBase64);
-    document.name = typeof documentNaam === 'string' && documentNaam.trim()
-      ? documentNaam
-      : `Inkoopfactuur ${auto ?? ''}`.trim() || 'Inkoopfactuur';
-    document.fileExtension = 'pdf';
-    document.documentId = '1';
+    const documentNaamFinal =
+      typeof documentNaam === 'string' && documentNaam.trim()
+        ? documentNaam
+        : `Inkoopfactuur ${auto ?? ''}`.trim() || 'Inkoopfactuur';
 
-    const klantSigner = new docusign.Signer();
-    klantSigner.email = emailKlant;
-    klantSigner.name = typeof klantNaam === 'string' && klantNaam.trim() ? klantNaam : 'Klant';
-    klantSigner.recipientId = '1';
-    klantSigner.routingOrder = '1';
-    klantSigner.tabs = new docusign.Tabs();
-    const klantSignHere = new docusign.SignHere();
-    klantSignHere.documentId = '1';
-    klantSignHere.pageNumber = '1';
-    klantSignHere.xPosition = '40';
-    klantSignHere.yPosition = '220';
-    klantSigner.tabs.signHereTabs = [klantSignHere];
+    const envelopeDefinition = {
+      emailSubject:
+        typeof onderwerp === 'string' && onderwerp.trim()
+          ? onderwerp
+          : `Inkoopfactuur ${auto ?? ''}`.trim() || 'Inkoopfactuur',
+      emailBlurb:
+        typeof bericht === 'string' && bericht.trim()
+          ? bericht
+          : 'Onderteken deze inkoopfactuur digitaal via DocuSign.',
+      status: 'sent',
+      documents: [
+        {
+          documentBase64: stripDataUri(pdfBase64),
+          name: documentNaamFinal,
+          fileExtension: 'pdf',
+          documentId: '1',
+        },
+      ],
+      recipients: {
+        signers: [
+          {
+            email: emailKlant,
+            name: typeof klantNaam === 'string' && klantNaam.trim() ? klantNaam : 'Klant',
+            recipientId: '1',
+            routingOrder: '1',
+            tabs: {
+              signHereTabs: [
+                { documentId: '1', pageNumber: '1', xPosition: '40', yPosition: '220' },
+              ],
+            },
+          },
+          {
+            email: emailInkoper,
+            name: 'Inkoper',
+            recipientId: '2',
+            routingOrder: '2',
+            tabs: {
+              signHereTabs: [
+                { documentId: '1', pageNumber: '1', xPosition: '40', yPosition: '255' },
+              ],
+            },
+          },
+        ],
+      },
+    };
 
-    const inkoperSigner = new docusign.Signer();
-    inkoperSigner.email = emailInkoper;
-    inkoperSigner.name = 'Inkoper';
-    inkoperSigner.recipientId = '2';
-    inkoperSigner.routingOrder = '2';
-    inkoperSigner.tabs = new docusign.Tabs();
-    const inkoperSignHere = new docusign.SignHere();
-    inkoperSignHere.documentId = '1';
-    inkoperSignHere.pageNumber = '1';
-    inkoperSignHere.xPosition = '40';
-    inkoperSignHere.yPosition = '255';
-    inkoperSigner.tabs.signHereTabs = [inkoperSignHere];
+    const res = await fetch(`${BASE_URL}/v2.1/accounts/${ACCOUNT_ID}/envelopes`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ...envelopeDefinition }),
+    });
 
-    const envelopeDefinition = new docusign.EnvelopeDefinition();
-    envelopeDefinition.emailSubject = typeof onderwerp === 'string' && onderwerp.trim()
-      ? onderwerp
-      : `Inkoopfactuur ${auto ?? ''}`.trim();
-    envelopeDefinition.emailBlurb = typeof bericht === 'string' && bericht.trim()
-      ? bericht
-      : 'Onderteken deze inkoopfactuur digitaal via DocuSign.';
-    envelopeDefinition.documents = [document];
-    envelopeDefinition.recipients = new docusign.Recipients();
-    envelopeDefinition.recipients.signers = [klantSigner, inkoperSigner];
-    envelopeDefinition.status = 'sent';
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`DocuSign envelope mislukt (${res.status}): ${text}`);
+    }
 
-    const result = await envelopesApi.createEnvelope(DOCUSIGN_ACCOUNT_ID, { envelopeDefinition });
+    const result = (await res.json()) as { envelopeId?: string; status?: string };
     return NextResponse.json({ ok: true, envelopeId: result.envelopeId, status: result.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Onbekende fout';
