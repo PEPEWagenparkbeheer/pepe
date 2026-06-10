@@ -147,8 +147,9 @@ export async function POST(req: NextRequest) {
             recipientId: '1',
             routingOrder: '1',
             tabs: {
+              // Anker \s1\ staat in de inkoopverklaring-PDF bij het handtekeningvak van de verkoper.
               signHereTabs: [
-                { documentId: '1', pageNumber: '1', xPosition: '40', yPosition: '220' },
+                { anchorString: '\\s1\\', anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-6' },
               ],
             },
           },
@@ -158,8 +159,9 @@ export async function POST(req: NextRequest) {
             recipientId: '2',
             routingOrder: '2',
             tabs: {
+              // Anker \s2\ staat bij het handtekeningvak van de inkoper (PEPE).
               signHereTabs: [
-                { documentId: '1', pageNumber: '1', xPosition: '40', yPosition: '255' },
+                { anchorString: '\\s2\\', anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-6' },
               ],
             },
           },
