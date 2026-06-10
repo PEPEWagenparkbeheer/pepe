@@ -9,8 +9,9 @@ export const maxDuration = 60;
 
 // Var-namen identiek aan de wpb-klantportal zodat beide apps dezelfde DocuSign-config
 // delen. Private key staat base64-encoded (single-line, geen multiline-gedoe in Vercel).
-const OAUTH_BASE = process.env.DOCUSIGN_OAUTH_BASE ?? 'account-d.docusign.com';
-const BASE_URL = process.env.DOCUSIGN_BASE_URI ?? 'https://demo.docusign.net/restapi';
+const OAUTH_BASE = process.env.DOCUSIGN_OAUTH_BASE ?? 'account.docusign.com';
+// BASE_URI zónder /restapi (zoals wpb het opslaat); /restapi wordt in de URL geplakt.
+const BASE_URL = process.env.DOCUSIGN_BASE_URI ?? 'https://eu.docusign.net';
 const INTEGRATION_KEY = process.env.DOCUSIGN_INTEGRATION_KEY ?? '';
 const USER_ID = process.env.DOCUSIGN_USER_ID ?? '';
 const PRIVATE_KEY_B64 = process.env.DOCUSIGN_PRIVATE_KEY_B64 ?? '';
@@ -152,7 +153,7 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    const res = await fetch(`${BASE_URL}/v2.1/accounts/${ACCOUNT_ID}/envelopes`, {
+    const res = await fetch(`${BASE_URL}/restapi/v2.1/accounts/${ACCOUNT_ID}/envelopes`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
