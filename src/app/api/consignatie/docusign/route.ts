@@ -9,13 +9,15 @@ export const maxDuration = 60;
 
 // Var-namen identiek aan de wpb-klantportal zodat beide apps dezelfde DocuSign-config
 // delen. Private key staat base64-encoded (single-line, geen multiline-gedoe in Vercel).
-const OAUTH_BASE = process.env.DOCUSIGN_OAUTH_BASE ?? 'account.docusign.com';
+// .trim() op alles: env-waarden kunnen een trailing newline/space hebben (bv. via
+// `vercel env add` met piped stdin) → anders 'issuer_not_found' op de iss-claim.
+const OAUTH_BASE = (process.env.DOCUSIGN_OAUTH_BASE ?? 'account.docusign.com').trim();
 // BASE_URI zónder /restapi (zoals wpb het opslaat); /restapi wordt in de URL geplakt.
-const BASE_URL = process.env.DOCUSIGN_BASE_URI ?? 'https://eu.docusign.net';
-const INTEGRATION_KEY = process.env.DOCUSIGN_INTEGRATION_KEY ?? '';
-const USER_ID = process.env.DOCUSIGN_USER_ID ?? '';
-const PRIVATE_KEY_B64 = process.env.DOCUSIGN_PRIVATE_KEY_B64 ?? '';
-const ACCOUNT_ID = process.env.DOCUSIGN_ACCOUNT_ID ?? '';
+const BASE_URL = (process.env.DOCUSIGN_BASE_URI ?? 'https://eu.docusign.net').trim();
+const INTEGRATION_KEY = (process.env.DOCUSIGN_INTEGRATION_KEY ?? '').trim();
+const USER_ID = (process.env.DOCUSIGN_USER_ID ?? '').trim();
+const PRIVATE_KEY_B64 = (process.env.DOCUSIGN_PRIVATE_KEY_B64 ?? '').trim();
+const ACCOUNT_ID = (process.env.DOCUSIGN_ACCOUNT_ID ?? '').trim();
 
 function stripDataUri(value: string) {
   const prefix = 'data:application/pdf;base64,';
@@ -74,6 +76,18 @@ async function createAccessToken(): Promise<string> {
     throw new Error('Geen DocuSign access token ontvangen.');
   }
   return data.access_token;
+}
+
+// Health-check: probeert een JWT-token te halen. Geen secrets in de respons.
+// GET /api/consignatie/docusign → { ok, oauthBase } of { ok:false, error }.
+export async function GET() {
+  try {
+    await createAccessToken();
+    return NextResponse.json({ ok: true, oauthBase: OAUTH_BASE, baseUrl: BASE_URL });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Onbekende fout';
+    return NextResponse.json({ ok: false, oauthBase: OAUTH_BASE, baseUrl: BASE_URL, error: message });
+  }
 }
 
 export async function POST(req: NextRequest) {
