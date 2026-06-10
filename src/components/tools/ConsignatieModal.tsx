@@ -138,18 +138,32 @@ async function rdwInkoopOphalen(kenteken: string): Promise<Partial<InkoopForm> |
     const [vArr, fArr] = await Promise.all([vRes.json(), fRes.json()]);
     const v = Array.isArray(vArr) ? vArr[0] : undefined;
     if (!v) return null;
-    const f = Array.isArray(fArr) ? fArr[0] : undefined;
+
+    // Brandstof-tabel kan meerdere rijen hebben (bv. hybride = benzine + elektrisch).
+    const fuelRows: Record<string, string>[] = Array.isArray(fArr) ? fArr : [];
+    const brandstofNamen = [...new Set(fuelRows.map((r) => titelCase(r.brandstof_omschrijving)).filter(Boolean))];
+
+    // Vermogen: voor verbrandingsmotoren staat het in nettomaximumvermogen; voor EV's is dat
+    // veld leeg en zit het piekvermogen in netto_max_vermogen_elektrisch (continu = nominaal).
+    let kW = 0;
+    for (const r of fuelRows) {
+      const cand =
+        Number(r.nettomaximumvermogen) ||
+        Number(r.netto_max_vermogen_elektrisch) ||
+        Number(r.nominaal_continu_maximumvermogen) ||
+        0;
+      if (cand > kW) kW = cand;
+    }
 
     const motor = v.cilinderinhoud ? Number(v.cilinderinhoud) : 0;
-    const kW = f?.nettomaximumvermogen ? Number(f.nettomaximumvermogen) : 0;
 
     return {
       merk: titelCase(v.merk),
       model: titelCase(v.handelsbenaming),
       bouwjaar: formatRdwDatum(v.datum_eerste_toelating),
-      brandstof: titelCase(f?.brandstof_omschrijving),
+      brandstof: brandstofNamen.join(' / '),
       motorinhoud: motor ? `${motor.toLocaleString('nl-NL')} cm³` : '',
-      vermogen: kW ? `${kW} kW · ${Math.round(kW * 1.36)} PK` : '',
+      vermogen: kW ? `${Math.round(kW)} kW · ${Math.round(kW * 1.36)} PK` : '',
     };
   } catch {
     return null;
