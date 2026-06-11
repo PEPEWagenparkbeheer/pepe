@@ -61,7 +61,7 @@ ${optieRegels || '   (geen losse opties)'}
 
 7. PROVISIE: Ga binnen die modal naar het tabblad "Overige instellingen". Maak via het oog-icoon naast "Provisie" het bedrag-veld zichtbaar, wis het en zet het op ${PROVISIE_HILTERMANN} euro.
 ${tender.korting_pct != null ? `
-7b. KORTING: Zoek in deze modal (Prijsinstellingen én Overige instellingen) naar een veld voor korting(spercentage). Vergelijk de huidige waarde met ${tender.korting_pct}%. ALLEEN als ${tender.korting_pct}% HOGER is dan de huidige portaal-waarde: overschrijf het veld met ${tender.korting_pct}. Is de portaal-korting gelijk of hoger, laat het veld dan ongemoeid. Vind je geen korting-veld, sla deze stap over en vermeld dat in je toelichting.
+7b. KORTING: In ditzelfde tabblad "Overige instellingen" staat bovenaan de sectie "Kortingen" met twee velden: links "Korting netto" (een PERCENTAGE) en rechts "Bedrag". Lees de huidige waarde van "Korting netto" af en vergelijk met ${tender.korting_pct}. ALLEEN als ${tender.korting_pct} HOGER is dan de huidige waarde: wis het veld "Korting netto" en vul ${tender.korting_pct} in. Is de huidige portaal-korting gelijk of hoger, laat het veld dan ongemoeid. Het veld "Bedrag" NOOIT invullen of wijzigen — wij werken uitsluitend met percentages.
 ` : ''}
 8. HERCALCULEREN: Klik op de zwarte knop "Hercalculeren" rechtsonder en wacht tot de prijs is bijgewerkt. Sluit daarna de modal (X) als die nog open is.
 
