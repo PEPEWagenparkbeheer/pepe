@@ -20,8 +20,9 @@ const PRIVATE_KEY_B64 = (process.env.DOCUSIGN_PRIVATE_KEY_B64 ?? '').trim();
 const ACCOUNT_ID = (process.env.DOCUSIGN_ACCOUNT_ID ?? '').trim();
 
 function stripDataUri(value: string) {
-  const prefix = 'data:application/pdf;base64,';
-  return value.startsWith(prefix) ? value.slice(prefix.length) : value;
+  // Verwerk zowel pure base64 als een volledige data-URI (eventueel met ;filename=…).
+  const idx = value.indexOf('base64,');
+  return idx >= 0 ? value.slice(idx + 'base64,'.length) : value;
 }
 
 function base64url(input: Buffer | string) {

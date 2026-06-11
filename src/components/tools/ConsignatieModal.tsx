@@ -840,9 +840,12 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
 
   async function createInkoopPdfBase64(data: InkoopForm & { nummer?: string }): Promise<string> {
     const doc = await createInkoopPdf(data);
+    // jsPDF geeft "data:application/pdf;filename=generated.pdf;base64,…" — knip alles
+    // tot en met "base64," weg zodat we pure base64 overhouden (anders verwerpt DocuSign 't).
     const dataUri = doc.output('datauristring') as string;
-    const prefix = 'data:application/pdf;base64,';
-    return dataUri.startsWith(prefix) ? dataUri.slice(prefix.length) : dataUri;
+    const marker = 'base64,';
+    const idx = dataUri.indexOf(marker);
+    return idx >= 0 ? dataUri.slice(idx + marker.length) : dataUri;
   }
 
   function openInkoopfactuur() {
