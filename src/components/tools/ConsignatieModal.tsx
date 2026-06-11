@@ -106,19 +106,24 @@ const SEQ_KEY = 'pepe_inkoop_volgnr';
 
 const BTW = 0.21;
 
-// Oplopend documentnummer JAAR-0001 dat nooit terugloopt (los van verwijderen).
-// Per jaar reset naar 0001. Teller in localStorage.
+// Inkoopverklaringen starten per jaar op nummer 2001, zodat ze nooit botsen met
+// de facturen-nummering (die op 0001 begint). Teller loopt op en nooit terug
+// (ook niet na verwijderen), reset per jaar naar 2001. Opgeslagen in localStorage.
+const SEQ_START = 2001;
+
 function nextInkoopNummer(): string {
   const jaar = new Date().getFullYear();
-  let volgnr = 0;
+  let laatste = 0;
   try {
     const raw = localStorage.getItem(SEQ_KEY);
     const parsed = raw ? (JSON.parse(raw) as { jaar: number; volgnr: number }) : null;
-    volgnr = parsed && parsed.jaar === jaar ? parsed.volgnr : 0;
+    laatste = parsed && parsed.jaar === jaar ? parsed.volgnr : 0;
   } catch {
-    volgnr = 0;
+    laatste = 0;
   }
-  volgnr += 1;
+  // Floor op SEQ_START: een leeg/nieuw jaar of een oude lage testteller
+  // springt meteen naar 2001; daarna gewoon +1.
+  const volgnr = Math.max(laatste + 1, SEQ_START);
   try {
     localStorage.setItem(SEQ_KEY, JSON.stringify({ jaar, volgnr }));
   } catch {
@@ -349,7 +354,18 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
   // Inkoopverklaring — losgekoppelde flow vanaf het resultaatscherm
   const [toonInkoop, setToonInkoop] = useState(false);
   const [inkoop, setInkoop] = useState<InkoopForm>(INKOOP_LEEG);
+  // Eén documentnummer per verklaring; lazy toegekend en overal (download,
+  // opslaan, DocuSign) hergebruikt zodat het PDF-, bestands- en mailnummer gelijk zijn.
+  const [inkoopNummer, setInkoopNummer] = useState<string | null>(null);
   const [savedInkoop, setSavedInkoop] = useState<SavedInkoop[]>([]);
+
+  // Geeft het huidige documentnummer terug, of kent er één toe als dat nog niet bestaat.
+  function ensureInkoopNummer(): string {
+    if (inkoopNummer) return inkoopNummer;
+    const nummer = nextInkoopNummer();
+    setInkoopNummer(nummer);
+    return nummer;
+  }
   const [showSavedList, setShowSavedList] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -502,6 +518,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     setKlaar(false);
     setToonInkoop(false);
     setInkoop(INKOOP_LEEG);
+    setInkoopNummer(null);
     setSendResult(null);
   }
 
@@ -664,7 +681,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     doc.text('INKOOPVERKLARING', col2, 16, { align: 'right', charSpace: 0.5 });
 
     const datum = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const nr = data.nummer || `${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+    const nr = data.nummer || nextInkoopNummer();
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...MUT);
@@ -935,9 +952,10 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
   }
 
   async function downloadInkoopPdf() {
-    const doc = await createInkoopPdf(inkoop);
+    const nummer = ensureInkoopNummer();
+    const doc = await createInkoopPdf({ ...inkoop, nummer });
     const safe = (inkoop.merk || inkoop.kenteken || 'auto').replace(/[^a-zA-Z0-9\-_\s]/g, '').trim().replace(/\s+/g, '-');
-    doc.save(`PEPE-Inkoopverklaring-${safe}.pdf`);
+    doc.save(`PEPE-Inkoopverklaring-${nummer}-${safe}.pdf`);
   }
 
   async function createInkoopPdfBase64(data: InkoopForm & { nummer?: string }): Promise<string> {
@@ -956,6 +974,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
       merk: prev.merk || form.auto,
       inkoopbedrag: prev.inkoopbedrag || form.verkoopprijs,
     }));
+    setInkoopNummer(null);
     setSendResult(null);
     setToonInkoop(true);
   }
@@ -1008,7 +1027,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
       id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
         : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
-      nummer: nextInkoopNummer(),
+      nummer: ensureInkoopNummer(),
       createdAt: new Date().toISOString(),
     };
 
@@ -1020,6 +1039,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     const record = savedInkoop.find((item) => item.id === id);
     if (!record) return;
     setInkoop({ ...INKOOP_LEEG, ...record });
+    setInkoopNummer(record.nummer ?? null);
     setShowSavedList(false);
     setSendResult(null);
   }
@@ -1066,7 +1086,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     setIsSending(true);
     setSendResult(null);
     try {
-      const result = await postDocuSign(inkoop);
+      const result = await postDocuSign({ ...inkoop, nummer: ensureInkoopNummer() });
       setSendResult(result);
       alert(`DocuSign-verzoek verstuurd: ${result.envelopeId}`);
     } catch (err) {
