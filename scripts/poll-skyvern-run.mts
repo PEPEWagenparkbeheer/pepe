@@ -17,7 +17,7 @@ const key = process.env.SKYVERN_API_KEY!;
 const t0 = Date.now();
 
 for (;;) {
-  const res = await fetch(`https://api.skyvern.com/api/v1/runs/${runId}`, {
+  const res = await fetch(`https://api.skyvern.com/v1/runs/${runId}`, {
     headers: { 'x-api-key': key },
   });
   if (!res.ok) {

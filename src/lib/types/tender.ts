@@ -47,6 +47,11 @@ export interface TenderInput {
   co2?: number;
   bijtelling?: number;
 
+  // PEPE-korting (%): vullen wij aan onze kant in. Overschrijft de korting in
+  // het portaal ALLEEN als onze korting hóger is dan wat het portaal standaard
+  // hanteert; anders blijft de portaal-korting staan.
+  korting_pct?: number;
+
   // Opties / accessoires
   opties: OptieItem[];
   prijzen_incl_btw?: boolean;            // null/undefined = onbekend; nodig voor matching

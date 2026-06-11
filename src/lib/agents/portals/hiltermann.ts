@@ -60,7 +60,9 @@ ${optieRegels || '   (geen losse opties)'}
    }${vervangendVervoerUit ? '\n   - Zet de checkbox "Vervangend vervoer" UIT' : ''}
 
 7. PROVISIE: Ga binnen die modal naar het tabblad "Overige instellingen". Maak via het oog-icoon naast "Provisie" het bedrag-veld zichtbaar, wis het en zet het op ${PROVISIE_HILTERMANN} euro.
-
+${tender.korting_pct != null ? `
+7b. KORTING: Zoek in deze modal (Prijsinstellingen én Overige instellingen) naar een veld voor korting(spercentage). Vergelijk de huidige waarde met ${tender.korting_pct}%. ALLEEN als ${tender.korting_pct}% HOGER is dan de huidige portaal-waarde: overschrijf het veld met ${tender.korting_pct}. Is de portaal-korting gelijk of hoger, laat het veld dan ongemoeid. Vind je geen korting-veld, sla deze stap over en vermeld dat in je toelichting.
+` : ''}
 8. HERCALCULEREN: Klik op de zwarte knop "Hercalculeren" rechtsonder en wacht tot de prijs is bijgewerkt. Sluit daarna de modal (X) als die nog open is.
 
 9. PRIJS AFLEZEN: Lees in de linker zijbalk het grote maandbedrag onder "Full operational lease" af. Dit is de maandprijs die je teruggeeft — NIET de fiscale waarde, cataloguswaarde of een tarief per kilometer.

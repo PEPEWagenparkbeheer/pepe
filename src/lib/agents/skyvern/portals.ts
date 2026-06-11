@@ -21,6 +21,11 @@ function buildArvalMission(tender: TenderInput): string {
     .map((o) => `   - ${o.naam}${o.prijs != null ? ` (~€${o.prijs})` : ''}`)
     .join('\n');
 
+  // PEPE-korting overschrijft de portaal-korting alleen als die van ons hóger is.
+  const kortingInstructie = tender.korting_pct != null
+    ? `Vergelijk de huidige "% korting cataloguspijs" met ${tender.korting_pct}%: ALLEEN als ${tender.korting_pct}% HOGER is, overschrijf dan zowel "% korting cataloguspijs" als "% korting opties" met ${tender.korting_pct}. Is de portaal-korting gelijk of hoger, laat beide velden dan staan.`
+    : `% kortingen NIET aanraken`;
+
   return `Voer in het Arval-portaal (myarval.com) een complete operational-lease calculatie uit voor onderstaande auto en lees aan het eind het maandbedrag af.
 
 AUTO: ${tender.merk} ${tender.model} ${tender.uitvoering ?? ''} (${tender.brandstof ?? 'onbekend'})
@@ -31,7 +36,7 @@ STAPPEN:
 3. CLIENT-STAP: Alles is al ingevuld → klik direct "Opslaan & volgende".
 4. Per auto-rij staan 3 icoontjes. Stel in:
    - ✏️ Potlood (calculatie): jaarkm = ${tender.km_jaar}, looptijd = ${tender.looptijd} maanden → klik Bijwerken.
-   - ⚙️ Tandwiel (financieel): bedrag commissie = 2000 (PEPE-standaard); % kortingen NIET aanraken → klik Bijwerken.
+   - ⚙️ Tandwiel (financieel): bedrag commissie = 2000 (PEPE-standaard); ${kortingInstructie} → klik Bijwerken.
    - "opties"-link (autoconfigurator): vink per sectie de juiste optie aan:
 ${optieRegels || '     (geen losse opties)'}
    - "accessoires (dealeropties)"-link: selecteer "ALPD - Afleverpakket" en vul de som van de niet-fabrieks accessoires ex btw in → Toevoegen → Sluiten.

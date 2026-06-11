@@ -137,6 +137,17 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
                 <input className="fi" type="number" value={form.km_jaar} onChange={(e) => stel('km_jaar', parseInt(e.target.value) || 0)} />
               </Veld>
             </Twee>
+            <Twee>
+              <Veld label="PEPE-korting % (overschrijft portaal als hoger)">
+                <input
+                  className="fi" type="number" step="0.1" min="0" max="50"
+                  placeholder="leeg = portaal-korting laten staan"
+                  value={form.korting_pct ?? ''}
+                  onChange={(e) => stel('korting_pct', e.target.value === '' ? undefined : parseFloat(e.target.value) || 0)}
+                />
+              </Veld>
+              <div />
+            </Twee>
           </Sectie>
 
           {/* Norm */}
