@@ -12,7 +12,7 @@ import type { LeasePortaal } from '@/lib/types/tender';
  *
  * ⚠️ BEWUST GEEN @skyvern/client IMPORT: de SDK trekt playwright mee en dat
  * crasht in een Vercel serverless functie ("Cannot find module browsers.json").
- * Pure REST is hier voldoende — Skyvern REST: POST /v1/workflows/{id}/run (workflow_id in URL, niet in body).
+ * Pure REST is hier voldoende — Skyvern Cloud REST: POST /v1/run/workflows (workflow_id in body).
  * ──────────────────────────────────────────────────────────────────────────── */
 
 const SKYVERN_API = 'https://api.skyvern.com/v1';
@@ -57,10 +57,11 @@ export async function startSkyvernWorkflowRun(portaal: LeasePortaal): Promise<Sk
   }
 
   // Zelfde endpoint + body als de SDK's runWorkflow (bewezen in verify-script).
-  const res = await fetch(`${SKYVERN_API}/workflows/${workflowId}/run`, {
+  const res = await fetch(`${SKYVERN_API}/run/workflows`, {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      workflow_id: workflowId,
       run_with: 'code',      // deterministisch replay van het gecachte script
       ai_fallback: true,     // valt per blok terug op de agent als een selector breekt
       proxy_location: 'RESIDENTIAL_NL',
