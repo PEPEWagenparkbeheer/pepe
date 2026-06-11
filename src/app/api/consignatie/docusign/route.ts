@@ -1,93 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'node:crypto';
+import {
+  getAccessToken,
+  DOCUSIGN_BASE,
+  DOCUSIGN_ACCOUNT,
+  DOCUSIGN_OAUTH,
+  BOEKHOUDER_EMAIL,
+} from '@/lib/consignatie-docusign';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// DocuSign via directe REST API + JWT (Node crypto). Bewust GEEN docusign-esign SDK:
-// dat pakket gebruikt AMD define()-modules die Turbopack (Next 16) niet kan bundelen.
-
-// Var-namen identiek aan de wpb-klantportal zodat beide apps dezelfde DocuSign-config
-// delen. Private key staat base64-encoded (single-line, geen multiline-gedoe in Vercel).
-// .trim() op alles: env-waarden kunnen een trailing newline/space hebben (bv. via
-// `vercel env add` met piped stdin) → anders 'issuer_not_found' op de iss-claim.
-const OAUTH_BASE = (process.env.DOCUSIGN_OAUTH_BASE ?? 'account.docusign.com').trim();
-// BASE_URI zónder /restapi (zoals wpb het opslaat); /restapi wordt in de URL geplakt.
-const BASE_URL = (process.env.DOCUSIGN_BASE_URI ?? 'https://eu.docusign.net').trim();
-const INTEGRATION_KEY = (process.env.DOCUSIGN_INTEGRATION_KEY ?? '').trim();
-const USER_ID = (process.env.DOCUSIGN_USER_ID ?? '').trim();
-const PRIVATE_KEY_B64 = (process.env.DOCUSIGN_PRIVATE_KEY_B64 ?? '').trim();
-const ACCOUNT_ID = (process.env.DOCUSIGN_ACCOUNT_ID ?? '').trim();
-
-function stripDataUri(value: string) {
+function stripDataUri(value: string): string {
   // Verwerk zowel pure base64 als een volledige data-URI (eventueel met ;filename=…).
   const idx = value.indexOf('base64,');
   return idx >= 0 ? value.slice(idx + 'base64,'.length) : value;
-}
-
-function base64url(input: Buffer | string) {
-  return Buffer.from(input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-async function createAccessToken(): Promise<string> {
-  if (!INTEGRATION_KEY || !USER_ID || !PRIVATE_KEY_B64 || !ACCOUNT_ID) {
-    throw new Error('DocuSign is niet geconfigureerd. Controleer de omgevingsvariabelen.');
-  }
-
-  const privateKey = Buffer.from(PRIVATE_KEY_B64, 'base64').toString('utf-8');
-
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: 'RS256', typ: 'JWT' };
-  const payload = {
-    iss: INTEGRATION_KEY,
-    sub: USER_ID,
-    aud: OAUTH_BASE,
-    iat: now,
-    exp: now + 3600,
-    scope: 'signature impersonation',
-  };
-
-  const signingInput = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
-  const signature = crypto
-    .createSign('RSA-SHA256')
-    .update(signingInput)
-    .sign(privateKey);
-  const assertion = `${signingInput}.${base64url(signature)}`;
-
-  const res = await fetch(`https://${OAUTH_BASE}/oauth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion,
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`DocuSign OAuth mislukt (${res.status}): ${text}`);
-  }
-
-  const data = (await res.json()) as { access_token?: string };
-  if (!data.access_token) {
-    throw new Error('Geen DocuSign access token ontvangen.');
-  }
-  return data.access_token;
 }
 
 // Health-check: probeert een JWT-token te halen. Geen secrets in de respons.
 // GET /api/consignatie/docusign → { ok, oauthBase } of { ok:false, error }.
 export async function GET() {
   try {
-    await createAccessToken();
-    return NextResponse.json({ ok: true, oauthBase: OAUTH_BASE, baseUrl: BASE_URL });
+    await getAccessToken();
+    return NextResponse.json({ ok: true, oauthBase: DOCUSIGN_OAUTH, baseUrl: DOCUSIGN_BASE });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Onbekende fout';
-    return NextResponse.json({ ok: false, oauthBase: OAUTH_BASE, baseUrl: BASE_URL, error: message });
+    return NextResponse.json({ ok: false, oauthBase: DOCUSIGN_OAUTH, baseUrl: DOCUSIGN_BASE, error: message });
   }
 }
 
@@ -115,22 +52,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'E-mail inkoper ontbreekt.' }, { status: 400 });
     }
 
-    const accessToken = await createAccessToken();
+    const accessToken = await getAccessToken();
 
     const documentNaamFinal =
       typeof documentNaam === 'string' && documentNaam.trim()
         ? documentNaam
-        : `Inkoopfactuur ${auto ?? ''}`.trim() || 'Inkoopfactuur';
+        : `Inkoopverklaring ${auto ?? ''}`.trim() || 'Inkoopverklaring';
 
     const envelopeDefinition = {
       emailSubject:
         typeof onderwerp === 'string' && onderwerp.trim()
           ? onderwerp
-          : `Inkoopfactuur ${auto ?? ''}`.trim() || 'Inkoopfactuur',
+          : `Inkoopverklaring ${auto ?? ''}`.trim() || 'Inkoopverklaring',
       emailBlurb:
         typeof bericht === 'string' && bericht.trim()
           ? bericht
-          : 'Onderteken deze inkoopfactuur digitaal via DocuSign.',
+          : 'Onderteken deze inkoopverklaring digitaal via DocuSign.',
       status: 'sent',
       documents: [
         {
@@ -148,7 +85,7 @@ export async function POST(req: NextRequest) {
             recipientId: '1',
             routingOrder: '1',
             tabs: {
-              // Anker \s1\ staat in de inkoopverklaring-PDF bij het handtekeningvak van de verkoper.
+              // Anker \s1\ staat in de PDF bij het handtekeningvak van de verkoper.
               signHereTabs: [
                 { anchorString: '\\s1\\', anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-6' },
               ],
@@ -167,16 +104,26 @@ export async function POST(req: NextRequest) {
             },
           },
         ],
+        // Boekhouding (Basecone) als carbon copy met de hoogste routingOrder:
+        // ontvangt automatisch de getekende verklaring zodra de envelope voltooid is.
+        carbonCopies: [
+          {
+            email: BOEKHOUDER_EMAIL,
+            name: 'Boekhouding PEPE (Basecone)',
+            recipientId: '3',
+            routingOrder: '3',
+          },
+        ],
       },
     };
 
-    const res = await fetch(`${BASE_URL}/restapi/v2.1/accounts/${ACCOUNT_ID}/envelopes`, {
+    const res = await fetch(`${DOCUSIGN_BASE}/restapi/v2.1/accounts/${DOCUSIGN_ACCOUNT}/envelopes`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ ...envelopeDefinition }),
+      body: JSON.stringify(envelopeDefinition),
     });
 
     if (!res.ok) {

@@ -351,6 +351,99 @@ export async function getContactFields(
   return data.properties ?? {};
 }
 
+/** Haalt specifieke velden van een company (= klant/werkgever) op. */
+export async function getCompanyFields(
+  companyId: string,
+  props: string[],
+): Promise<Record<string, string>> {
+  if (!companyId?.trim()) return {};
+  const data = await hsFetch<{ properties?: Record<string, string> }>(
+    `${HS_BASE}/crm/v3/objects/companies/${companyId}?properties=${props.join(',')}`,
+  );
+  return data.properties ?? {};
+}
+
+/** Eerste aan een deal gekoppelde contact-id (deal → contact). */
+export async function getDealContactId(dealId: string): Promise<string | null> {
+  if (!dealId?.trim()) return null;
+  const assoc = await hsFetch<{ results?: { toObjectId: string }[] }>(
+    `${HS_BASE}/crm/v4/objects/deals/${dealId}/associations/contacts`,
+  ).catch(() => ({ results: [] as { toObjectId: string }[] }));
+  return assoc.results?.[0]?.toObjectId ?? null;
+}
+
+/** Eerste aan een deal gekoppelde company-id (deal → company). */
+export async function getDealCompanyId(dealId: string): Promise<string | null> {
+  if (!dealId?.trim()) return null;
+  const assoc = await hsFetch<{ results?: { toObjectId: string }[] }>(
+    `${HS_BASE}/crm/v4/objects/deals/${dealId}/associations/companies`,
+  ).catch(() => ({ results: [] as { toObjectId: string }[] }));
+  return assoc.results?.[0]?.toObjectId ?? null;
+}
+
+// ── Inkoopverklaring: NAW-gegevens op kenteken ──────────────────
+
+export interface InkoopNaw {
+  gevonden: boolean;
+  bron?: 'contact' | 'company';
+  naam?: string;
+  straat?: string;
+  postcode?: string;
+  plaats?: string;
+  telefoon?: string;
+  email?: string;
+}
+
+/**
+ * Zoekt de auto (deal, dealname = kenteken) in HubSpot en geeft de NAW-gegevens
+ * van het gekoppelde contact terug (val terug op company als er geen contact is).
+ * Bedoeld om het inkoopverklaring-formulier automatisch te vullen.
+ */
+export async function getInkoopNawByKenteken(kenteken: string): Promise<InkoopNaw> {
+  const dealId = await searchDealByKenteken(kenteken);
+  if (!dealId) return { gevonden: false };
+
+  const contactId = await getDealContactId(dealId);
+  if (contactId) {
+    const c = await getContactFields(contactId, [
+      'firstname', 'lastname', 'email', 'phone', 'address', 'city', 'zip',
+    ]).catch(() => ({} as Record<string, string>));
+    const naam = [c.firstname, c.lastname].filter(Boolean).join(' ').trim();
+    if (naam || c.email) {
+      return {
+        gevonden: true,
+        bron: 'contact',
+        naam,
+        straat: c.address,
+        postcode: c.zip,
+        plaats: c.city,
+        telefoon: c.phone,
+        email: c.email,
+      };
+    }
+  }
+
+  const companyId = await getDealCompanyId(dealId);
+  if (companyId) {
+    const co = await getCompanyFields(companyId, [
+      'name', 'phone', 'address', 'city', 'zip',
+    ]).catch(() => ({} as Record<string, string>));
+    if (co.name) {
+      return {
+        gevonden: true,
+        bron: 'company',
+        naam: co.name,
+        straat: co.address,
+        postcode: co.zip,
+        plaats: co.city,
+        telefoon: co.phone,
+      };
+    }
+  }
+
+  return { gevonden: false };
+}
+
 export async function createDeal(input: DealInput): Promise<string> {
   const properties: Record<string, string> = {
     dealname: input.kenteken.replace(/\s+/g, '').toUpperCase(),

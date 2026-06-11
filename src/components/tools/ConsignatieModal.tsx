@@ -90,9 +90,54 @@ interface SavedInkoop extends InkoopForm {
   docusignSentAt?: string;
 }
 
+// Antwoord van /api/consignatie/hubspot
+interface HubSpotNaw {
+  gevonden?: boolean;
+  naam?: string;
+  straat?: string;
+  postcode?: string;
+  plaats?: string;
+  telefoon?: string;
+  email?: string;
+}
+
 const STORAGE_KEY = 'pepe_inkoopfacturen';
+const SEQ_KEY = 'pepe_inkoop_volgnr';
 
 const BTW = 0.21;
+
+// Oplopend documentnummer JAAR-0001 dat nooit terugloopt (los van verwijderen).
+// Per jaar reset naar 0001. Teller in localStorage.
+function nextInkoopNummer(): string {
+  const jaar = new Date().getFullYear();
+  let volgnr = 0;
+  try {
+    const raw = localStorage.getItem(SEQ_KEY);
+    const parsed = raw ? (JSON.parse(raw) as { jaar: number; volgnr: number }) : null;
+    volgnr = parsed && parsed.jaar === jaar ? parsed.volgnr : 0;
+  } catch {
+    volgnr = 0;
+  }
+  volgnr += 1;
+  try {
+    localStorage.setItem(SEQ_KEY, JSON.stringify({ jaar, volgnr }));
+  } catch {
+    // fail silently
+  }
+  return `${jaar}-${String(volgnr).padStart(4, '0')}`;
+}
+
+// Leesbare DocuSign-status voor in de app.
+function statusLabel(s?: string): string {
+  switch (s) {
+    case 'completed': return '✓ Voltooid · verstuurd naar boekhouder';
+    case 'sent': return 'Verstuurd · wacht op ondertekening';
+    case 'delivered': return 'Geopend door ondertekenaar';
+    case 'declined': return 'Afgewezen';
+    case 'voided': return 'Geannuleerd';
+    default: return s ? `Status: ${s}` : '';
+  }
+}
 
 const STAPPEN = [
   { key: 'auto',         label: 'Auto' },
@@ -308,23 +353,80 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
   const [showSavedList, setShowSavedList] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [statusCheckId, setStatusCheckId] = useState<string | null>(null);
   const [rdwLoading, setRdwLoading] = useState(false);
   const [sendResult, setSendResult] = useState<{ envelopeId: string; status: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    let saved: SavedInkoop[] = [];
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      setSavedInkoop(raw ? JSON.parse(raw) : []);
+      saved = raw ? JSON.parse(raw) : [];
     } catch {
-      setSavedInkoop([]);
+      saved = [];
     }
+    setSavedInkoop(saved);
     // Standalone-tegel: meteen het inkoopverklaring-scherm tonen
     if (directInkoop) {
       setKlaar(true);
       setToonInkoop(true);
     }
+    // Status van openstaande envelopes verversen (zodat 'voltooid' vanzelf verschijnt)
+    void refreshPendingStatuses(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, directInkoop]);
+
+  // Ververst de DocuSign-status van nog niet-afgeronde verklaringen en bewaart het resultaat.
+  async function refreshPendingStatuses(records: SavedInkoop[]) {
+    const finaal = new Set(['completed', 'declined', 'voided']);
+    const pending = records.filter(
+      (r) => r.docusignEnvelopeId && !finaal.has(r.docusignStatus ?? ''),
+    );
+    if (pending.length === 0) return;
+
+    const updates = await Promise.all(
+      pending.map(async (r) => {
+        try {
+          const res = await fetch(`/api/consignatie/docusign/status?envelopeId=${encodeURIComponent(r.docusignEnvelopeId!)}`);
+          const j = (await res.json()) as { ok?: boolean; status?: string };
+          return res.ok && j.ok && j.status ? { id: r.id, status: j.status } : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const map = new Map(updates.filter(Boolean).map((u) => [u!.id, u!.status]));
+    if (map.size === 0) return;
+    setSavedInkoop((prev) => {
+      const next = prev.map((r) => (map.has(r.id) ? { ...r, docusignStatus: map.get(r.id)! } : r));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // fail silently
+      }
+      return next;
+    });
+  }
+
+  async function checkSavedStatus(id: string) {
+    const record = savedInkoop.find((item) => item.id === id);
+    if (!record?.docusignEnvelopeId) {
+      return alert('Deze verklaring is nog niet via DocuSign verstuurd.');
+    }
+    setStatusCheckId(id);
+    try {
+      const res = await fetch(`/api/consignatie/docusign/status?envelopeId=${encodeURIComponent(record.docusignEnvelopeId)}`);
+      const j = (await res.json()) as { ok?: boolean; status?: string; error?: string };
+      if (!res.ok || !j.ok || !j.status) throw new Error(j.error || 'Status ophalen mislukt');
+      persistSavedInkoop(savedInkoop.map((r) => (r.id === id ? { ...r, docusignStatus: j.status } : r)));
+    } catch (err) {
+      alert(`Status ophalen mislukt: ${err instanceof Error ? err.message : 'fout'}`);
+    } finally {
+      setStatusCheckId(null);
+    }
+  }
 
   function stel<K extends keyof Form>(veld: K, w: Form[K]) {
     setForm((f) => ({ ...f, [veld]: w }));
@@ -862,14 +964,36 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     if (!inkoop.kenteken.trim()) return alert('Vul eerst een kenteken in.');
     setRdwLoading(true);
     try {
-      const data = await rdwInkoopOphalen(inkoop.kenteken);
-      if (!data) {
-        alert('Geen RDW-gegevens gevonden voor dit kenteken.');
+      const [rdw, hs] = await Promise.all([
+        rdwInkoopOphalen(inkoop.kenteken),
+        fetch(`/api/consignatie/hubspot?kenteken=${encodeURIComponent(inkoop.kenteken)}`)
+          .then((r) => r.json() as Promise<HubSpotNaw>)
+          .catch((): HubSpotNaw => ({ gevonden: false })),
+      ]);
+
+      if (!rdw && !hs?.gevonden) {
+        alert('Geen RDW- of HubSpot-gegevens gevonden voor dit kenteken.');
         return;
       }
-      setInkoop((prev) => ({ ...prev, ...data }));
+
+      setInkoop((prev) => {
+        const next: InkoopForm = { ...prev, ...(rdw ?? {}) };
+        if (hs?.gevonden) {
+          if (hs.naam) next.verkoperNaam = hs.naam;
+          if (hs.straat) next.verkoperStraat = hs.straat;
+          if (hs.postcode) next.verkoperPostcode = hs.postcode;
+          if (hs.plaats) next.verkoperPlaats = hs.plaats;
+          if (hs.telefoon) next.verkoperTelefoon = hs.telefoon;
+          if (hs.email) next.verkoperEmail = hs.email;
+        }
+        return next;
+      });
+
+      if (!hs?.gevonden) {
+        alert('Voertuig opgehaald uit RDW. Niet gevonden in HubSpot — vul de NAW-gegevens handmatig in.');
+      }
     } catch {
-      alert('RDW ophalen mislukt. Controleer het kenteken en je internetverbinding.');
+      alert('Ophalen mislukt. Controleer het kenteken en je internetverbinding.');
     } finally {
       setRdwLoading(false);
     }
@@ -879,13 +1003,12 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     if (!inkoop.kenteken.trim()) return alert('Vul het kenteken in voor de inkoopverklaring.');
     if (!inkoop.verkoperNaam.trim()) return alert('Vul de naam van de verkoper in.');
 
-    const jaar = new Date().getFullYear();
     const record: SavedInkoop = {
       ...inkoop,
       id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
         : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
-      nummer: `${jaar}-${String(savedInkoop.length + 1).padStart(4, '0')}`,
+      nummer: nextInkoopNummer(),
       createdAt: new Date().toISOString(),
     };
 
@@ -906,10 +1029,15 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     persistSavedInkoop(savedInkoop.filter((item) => item.id !== id));
   }
 
-  // Verstuurt een record naar DocuSign en geeft het resultaat terug
+  // Verstuurt een record naar DocuSign en geeft het resultaat terug.
+  // Het documentnummer komt in de bestandsnaam + onderwerp zodat de boekhouder (Basecone)
+  // het meekrijgt; ontbreekt het (los verzenden zonder opslaan), dan genereren we er één.
   async function postDocuSign(data: InkoopForm & { nummer?: string }): Promise<{ envelopeId: string; status: string }> {
-    const pdfBase64 = await createInkoopPdfBase64(data);
+    const nummer = data.nummer || nextInkoopNummer();
     const naam = [data.merk, data.model].filter(Boolean).join(' ').trim() || data.kenteken;
+    const titel = `Inkoopverklaring ${nummer} — ${naam}`.trim();
+
+    const pdfBase64 = await createInkoopPdfBase64({ ...data, nummer });
     const res = await fetch('/api/consignatie/docusign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -920,9 +1048,9 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
         klantNaam: data.verkoperNaam,
         emailKlant: data.verkoperEmail,
         emailInkoper: data.inkoperEmail,
-        documentNaam: `Inkoopverklaring ${naam}`.trim(),
-        onderwerp: `Inkoopverklaring ${naam}`.trim(),
-        bericht: `Onderteken deze inkoopverklaring voor het voertuig ${naam}.`,
+        documentNaam: titel,
+        onderwerp: titel,
+        bericht: `Onderteken inkoopverklaring ${nummer} voor het voertuig ${naam}.`,
       }),
     });
     const json = await res.json();
@@ -1012,13 +1140,10 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
                         <div>
                           <strong>{[item.merk, item.model].filter(Boolean).join(' ') || item.kenteken || 'Onbekend voertuig'}</strong>
                           <div className={styles.savedMeta}>
-                            {item.kenteken && `${item.kenteken} · `}{new Date(item.createdAt).toLocaleString('nl-NL')}
+                            {item.nummer && `${item.nummer} · `}{item.kenteken && `${item.kenteken} · `}{new Date(item.createdAt).toLocaleString('nl-NL')}
                           </div>
                           {item.docusignStatus && (
-                            <div className={styles.savedMeta}>
-                              DocuSign: {item.docusignStatus}
-                              {item.docusignSentAt && ` · ${new Date(item.docusignSentAt).toLocaleString('nl-NL')}`}
-                            </div>
+                            <div className={styles.savedMeta}>{statusLabel(item.docusignStatus)}</div>
                           )}
                         </div>
                         <div className={styles.savedActions}>
@@ -1033,6 +1158,16 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
                           >
                             {sendingId === item.id ? 'Versturen…' : '📤 DocuSign'}
                           </button>
+                          {item.docusignEnvelopeId && (
+                            <button
+                              className="btn"
+                              type="button"
+                              onClick={() => checkSavedStatus(item.id)}
+                              disabled={statusCheckId === item.id}
+                            >
+                              {statusCheckId === item.id ? 'Checken…' : '🔄 Status'}
+                            </button>
+                          )}
                           <button className="btn" type="button" onClick={() => deleteSavedInkoop(item.id)}>
                             Verwijderen
                           </button>
@@ -1062,11 +1197,11 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
                   onClick={haalRdwInkoop}
                   disabled={rdwLoading}
                 >
-                  {rdwLoading ? 'Ophalen…' : '📡 RDW ophalen'}
+                  {rdwLoading ? 'Ophalen…' : '📡 RDW + HubSpot'}
                 </button>
               </div>
               <p className={styles.uitleg}>
-                Haalt merk/model, bouwjaar (deel 1a), brandstof, vermogen en motorinhoud op uit het RDW-register.
+                Haalt voertuiggegevens (merk/model, bouwjaar, brandstof, vermogen, motorinhoud) uit het RDW-register, én — als de auto in HubSpot staat — de NAW-gegevens van de verkoper.
               </p>
             </div>
 
