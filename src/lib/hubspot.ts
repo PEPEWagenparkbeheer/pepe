@@ -400,7 +400,17 @@ export interface InkoopNaw {
  * Bedoeld om het inkoopverklaring-formulier automatisch te vullen.
  */
 export async function getInkoopNawByKenteken(kenteken: string): Promise<InkoopNaw> {
-  const dealId = await searchDealByKenteken(kenteken);
+  // Deals kunnen mét of zónder streepjes opgeslagen zijn — probeer beide varianten.
+  const varianten = [...new Set([
+    kenteken.trim().toUpperCase(),
+    kenteken.replace(/[-\s]/g, '').toUpperCase(),
+  ])].filter(Boolean);
+
+  let dealId: string | null = null;
+  for (const k of varianten) {
+    dealId = await searchDealByKenteken(k);
+    if (dealId) break;
+  }
   if (!dealId) return { gevonden: false };
 
   const contactId = await getDealContactId(dealId);
