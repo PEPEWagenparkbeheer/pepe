@@ -300,11 +300,12 @@ export interface RijdendeDeal {
  */
 export async function getRijdendeDeals(contactId: string): Promise<RijdendeDeal[]> {
   if (!contactId?.trim()) return [];
-  const assoc = await hsFetch<{ results?: { toObjectId: string }[] }>(
+  const assoc = await hsFetch<{ results?: { toObjectId: string | number }[] }>(
     `${HS_BASE}/crm/v4/objects/contacts/${contactId}/associations/deals`,
-  ).catch(() => ({ results: [] as { toObjectId: string }[] }));
+  ).catch(() => ({ results: [] as { toObjectId: string | number }[] }));
 
-  const ids = (assoc.results ?? []).map((r) => r.toObjectId);
+  // HubSpot v4 geeft toObjectId als getal terug — naar string casten.
+  const ids = (assoc.results ?? []).map((r) => String(r.toObjectId));
   const out: RijdendeDeal[] = [];
   for (const id of ids) {
     const f = await getDealFields(id, [
@@ -332,9 +333,10 @@ export async function getDealFields(
   dealId: string,
   props: string[],
 ): Promise<Record<string, string>> {
-  if (!dealId?.trim()) return {};
+  const id = String(dealId ?? '').trim();
+  if (!id) return {};
   const data = await hsFetch<{ properties?: Record<string, string> }>(
-    `${HS_BASE}/crm/v3/objects/deals/${dealId}?properties=${props.join(',')}`,
+    `${HS_BASE}/crm/v3/objects/deals/${id}?properties=${props.join(',')}`,
   );
   return data.properties ?? {};
 }
@@ -344,9 +346,10 @@ export async function getContactFields(
   contactId: string,
   props: string[],
 ): Promise<Record<string, string>> {
-  if (!contactId?.trim()) return {};
+  const id = String(contactId ?? '').trim();
+  if (!id) return {};
   const data = await hsFetch<{ properties?: Record<string, string> }>(
-    `${HS_BASE}/crm/v3/objects/contacts/${contactId}?properties=${props.join(',')}`,
+    `${HS_BASE}/crm/v3/objects/contacts/${id}?properties=${props.join(',')}`,
   );
   return data.properties ?? {};
 }
@@ -356,9 +359,10 @@ export async function getCompanyFields(
   companyId: string,
   props: string[],
 ): Promise<Record<string, string>> {
-  if (!companyId?.trim()) return {};
+  const id = String(companyId ?? '').trim();
+  if (!id) return {};
   const data = await hsFetch<{ properties?: Record<string, string> }>(
-    `${HS_BASE}/crm/v3/objects/companies/${companyId}?properties=${props.join(',')}`,
+    `${HS_BASE}/crm/v3/objects/companies/${id}?properties=${props.join(',')}`,
   );
   return data.properties ?? {};
 }
@@ -366,19 +370,22 @@ export async function getCompanyFields(
 /** Eerste aan een deal gekoppelde contact-id (deal → contact). */
 export async function getDealContactId(dealId: string): Promise<string | null> {
   if (!dealId?.trim()) return null;
-  const assoc = await hsFetch<{ results?: { toObjectId: string }[] }>(
+  const assoc = await hsFetch<{ results?: { toObjectId: string | number }[] }>(
     `${HS_BASE}/crm/v4/objects/deals/${dealId}/associations/contacts`,
-  ).catch(() => ({ results: [] as { toObjectId: string }[] }));
-  return assoc.results?.[0]?.toObjectId ?? null;
+  ).catch(() => ({ results: [] as { toObjectId: string | number }[] }));
+  const id = assoc.results?.[0]?.toObjectId;
+  // HubSpot v4 geeft toObjectId als getal terug — altijd naar string casten.
+  return id != null ? String(id) : null;
 }
 
 /** Eerste aan een deal gekoppelde company-id (deal → company). */
 export async function getDealCompanyId(dealId: string): Promise<string | null> {
   if (!dealId?.trim()) return null;
-  const assoc = await hsFetch<{ results?: { toObjectId: string }[] }>(
+  const assoc = await hsFetch<{ results?: { toObjectId: string | number }[] }>(
     `${HS_BASE}/crm/v4/objects/deals/${dealId}/associations/companies`,
-  ).catch(() => ({ results: [] as { toObjectId: string }[] }));
-  return assoc.results?.[0]?.toObjectId ?? null;
+  ).catch(() => ({ results: [] as { toObjectId: string | number }[] }));
+  const id = assoc.results?.[0]?.toObjectId;
+  return id != null ? String(id) : null;
 }
 
 // ── Inkoopverklaring: NAW-gegevens op kenteken ──────────────────
