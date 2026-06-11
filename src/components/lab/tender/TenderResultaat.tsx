@@ -40,6 +40,20 @@ export default function TenderResultaat({ tenderId }: { tenderId: string }) {
     };
   }, [tenderId]);
 
+  // Skyvern-runs duren 10-40 min — langer dan een serverless functie mag draaien.
+  // Zolang de tender loopt, vraagt deze poll de run-status op; de poll-route
+  // schrijft resultaten naar Supabase en realtime werkt de UI dan bij.
+  const tenderStatus = tender?.status;
+  useEffect(() => {
+    if (tenderStatus !== 'running') return;
+    const poll = () => {
+      fetch(`/api/tender/poll?tender_id=${tenderId}`).catch(() => {});
+    };
+    poll();
+    const id = setInterval(poll, 30_000);
+    return () => clearInterval(id);
+  }, [tenderStatus, tenderId]);
+
   if (laden) {
     return <div className={styles.pagina}><div className={styles.laden}>Laden…</div></div>;
   }

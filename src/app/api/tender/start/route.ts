@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import type { TenderInput, LeasePortaal } from '@/lib/types/tender';
-import { runHiltermannSkyvern, runArvalSkyvern } from '@/lib/agents/skyvern/portals';
-import { getPortaalCredentials } from '@/lib/agents/types';
-import type { AgentResult, AgentContext } from '@/lib/agents/types';
+import { getSkyvernWorkflowId, startSkyvernWorkflowRun } from '@/lib/agents/skyvern';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 min — vereist Vercel Pro
+// Alleen het stárten van de runs gebeurt hier (fire-and-forget); de runs zelf
+// duren 10-40 min en worden door /api/tender/poll afgerond.
+export const maxDuration = 60;
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,15 +20,6 @@ interface Body {
   raw_email?: string;
   portalen?: LeasePortaal[];
 }
-
-// Skyvern Cloud host de browser zelf — geen Anthropic-credits of lokale Chromium nodig.
-const AGENT_MAP: Record<LeasePortaal, ((ctx: AgentContext) => Promise<AgentResult>) | null> = {
-  hiltermann: runHiltermannSkyvern,
-  alphabet:   null,
-  ayvens:     null,
-  arval:      runArvalSkyvern,
-  mhc:        null,
-};
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Body;
@@ -66,7 +57,7 @@ export async function POST(req: NextRequest) {
       .eq('id', tenderId);
   }
 
-  // 2. Tender ophalen voor agents
+  // 2. Tender ophalen
   const { data: tender } = await supabaseAdmin
     .from('tenders')
     .select('*')
@@ -77,12 +68,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Tender geen parsed_data' }, { status: 400 });
   }
 
-  // 3. Per portaal: insert pending result + start agent
+  // 3. Per portaal: Skyvern-workflow starten (fire-and-forget) + running-record
+  //    met run_id. De /api/tender/poll route werkt de resultaten later bij —
+  //    een run duurt langer dan een serverless functie mag draaien.
   await supabaseAdmin.from('tenders').update({ status: 'running' }).eq('id', tenderId);
 
-  const agentPromises = portalen.map(async (portaal) => {
-    const agent = AGENT_MAP[portaal];
-    if (!agent) {
+  const startPromises = portalen.map(async (portaal) => {
+    if (!getSkyvernWorkflowId(portaal)) {
       await supabaseAdmin.from('tender_results').insert({
         tender_id: tenderId,
         portaal,
@@ -92,51 +84,40 @@ export async function POST(req: NextRequest) {
       return;
     }
 
-    // Insert pending record
-    const { data: resultRecord } = await supabaseAdmin
-      .from('tender_results')
-      .insert({
+    try {
+      const run = await startSkyvernWorkflowRun(portaal);
+      await supabaseAdmin.from('tender_results').insert({
         tender_id: tenderId,
         portaal,
         status: 'running',
         started_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
-    if (!resultRecord) return;
-
-    // Run agent
-    let result: AgentResult;
-    try {
-      const credentials = getPortaalCredentials(portaal);
-      result = await agent({ tender: tender.parsed_data, credentials });
+        raw_result: {
+          skyvern_run_id: run.run_id,
+          workflow_id: run.workflow_id,
+          app_url: run.app_url ?? null,
+        },
+      });
     } catch (e) {
-      result = {
+      await supabaseAdmin.from('tender_results').insert({
+        tender_id: tenderId,
         portaal,
         status: 'failed',
         error_message: (e as Error).message,
-        duration_ms: 0,
-      };
+      });
     }
-
-    // Update result record
-    await supabaseAdmin
-      .from('tender_results')
-      .update({
-        status: result.status,
-        finished_at: new Date().toISOString(),
-        maandprijs: result.maandprijs ?? null,
-        transparency_check: result.transparency_check ?? null,
-        error_message: result.error_message ?? null,
-        raw_result: result.raw ?? null,
-      })
-      .eq('id', resultRecord.id);
   });
 
-  await Promise.allSettled(agentPromises);
+  await Promise.allSettled(startPromises);
 
-  // 4. Tender afronden
-  await supabaseAdmin.from('tenders').update({ status: 'done' }).eq('id', tenderId);
+  // 4. Als geen enkele run is gestart, is de tender meteen klaar (alles failed)
+  const { count: lopend } = await supabaseAdmin
+    .from('tender_results')
+    .select('id', { count: 'exact', head: true })
+    .eq('tender_id', tenderId)
+    .eq('status', 'running');
+  if ((lopend ?? 0) === 0) {
+    await supabaseAdmin.from('tenders').update({ status: 'done' }).eq('id', tenderId);
+  }
 
-  return NextResponse.json({ ok: true, tender_id: tenderId });
+  return NextResponse.json({ ok: true, tender_id: tenderId, runs_gestart: lopend ?? 0 });
 }
