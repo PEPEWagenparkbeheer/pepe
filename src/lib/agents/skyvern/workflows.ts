@@ -12,10 +12,22 @@ import type { LeasePortaal } from '@/lib/types/tender';
  *
  * ⚠️ BEWUST GEEN @skyvern/client IMPORT: de SDK trekt playwright mee en dat
  * crasht in een Vercel serverless functie ("Cannot find module browsers.json").
- * Pure REST is hier voldoende — zelfde endpoint als de SDK (/v1/run/workflows).
+ * Pure REST is hier voldoende — Skyvern REST: POST /v1/workflows/{id}/run (workflow_id in URL, niet in body).
  * ──────────────────────────────────────────────────────────────────────────── */
 
 const SKYVERN_API = 'https://api.skyvern.com/v1';
+
+/**
+ * Leest een env-var defensief: strip BOM + whitespace. Vercel-vars die via een
+ * PowerShell-pipe zijn toegevoegd kunnen een UTF-8 BOM (U+FEFF) bevatten, en
+ * die maakt fetch-headers kapot ('Cannot convert argument to a ByteString').
+ */
+function envSchoon(naam: string): string | null {
+  const waarde = process.env[naam];
+  if (!waarde) return null;
+  const schoon = waarde.replace(/^﻿/, '').trim();
+  return schoon || null;
+}
 
 /** Portaal → env-var met het gepubliceerde workflow-ID (wpid_…). */
 const WORKFLOW_ENV: Partial<Record<LeasePortaal, string>> = {
@@ -25,7 +37,7 @@ const WORKFLOW_ENV: Partial<Record<LeasePortaal, string>> = {
 
 export function getSkyvernWorkflowId(portaal: LeasePortaal): string | null {
   const envName = WORKFLOW_ENV[portaal];
-  return envName ? (process.env[envName] ?? null) : null;
+  return envName ? envSchoon(envName) : null;
 }
 
 export interface SkyvernRunStart {
@@ -36,7 +48,7 @@ export interface SkyvernRunStart {
 
 /** Start een workflow-run zonder te wachten op voltooiing; run_id wordt opgeslagen en gepolld. */
 export async function startSkyvernWorkflowRun(portaal: LeasePortaal): Promise<SkyvernRunStart> {
-  const apiKey = process.env.SKYVERN_API_KEY;
+  const apiKey = envSchoon('SKYVERN_API_KEY');
   if (!apiKey) throw new Error('SKYVERN_API_KEY ontbreekt');
 
   const workflowId = getSkyvernWorkflowId(portaal);
@@ -45,11 +57,10 @@ export async function startSkyvernWorkflowRun(portaal: LeasePortaal): Promise<Sk
   }
 
   // Zelfde endpoint + body als de SDK's runWorkflow (bewezen in verify-script).
-  const res = await fetch(`${SKYVERN_API}/run/workflows`, {
+  const res = await fetch(`${SKYVERN_API}/workflows/${workflowId}/run`, {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      workflow_id: workflowId,
       run_with: 'code',      // deterministisch replay van het gecachte script
       ai_fallback: true,     // valt per blok terug op de agent als een selector breekt
       proxy_location: 'RESIDENTIAL_NL',
@@ -79,7 +90,7 @@ export interface SkyvernRunResult {
 
 /** Haalt de run-status op en parset de maandprijs uit de workflow-output. */
 export async function getSkyvernRunResult(runId: string): Promise<SkyvernRunResult> {
-  const apiKey = process.env.SKYVERN_API_KEY;
+  const apiKey = envSchoon('SKYVERN_API_KEY');
   if (!apiKey) throw new Error('SKYVERN_API_KEY ontbreekt');
 
   const res = await fetch(`${SKYVERN_API}/runs/${runId}`, { headers: { 'x-api-key': apiKey } });
