@@ -161,21 +161,21 @@ export async function startSkyvernWorkflowRun(portaal: LeasePortaal): Promise<Sk
     throw new Error(`Geen Skyvern-workflow geconfigureerd voor ${portaal} (env ${WORKFLOW_ENV[portaal] ?? 'â€”'})`);
   }
 
-  const res = await fetch(`${SKYVERN_API}/workflows/${workflowId}/run`, {
-    method: 'POST',
-    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  // Zelfde aanroep als scripts/verify-skyvern-replay.mts (bewezen werkend),
+  // alleen zonder waitForCompletion: we hebben direct een run_id terug.
+  const skyvern = new Skyvern({ apiKey });
+  const res = await skyvern.runWorkflow({
+    body: {
+      workflow_id: workflowId,
       run_with: 'code',      // deterministisch replay van het gecachte script
       ai_fallback: true,     // valt per blok terug op de agent als een selector breekt
-      proxy_location: 'RESIDENTIAL_NL',
-    }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      proxy_location: 'RESIDENTIAL_NL' as any,
+    },
+    waitForCompletion: false,
   });
-  if (!res.ok) {
-    const tekst = await res.text().catch(() => '');
-    throw new Error(`Skyvern workflow-start faalde: HTTP ${res.status} ${tekst.slice(0, 300)}`);
-  }
 
-  const data = (await res.json()) as { run_id?: string; app_url?: string };
+  const data = res as { run_id?: string; app_url?: string };
   if (!data.run_id) throw new Error('Skyvern gaf geen run_id terug');
   return { run_id: data.run_id, app_url: data.app_url, workflow_id: workflowId };
 }
