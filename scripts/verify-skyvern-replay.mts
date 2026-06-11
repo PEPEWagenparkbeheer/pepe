@@ -2,8 +2,8 @@
 // Bewijst of een opgenomen flow GOEDKOOP + SNEL deterministisch herspeeld kan worden.
 //
 // Twee stappen:
-//   1) EXPLORE (eenmalig, duur): legt de Hiltermann-flow vast als herbruikbare workflow.
-//      npx tsx scripts/verify-skyvern-replay.mts explore
+//   1) EXPLORE (eenmalig, duur): legt de portaal-flow vast als herbruikbare workflow.
+//      npx tsx scripts/verify-skyvern-replay.mts explore [hiltermann|arval]
 //      → print run_id + app_url. Noteer het workflow_id uit het Skyvern-dashboard
 //        (run → bovenin, of Agents → Workflows).
 //
@@ -27,12 +27,19 @@ for (const line of env.split(/\r?\n/)) {
 
 const { Skyvern } = await import('@skyvern/client');
 // @ts-expect-error tsx kan .ts importeren
-const { hiltermannSkyvern } = await import('../src/lib/agents/skyvern/portals.ts');
+const { hiltermannSkyvern, arvalSkyvern } = await import('../src/lib/agents/skyvern/portals.ts');
 
 const skyvern = new Skyvern({ apiKey: process.env.SKYVERN_API_KEY! });
 const cmd = (process.argv[2] ?? 'explore').toLowerCase();
 
 type Tender = Parameters<typeof hiltermannSkyvern.buildMission>[0];
+
+// Portaal-keuze voor explore: hiltermann (default) of arval.
+const PORTALEN = {
+  hiltermann: { config: hiltermannSkyvern, envPrefix: 'HILTERMANN' },
+  arval: { config: arvalSkyvern, envPrefix: 'ARVAL' },
+} as const;
+type PortaalNaam = keyof typeof PORTALEN;
 
 // Echte aanvraag-tender (8 opties, zoals via de UI) zodat de explore klopt.
 const TENDER: Tender = {
@@ -53,19 +60,27 @@ const TENDER: Tender = {
   leasenorm: { winterbanden: 'all_season', vervangend_vervoer: '24u', eigen_risico: 'laag' },
 };
 
-const creds = {
-  url: process.env.HILTERMANN_URL!,
-  user: process.env.HILTERMANN_USER!,
-  pass: process.env.HILTERMANN_PASS!,
-};
-
 if (cmd === 'explore') {
+  const portaalNaam = ((process.argv[3] ?? 'hiltermann').toLowerCase()) as PortaalNaam;
+  const portaal = PORTALEN[portaalNaam];
+  if (!portaal) { console.log(`Onbekend portaal "${portaalNaam}". Kies: ${Object.keys(PORTALEN).join(' | ')}`); process.exit(1); }
+
+  const creds = {
+    url: process.env[`${portaal.envPrefix}_URL`]!,
+    user: process.env[`${portaal.envPrefix}_USER`]!,
+    pass: process.env[`${portaal.envPrefix}_PASS`]!,
+  };
+  if (!creds.url || !creds.user || !creds.pass) {
+    console.log(`Ontbrekende env vars: ${portaal.envPrefix}_URL/_USER/_PASS in .env.local`);
+    process.exit(1);
+  }
+
   const loginInstructie =
     `Open de inlogpagina en log in met gebruikersnaam "${creds.user}" en wachtwoord "${creds.pass}". ` +
     `Wacht tot je bent ingelogd voordat je verder gaat.\n\n`;
-  const prompt = loginInstructie + hiltermannSkyvern.buildMission(TENDER);
+  const prompt = loginInstructie + portaal.config.buildMission(TENDER);
 
-  console.log('▶ EXPLORE — legt de flow vast als herbruikbare workflow (publish_workflow)...\n');
+  console.log(`▶ EXPLORE [${portaalNaam}] — legt de flow vast als herbruikbare workflow (publish_workflow)...\n`);
   const t0 = Date.now();
   const res = await skyvern.runTask({
     body: {
@@ -113,5 +128,5 @@ if (cmd === 'explore') {
   console.log('\n→ Vergelijk credits in het dashboard: explore (~1.500) vs deze replays.');
   console.log('  Zijn de replays fors goedkoper + sneller? Dan is "instellen en het draait" bewezen.');
 } else {
-  console.log('Gebruik: explore  |  replay <workflow_id> [n]');
+  console.log('Gebruik: explore [hiltermann|arval]  |  replay <workflow_id> [n]');
 }
