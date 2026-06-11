@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import type { TenderInput, LeasePortaal } from '@/lib/types/tender';
-import { getSkyvernWorkflowId, startSkyvernWorkflowRun } from '@/lib/agents/skyvern';
+// LET OP: bewust uit ./workflows (SDK-vrij) — @skyvern/client trekt playwright
+// mee en dat crasht in een Vercel serverless functie.
+import { getSkyvernWorkflowId, startSkyvernWorkflowRun } from '@/lib/agents/skyvern/workflows';
 
 export const runtime = 'nodejs';
 // Alleen het stárten van de runs gebeurt hier (fire-and-forget); de runs zelf
