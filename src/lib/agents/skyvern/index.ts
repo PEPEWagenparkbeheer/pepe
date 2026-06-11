@@ -1,4 +1,4 @@
-import { Skyvern } from '@skyvern/client';
+﻿import { Skyvern } from '@skyvern/client';
 import type { TenderInput, LeasePortaal } from '@/lib/types/tender';
 import type { AgentContext, AgentResult } from '../types';
 
@@ -11,14 +11,14 @@ import type { AgentContext, AgentResult } from '../types';
  *
  * Skyvern Cloud host de browser zelf (anti-detect + residential proxy), dus er is
  * GEEN eigen runner/Chromium nodig. We gebruiken een Nederlands residential-IP
- * (proxy_location 'RESIDENTIAL_NL') — dat omzeilt naar verwachting de bot-detectie
+ * (proxy_location 'RESIDENTIAL_NL') â€” dat omzeilt naar verwachting de bot-detectie
  * waar Browserbase's datacenter-IP's op faalden (o.a. Hiltermann).
  *
- * ⚠️ CREDENTIALS — FASE 0 vs FASE 1:
- *  - Fase 0 (deze eval): login-gegevens staan in de prompt → ze gaan naar het LLM.
+ * âš ï¸ CREDENTIALS â€” FASE 0 vs FASE 1:
+ *  - Fase 0 (deze eval): login-gegevens staan in de prompt â†’ ze gaan naar het LLM.
  *    Alleen acceptabel voor een eenmalige eval met je eigen B2B-portaallogin.
  *  - Fase 1 (productie): verplaats naar Skyvern Credentials (vault) + login-block
- *    in een workflow → wachtwoord wordt vervangen door placeholder, nooit naar LLM.
+ *    in een workflow â†’ wachtwoord wordt vervangen door placeholder, nooit naar LLM.
  */
 
 export interface SkyvernPortalConfig {
@@ -64,7 +64,7 @@ export async function runSkyvernPortal(ctx: AgentContext, config: SkyvernPortalC
 
   const skyvern = new Skyvern({ apiKey: process.env.SKYVERN_API_KEY });
 
-  // Login-instructie (Fase 0: creds in prompt — zie waarschuwing bovenaan).
+  // Login-instructie (Fase 0: creds in prompt â€” zie waarschuwing bovenaan).
   const loginInstructie =
     `Open de inlogpagina en log in met gebruikersnaam "${credentials.user}" en wachtwoord "${credentials.pass}". ` +
     `Wacht tot je bent ingelogd voordat je verder gaat.\n\n`;
@@ -121,20 +121,20 @@ export async function runSkyvernPortal(ctx: AgentContext, config: SkyvernPortalC
   }
 }
 
-/* ────────────────────────────────────────────────────────────────────────────
- * FASE 1 — workflow-runs (deterministisch, goedkoop)
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ * FASE 1 â€” workflow-runs (deterministisch, goedkoop)
  *
- * De portaal-flows zijn vastgelegd als Skyvern-workflows (explore éénmalig,
+ * De portaal-flows zijn vastgelegd als Skyvern-workflows (explore Ã©Ã©nmalig,
  * daarna replay met `run_with: 'code'` + AI-fallback per blok). Een run duurt
- * 10-40 min — veel langer dan een Vercel-functie mag draaien. Daarom:
- *  - `startSkyvernWorkflowRun()`  → start de run en geeft direct run_id terug
- *  - `getSkyvernRunResult()`      → pollt status + parset de maandprijs
+ * 10-40 min â€” veel langer dan een Vercel-functie mag draaien. Daarom:
+ *  - `startSkyvernWorkflowRun()`  â†’ start de run en geeft direct run_id terug
+ *  - `getSkyvernRunResult()`      â†’ pollt status + parset de maandprijs
  * De /api/tender/poll route werkt hiermee de tender_results asynchroon bij.
- * ──────────────────────────────────────────────────────────────────────────── */
+ * â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 const SKYVERN_API = 'https://api.skyvern.com/v1';
 
-/** Portaal → env-var met het gepubliceerde workflow-ID (wpid_…). */
+/** Portaal â†’ env-var met het gepubliceerde workflow-ID (wpid_â€¦). */
 const WORKFLOW_ENV: Partial<Record<LeasePortaal, string>> = {
   hiltermann: 'SKYVERN_WORKFLOW_HILTERMANN',
   arval: 'SKYVERN_WORKFLOW_ARVAL',
@@ -158,14 +158,13 @@ export async function startSkyvernWorkflowRun(portaal: LeasePortaal): Promise<Sk
 
   const workflowId = getSkyvernWorkflowId(portaal);
   if (!workflowId) {
-    throw new Error(`Geen Skyvern-workflow geconfigureerd voor ${portaal} (env ${WORKFLOW_ENV[portaal] ?? '—'})`);
+    throw new Error(`Geen Skyvern-workflow geconfigureerd voor ${portaal} (env ${WORKFLOW_ENV[portaal] ?? 'â€”'})`);
   }
 
-  const res = await fetch(`${SKYVERN_API}/run/workflows`, {
+  const res = await fetch(`${SKYVERN_API}/workflows/${workflowId}/run`, {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      workflow_id: workflowId,
       run_with: 'code',      // deterministisch replay van het gecachte script
       ai_fallback: true,     // valt per blok terug op de agent als een selector breekt
       proxy_location: 'RESIDENTIAL_NL',
@@ -189,7 +188,7 @@ export interface SkyvernRunResult {
   maandprijs: number | null;
   failure_reason?: string;
   app_url?: string;
-  /** Alleen de extracted_information — de volledige output bevat MB's aan screenshot-URL's. */
+  /** Alleen de extracted_information â€” de volledige output bevat MB's aan screenshot-URL's. */
   extracted?: unknown;
 }
 
@@ -264,3 +263,4 @@ function parseNlBedrag(value: unknown): number | null {
   const n = Number(normalized);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
+
