@@ -18,9 +18,11 @@
 import { readFileSync } from 'fs';
 
 const env = readFileSync('.env.local', 'utf-8');
-for (const line of env.split('\n')) {
+// Split op \r?\n zodat Windows CRLF-regeleindes de waarde niet vervuilen
+// (anders bleef SKYVERN_API_KEY leeg → 403 Invalid credentials).
+for (const line of env.split(/\r?\n/)) {
   const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-  if (m) process.env[m[1]] = m[2];
+  if (m) process.env[m[1]] = m[2].trim();
 }
 
 const { Skyvern } = await import('@skyvern/client');
