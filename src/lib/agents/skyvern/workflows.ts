@@ -33,7 +33,8 @@ function envSchoon(naam: string): string | null {
 const WORKFLOW_ENV: Partial<Record<LeasePortaal, string>> = {
   hiltermann: 'SKYVERN_WORKFLOW_HILTERMANN',
   arval: 'SKYVERN_WORKFLOW_ARVAL',
-  // ayvens en mhc worden toegevoegd zodra de workflows klaar zijn (Fase D/E)
+  ayvens: 'SKYVERN_WORKFLOW_AYVENS',
+  mhc: 'SKYVERN_WORKFLOW_MHC',
 };
 
 /**
