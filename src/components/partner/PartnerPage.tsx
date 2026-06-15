@@ -1,14 +1,16 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
+import { useWerkDerden } from '@/hooks/useWerkDerden';
 import { useAuth } from '@/hooks/useAuth';
 import type { AfterSalesAuto } from '@/types';
 import KentekenPlaat from '@/components/aftersales/KentekenPlaat';
 import PartnerModal from './PartnerModal';
+import WerkDerdenModal from './WerkDerdenModal';
 import styles from './PartnerPage.module.css';
 
-type Tab = 'actief' | 'klaar';
+type Tab = 'actief' | 'klaar' | 'werkzaamheden';
 
 /** Een auto is "klaar" voor deze partner als:
  *  - partner in partners_klaar (nieuwe systeem), OF
@@ -31,6 +33,8 @@ function datumFmt(d?: string) {
 export default function PartnerPage({ wie }: { wie: string }) {
   const { autos, updateAuto } = useAfterSales();
   const { signOut } = useAuth();
+  const { records: wdRecords, openCount: wdOpenCount, addRecord: wdAddRecord } = useWerkDerden(wie);
+  const [wdModalOpen, setWdModalOpen] = useState(false);
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
   const [tab, setTab] = useState<Tab>('actief');
 
@@ -59,7 +63,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
       return aDatum > bDatum ? -1 : 1;
     });
 
-  const mijnAutos = tab === 'actief' ? actieveAutos : klareAutos;
+  const mijnAutos = tab === 'actief' ? actieveAutos : tab === 'klaar' ? klareAutos : [];
 
   return (
     <div className={styles.pagina}>
@@ -88,6 +92,13 @@ export default function PartnerPage({ wie }: { wie: string }) {
           Archief — klaar gemeld
           <span className={styles.tabBadge}>{klareAutos.length}</span>
         </button>
+        <button
+          className={`${styles.tab} ${tab === "werkzaamheden" ? styles.tabActief : ''}`}
+          onClick={() => setTab('werkzaamheden')}
+        >
+          Mijn meldingen
+          {wdOpenCount > 0 && <span className={styles.tabBadge}>{wdOpenCount}</span>}
+        </button>
       </div>
 
       {/* Tabel */}
@@ -95,8 +106,8 @@ export default function PartnerPage({ wie }: { wie: string }) {
         {mijnAutos.length === 0 ? (
           <div className={styles.leeg}>
             {tab === 'actief'
-              ? `Geen openstaande auto's voor ${wie}`
-              : `Nog geen klaar gemelde auto's voor ${wie}`}
+              ? `Geen openstaande auto's voor `
+              : tab === 'klaar' ? `Nog geen klaar gemelde auto's voor ` : 'Nog geen meldingen.'}
           </div>
         ) : (
           <div className={styles.tabelWrapper}>
@@ -177,6 +188,54 @@ export default function PartnerPage({ wie }: { wie: string }) {
         )}
       </div>
 
+      {/* Werkzaamheden tab */}
+      {tab === 'werkzaamheden' && (
+        <div className={styles.content}>
+          {wdRecords.length === 0 ? (
+            <div className={styles.leeg}>Nog geen meldingen ingediend.</div>
+          ) : (
+            <div className={styles.tabelWrapper}>
+              <table className={styles.tabel}>
+                <thead>
+                  <tr>
+                    <th>Kenteken</th>
+                    <th>Datum</th>
+                    <th className={styles.mobielVerbergen}>Bedrag (excl. BTW)</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wdRecords.map((r) => (
+                    <tr key={r.id}>
+                      <td><strong>{r.kenteken}</strong>{r.klant ? ' · ' + r.klant : ''}</td>
+                      <td style={{ fontSize: 12, color: 'var(--muted)' }}>
+                        {r.created_at ? new Date(r.created_at).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
+                      </td>
+                      <td className={styles.mobielVerbergen}>
+                        {r.inkoop_bedrag != null ? r.inkoop_bedrag.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' }) : '—'}
+                      </td>
+                      <td>
+                        <span className={r.status === 'gefactureerd' ? styles.stGefactureerd : r.status === 'afgekeurd' ? styles.stAfgekeurd : styles.stOpen}>
+                          {r.status === 'gefactureerd' ? '✓ Gefactureerd' : r.status === 'afgekeurd' ? '✕ Afgekeurd' : '⏳ Open'}
+                        </span>
+                        {r.status === 'afgekeurd' && r.afkeur_reden && (
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{r.afkeur_reden}</div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Floating + knop voor nieuwe melding */}
+      {tab === 'werkzaamheden' && (
+        <button className={styles.fabKnop} onClick={() => setWdModalOpen(true)} title='Kosten melden'>+</button>
+      )}
+
       {modalAuto && (
         <PartnerModal
           auto={modalAuto}
@@ -188,6 +247,18 @@ export default function PartnerPage({ wie }: { wie: string }) {
           }}
         />
       )}
+
+      {wdModalOpen && (
+        <WerkDerdenModal
+          wie={wie}
+          onSluiten={() => setWdModalOpen(false)}
+          onIngediend={() => setWdModalOpen(false)}
+          addRecord={wdAddRecord}
+        />
+      )}
     </div>
   );
 }
+
+
+

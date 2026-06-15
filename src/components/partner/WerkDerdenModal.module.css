@@ -1,0 +1,391 @@
+﻿.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+  padding: 0;
+}
+
+@media (min-width: 600px) {
+  .overlay {
+    align-items: center;
+    padding: 24px;
+  }
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 560px;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.25);
+}
+
+@media (min-width: 600px) {
+  .modal {
+    border-radius: 16px;
+    max-height: 88dvh;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.28);
+  }
+}
+
+/* Header */
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.titel {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 2px;
+}
+
+.sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sluitenKnop {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+
+/* Body */
+.modalBody {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sectie {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectieLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Kenteken */
+.kentekenRij {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kentekenInput {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  background: var(--surface);
+  text-transform: uppercase;
+}
+
+.kentekenInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.zoekLabel {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.klantLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+/* Regels */
+.regelLijst {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.regelRij {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.regelOmschrijving {
+  flex: 1;
+  padding: 9px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.regelOmschrijving:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.regelBedragWrapper {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  width: 110px;
+}
+
+.euroTeken {
+  padding: 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+.regelBedrag {
+  flex: 1;
+  width: 0;
+  border: none;
+  padding: 9px 8px 9px 0;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.regelBedrag:focus {
+  outline: none;
+}
+
+.regelVerwijder {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.regelVerwijder:hover {
+  color: #e53e3e;
+}
+
+.regelToevoegen {
+  align-self: flex-start;
+  background: none;
+  border: 1.5px dashed var(--border);
+  border-radius: 7px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.regelToevoegen:hover {
+  background: rgba(var(--accent-rgb, 59, 130, 246), 0.06);
+}
+
+/* BTW */
+.btwRij {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btwLabel {
+  font-size: 13px;
+  color: var(--muted);
+  min-width: 28px;
+}
+
+.btwOpties {
+  display: flex;
+  gap: 6px;
+}
+
+.btwOptie {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.btwActief {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb, 59, 130, 246), 0.1);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.totaalRij {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 7px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* Bijlage */
+.fileInputVerborgen {
+  display: none;
+}
+
+.bijlageKiezen {
+  align-self: flex-start;
+  padding: 9px 16px;
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.bijlageKiezen:hover {
+  background: rgba(var(--accent-rgb, 59, 130, 246), 0.06);
+}
+
+.bijlageInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.bijlageNaam {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bijlagePreview {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.bijlageVerwijder {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Textarea */
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Fout */
+.foutmelding {
+  padding: 10px 14px;
+  background: rgba(229, 62, 62, 0.08);
+  border: 1px solid rgba(229, 62, 62, 0.3);
+  border-radius: 7px;
+  font-size: 13px;
+  color: #c53030;
+}
+
+/* Footer */
+.modalFooter {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.annuleerKnop {
+  flex: 1;
+  padding: 12px;
+  border-radius: 9px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.indienenKnop {
+  flex: 2;
+  padding: 12px;
+  border-radius: 9px;
+  border: none;
+  background: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+}
+
+.indienenKnop:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

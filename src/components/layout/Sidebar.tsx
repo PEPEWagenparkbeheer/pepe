@@ -22,6 +22,7 @@ const NAV_ITEMS = [
       { href: '/inname', label: 'Inname', icon: '📋' },
       { href: '/btw', label: 'BTW / Credit', icon: '💶' },
       { href: '/facturen', label: 'Facturen', icon: '📄' },
+      { href: '/werk-derden', label: 'Werk Derden', icon: '🔨' },
     ],
   },
   { section: 'BREIN', items: [{ href: '/brein', label: 'Inbox', icon: '🧠' }] },
@@ -77,3 +78,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

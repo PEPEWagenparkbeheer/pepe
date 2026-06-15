@@ -360,3 +360,52 @@ export interface AppUser {
   email: string;
   naam?: string;
 }
+
+// ── Werk Derden (partner-meldingen voor doorbelasting) ──────────────────────
+
+export type WerkDerdenStatus =
+  | 'open'
+  | 'afgekeurd'
+  | 'goedgekeurd'
+  | 'gefactureerd';
+
+export interface WerkRegel {
+  omschrijving: string;
+  bedrag: number;
+}
+
+export interface WerkDerdenRecord {
+  id: string;
+  created_at?: string;
+
+  // Identificatie
+  partner: string;
+  kenteken?: string;
+  meldcode?: string;
+  merk?: string;
+  model?: string;
+  klant?: string;
+  toegevoegd_door?: string;
+
+  // Werk-regels + financiën
+  regels: WerkRegel[];
+  btw_pct?: number;
+  inkoop_bedrag?: number;
+  marge_type?: 'pct' | 'bedrag';
+  marge_waarde?: number;
+  verkoop_bedrag?: number;
+
+  // Status
+  status: WerkDerdenStatus;
+  afkeur_reden?: string;
+  notitie?: string;
+
+  // Bijlage
+  bijlage_storage_path?: string;
+
+  // Tijdstempels
+  goedgekeurd_op?: string;
+  gefactureerd_op?: string;
+  hubspot_deal_id?: string;
+  twinfield_invoice_id?: string;
+}
