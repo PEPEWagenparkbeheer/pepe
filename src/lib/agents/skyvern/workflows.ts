@@ -1,4 +1,4 @@
-import type { LeasePortaal } from '@/lib/types/tender';
+import type { LeasePortaal, TenderInput } from '@/lib/types/tender';
 
 /* ────────────────────────────────────────────────────────────────────────────
  * FASE 1 — workflow-runs (deterministisch, goedkoop)
@@ -33,7 +33,54 @@ function envSchoon(naam: string): string | null {
 const WORKFLOW_ENV: Partial<Record<LeasePortaal, string>> = {
   hiltermann: 'SKYVERN_WORKFLOW_HILTERMANN',
   arval: 'SKYVERN_WORKFLOW_ARVAL',
+  // ayvens en mhc worden toegevoegd zodra de workflows klaar zijn (Fase D/E)
 };
+
+/**
+ * Bouwt de canonieke parameter-dict voor een Skyvern-workflow-run.
+ * Elke workflow declareert dezelfde keys als `parameter_type: "workflow"` params
+ * en gebruikt ze via `{{key}}` in de navigation-goals.
+ *
+ * Opties/accessoires worden gematcht op NAAM + PRIJS (geen codes).
+ * De lijst is al opgeschoond door de adviseur (€0-items verwijderd in de modal).
+ */
+export function bouwWorkflowParameters(input: TenderInput): Record<string, string> {
+  const fabrieksopties = input.opties.filter(
+    (o) => o.type === 'optie' || o.type === 'pakket',
+  );
+  const accessoires = input.opties.filter((o) => o.type === 'accessoire');
+
+  const fabrieksoptiesInstructie = fabrieksopties
+    .map((o) => (o.prijs != null ? `${o.naam} — €${o.prijs}` : o.naam))
+    .join('; ');
+
+  const accessoiresInstructie = accessoires
+    .map((o) => (o.prijs != null ? `${o.naam} €${o.prijs}` : o.naam))
+    .join('; ');
+
+  const accessoiresTotaalPrijs = String(
+    accessoires.reduce((som, o) => som + (o.prijs ?? 0), 0),
+  );
+
+  const wb = input.leasenorm?.winterbanden;
+  const winterbanden = wb === 'all_season' || wb === 'winter_zomer' ? 'ja' : 'nee';
+
+  return {
+    merk: input.merk,
+    model: input.model,
+    uitvoering: input.uitvoering ?? '',
+    brandstof: input.brandstof ?? '',
+    kleur: input.kleur ?? '',
+    bekleding: input.bekleding ?? '',
+    looptijd_mnd: String(input.looptijd),
+    km_jaar: String(input.km_jaar),
+    provisie: '2000',           // PEPE-standaard; later uitbreidbaar
+    winterbanden,
+    fabrieksopties_instructie: fabrieksoptiesInstructie,
+    accessoires_instructie: accessoiresInstructie,
+    accessoires_totaal_prijs: accessoiresTotaalPrijs,
+  };
+}
 
 export function getSkyvernWorkflowId(portaal: LeasePortaal): string | null {
   const envName = WORKFLOW_ENV[portaal];
@@ -47,7 +94,10 @@ export interface SkyvernRunStart {
 }
 
 /** Start een workflow-run zonder te wachten op voltooiing; run_id wordt opgeslagen en gepolld. */
-export async function startSkyvernWorkflowRun(portaal: LeasePortaal): Promise<SkyvernRunStart> {
+export async function startSkyvernWorkflowRun(
+  portaal: LeasePortaal,
+  input: TenderInput | null = null,
+): Promise<SkyvernRunStart> {
   const apiKey = envSchoon('SKYVERN_API_KEY');
   if (!apiKey) throw new Error('SKYVERN_API_KEY ontbreekt');
 
@@ -65,6 +115,7 @@ export async function startSkyvernWorkflowRun(portaal: LeasePortaal): Promise<Sk
       run_with: 'code',      // deterministisch replay van het gecachte script
       ai_fallback: true,     // valt per blok terug op de agent als een selector breekt
       proxy_location: 'RESIDENTIAL_NL',
+      ...(input ? { parameters: bouwWorkflowParameters(input) } : {}),
     }),
   });
   if (!res.ok) {
@@ -135,7 +186,7 @@ export function extractMaandprijs(output: unknown, diepte = 0): number | null {
   if (typeof output !== 'object') return null;
 
   const obj = output as Record<string, unknown>;
-  for (const key of ['maandprijs_eur', 'maandprijs']) {
+  for (const key of ['maandprijs_eur', 'maandprijs', 'maandprijs_eur_excl_btw', 'maandprijs_eur_incl_btw']) {
     if (key in obj) {
       const n = parseNlBedrag(obj[key]);
       if (n !== null) return n;

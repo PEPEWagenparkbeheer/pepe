@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const run = await startSkyvernWorkflowRun(portaal);
+      const run = await startSkyvernWorkflowRun(portaal, tender.parsed_data as TenderInput);
       await supabaseAdmin.from('tender_results').insert({
         tender_id: tenderId,
         portaal,
