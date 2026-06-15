@@ -33,7 +33,7 @@ function datumFmt(d?: string) {
 export default function PartnerPage({ wie }: { wie: string }) {
   const { autos, updateAuto } = useAfterSales();
   const { signOut } = useAuth();
-  const { records: wdRecords, openCount: wdOpenCount, addRecord: wdAddRecord } = useWerkDerden(wie);
+  const { records: wdRecords, actieCount: wdOpenCount, addRecord: wdAddRecord } = useWerkDerden(wie);
   const [wdModalOpen, setWdModalOpen] = useState(false);
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
   const [tab, setTab] = useState<Tab>('actief');

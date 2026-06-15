@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useWerkDerden } from '@/hooks/useWerkDerden';
 import styles from './Sidebar.module.css';
 
 const NAV_ITEMS = [
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const { actieCount: wdActieCount } = useWerkDerden(undefined, 'pepe');
 
   const initials = user?.email?.charAt(0).toUpperCase() ?? '?';
   const naam = user?.email?.split('@')[0] ?? '–';
@@ -47,16 +49,20 @@ export default function Sidebar() {
         {NAV_ITEMS.map(({ section, items }) => (
           <div key={section}>
             <div className={styles.section}>{section}</div>
-            {items.map(({ href, label, icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`${styles.item} ${pathname === href || pathname.startsWith(href + '/') ? styles.active : ''}`}
-              >
-                <span className={styles.icon}>{icon}</span>
-                {label}
-              </Link>
-            ))}
+            {items.map(({ href, label, icon }) => {
+              const badge = href === '/werk-derden' ? wdActieCount : 0;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`${styles.item} ${pathname === href || pathname.startsWith(href + '/') ? styles.active : ''}`}
+                >
+                  <span className={styles.icon}>{icon}</span>
+                  {label}
+                  {badge > 0 && <span className={styles.badge}>{badge}</span>}
+                </Link>
+              );
+            })}
           </div>
         ))}
       </nav>

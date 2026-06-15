@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -35,7 +35,6 @@ function cacheSave(records: WerkDerdenRecord[]) {
  * useWerkDerden(wie?, rol?)
  * - wie  = partner-naam: filtert op eigen meldingen
  * - rol  = 'pepe': geeft alle meldingen (PEPE-overzicht)
- * - geen args: geeft alle meldingen
  */
 export function useWerkDerden(wie?: string, rol?: 'pepe') {
   const [records, setRecords] = useState<WerkDerdenRecord[]>(cacheLoad);
@@ -65,7 +64,6 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'werk_derden' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const rec = deserialize(payload.new as Record<string, unknown>);
-          // Als partner-filter actief: alleen eigen meldingen tonen
           if (wie && rol !== 'pepe' && rec.partner !== wie) return;
           update(
             ref.current.some((r) => r.id === rec.id)
@@ -81,9 +79,11 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     return () => { supabase.removeChannel(ch); };
   }, [wie, rol]);
 
-  const openCount = records.filter((r) => r.status === 'open').length;
+  // Actieve records die aandacht van PEPE vereisen
+  const actieCount = records.filter(
+    (r) => r.status === 'open' || r.status === 'goedgekeurd',
+  ).length;
 
-  // Voeg een nieuwe melding toe
   const addRecord = useCallback(
     async (rec: Omit<WerkDerdenRecord, 'id' | 'created_at'>): Promise<{ ok: boolean; error?: string }> => {
       const { data, error } = await supabase
@@ -99,7 +99,6 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     [],
   );
 
-  // Update een bestaande melding (gedeeltelijk)
   const updateRecord = useCallback(
     async (id: string, patch: Partial<WerkDerdenRecord>): Promise<{ ok: boolean; error?: string }> => {
       const { error } = await supabase
@@ -113,14 +112,18 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     [],
   );
 
-  // Keur een melding af
+  const setGoedgekeurd = useCallback(
+    async (id: string) =>
+      updateRecord(id, { status: 'goedgekeurd', goedgekeurd_op: new Date().toISOString() }),
+    [updateRecord],
+  );
+
   const setAfgekeurd = useCallback(
     async (id: string, reden: string) =>
       updateRecord(id, { status: 'afgekeurd', afkeur_reden: reden }),
     [updateRecord],
   );
 
-  // Markeer als gefactureerd (PEPE vult verkoop_bedrag in)
   const setGefactureerd = useCallback(
     async (id: string, verkoop_bedrag: number): Promise<{ ok: boolean; error?: string }> => {
       const res = await fetch('/api/werk-derden/factureren', {
@@ -142,11 +145,10 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     [],
   );
 
-  // Haal een signed URL op voor de bijlage
   const bijlageUrl = useCallback(async (storagePath: string): Promise<string | null> => {
     const { data, error } = await supabase.storage
       .from('werk-derden')
-      .createSignedUrl(storagePath, 60 * 60); // 1 uur
+      .createSignedUrl(storagePath, 60 * 60);
     if (error) {
       console.error('werk_derden bijlage url fout:', error.message);
       return null;
@@ -154,5 +156,15 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     return data.signedUrl;
   }, []);
 
-  return { records, loading, openCount, addRecord, updateRecord, setAfgekeurd, setGefactureerd, bijlageUrl };
+  return {
+    records,
+    loading,
+    actieCount,
+    addRecord,
+    updateRecord,
+    setGoedgekeurd,
+    setAfgekeurd,
+    setGefactureerd,
+    bijlageUrl,
+  };
 }

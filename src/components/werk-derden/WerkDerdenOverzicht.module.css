@@ -435,3 +435,227 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* KPI strip */
+.kpiStrip {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.kpiKaart {
+  flex: 1;
+  min-width: 140px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpiGetal {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.kpiLabel {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Filter balk */
+.filterBalk {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filterSelect {
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.filterInput {
+  flex: 1;
+  min-width: 160px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.filterInput:focus,
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.exportKnop {
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.exportKnop:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Status badges */
+.stOpen {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(234, 179, 8, 0.12);
+  color: #92400e;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.stGoedgekeurd {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(34, 197, 94, 0.1);
+  color: #166534;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.stAfgekeurd {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(239, 68, 68, 0.1);
+  color: #c53030;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.stGefactureerd {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.1);
+  color: #1e40af;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Rijen */
+.rijOud {
+  background: rgba(239, 68, 68, 0.04);
+}
+
+/* Gefactureerd info */
+.gefactureerdInfo {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #166534;
+  font-weight: 600;
+}
+
+/* Marge invoer */
+.margeRij {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.margeToggleGroep {
+  display: flex;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.margeToggle {
+  padding: 6px 10px;
+  border: none;
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.margeToggleActief {
+  background: var(--accent);
+  color: #fff;
+}
+
+.margeInput {
+  width: 80px;
+  padding: 7px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.margeInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Goedkeuren knop */
+.goedkeurenKnop {
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1.5px solid rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.08);
+  color: #166534;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.goedkeurenKnop:hover {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.goedkeurenKnop:disabled,
+.afkeurenKnop:disabled,
+.facturerenKnop:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Melding sluit knop */
+.meldingSluiten {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 14px;
+  margin-left: 12px;
+  opacity: 0.6;
+}
+
+.meldingSluiten:hover {
+  opacity: 1;
+}

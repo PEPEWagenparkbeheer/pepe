@@ -1,8 +1,10 @@
-﻿// POST /api/werk-derden/factureren
-// Body: { id: string, verkoop_bedrag: number }
+// POST /api/werk-derden/factureren
+// Body: { id: string, marge_type: 'pct' | 'bedrag', marge_waarde: number }
+// Vereiste status: 'goedgekeurd'
 // 1. Haal de melding op uit Supabase
-// 2. Roep Twinfield aan (stub)
-// 3. Update status → 'gefactureerd' + twinfield_invoice_id + gefactureerd_op + verkoop_bedrag
+// 2. Bereken verkoop_bedrag uit inkoop + marge
+// 3. Roep Twinfield aan (stub)
+// 4. Update status → 'gefactureerd' + marge + verkoop + twinfield_invoice_id + gefactureerd_op
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -18,16 +20,23 @@ export async function POST(req: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  let body: { id?: string; verkoop_bedrag?: number };
+  let body: { id?: string; marge_type?: string; marge_waarde?: number };
   try {
-    body = (await req.json()) as { id?: string; verkoop_bedrag?: number };
+    body = (await req.json()) as { id?: string; marge_type?: string; marge_waarde?: number };
   } catch {
     return NextResponse.json({ error: 'Ongeldige JSON' }, { status: 400 });
   }
 
-  const { id, verkoop_bedrag } = body;
-  if (!id || typeof verkoop_bedrag !== 'number' || verkoop_bedrag <= 0) {
-    return NextResponse.json({ error: 'id en verkoop_bedrag zijn vereist' }, { status: 400 });
+  const { id, marge_type, marge_waarde } = body;
+
+  if (!id) {
+    return NextResponse.json({ error: 'id is vereist' }, { status: 400 });
+  }
+  if (marge_type !== 'pct' && marge_type !== 'bedrag') {
+    return NextResponse.json({ error: 'marge_type moet "pct" of "bedrag" zijn' }, { status: 400 });
+  }
+  if (typeof marge_waarde !== 'number' || marge_waarde < 0) {
+    return NextResponse.json({ error: 'marge_waarde moet een positief getal zijn' }, { status: 400 });
   }
 
   // Haal de melding op
@@ -43,17 +52,34 @@ export async function POST(req: NextRequest) {
 
   const rec = raw as unknown as WerkDerdenRecord;
 
-  if (rec.status === 'gefactureerd') {
-    return NextResponse.json({ error: 'Al gefactureerd' }, { status: 409 });
+  if (rec.status !== 'goedgekeurd') {
+    return NextResponse.json(
+      { error: `Kan niet factureren: status is "${rec.status}" (verwacht "goedgekeurd")` },
+      { status: 409 },
+    );
+  }
+
+  // Bereken verkoop bedrag
+  const inkoop =
+    rec.inkoop_bedrag ??
+    (rec.regels as WerkRegel[]).reduce((s, r) => s + r.bedrag, 0);
+
+  const verkoop_bedrag =
+    marge_type === 'pct'
+      ? inkoop * (1 + marge_waarde / 100)
+      : inkoop + marge_waarde;
+
+  if (verkoop_bedrag <= 0) {
+    return NextResponse.json({ error: 'Berekend verkoopbedrag is niet geldig' }, { status: 400 });
   }
 
   // Twinfield aanroepen (stub)
   const twResult = await createTwinfieldInvoice({
     werk_derden_id: rec.id,
-    kenteken: rec.kenteken,
+    kenteken: rec.kenteken ?? rec.meldcode ?? '',
     klant: rec.klant,
     partner: rec.partner,
-    regels: (rec.regels as WerkRegel[]),
+    regels: rec.regels as WerkRegel[],
     btw_pct: rec.btw_pct ?? 21,
     verkoop_bedrag,
     notitie: rec.notitie,
@@ -68,6 +94,8 @@ export async function POST(req: NextRequest) {
     .from('werk_derden')
     .update({
       status: 'gefactureerd',
+      marge_type,
+      marge_waarde,
       verkoop_bedrag,
       gefactureerd_op: new Date().toISOString(),
       twinfield_invoice_id: twResult.invoice_id ?? null,
@@ -78,5 +106,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, twinfield_invoice_id: twResult.invoice_id });
+  return NextResponse.json({ ok: true, twinfield_invoice_id: twResult.invoice_id, verkoop_bedrag });
 }

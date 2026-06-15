@@ -1,13 +1,13 @@
-﻿'use client';
+'use client';
 
 import { useRef, useState } from 'react';
 import type { WerkRegel, WerkDerdenRecord } from '@/types';
 import styles from './WerkDerdenModal.module.css';
 
 interface Props {
-  wie: string;   // partner-naam
+  wie: string;
   onSluiten: () => void;
-  onIngediend: (rec: WerkDerdenRecord) => void;
+  onIngediend: () => void;
   addRecord: (rec: Omit<WerkDerdenRecord, 'id' | 'created_at'>) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -19,7 +19,10 @@ const BTW_OPTIES = [
 
 export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord }: Props) {
   const [kenteken, setKenteken] = useState('');
+  const [meldcode, setMeldcode] = useState('');
   const [klant, setKlant] = useState('');
+  const [merk, setMerk] = useState('');
+  const [model, setModel] = useState('');
   const [opzoeken, setOpzoeken] = useState(false);
   const [regels, setRegels] = useState<WerkRegel[]>([{ omschrijving: '', bedrag: 0 }]);
   const [btwPct, setBtwPct] = useState(21);
@@ -30,7 +33,6 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
   const [fout, setFout] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Automatisch kenteken opmaken (bijv. AB-123-C → AB123C opgeslagen, weergegeven met koppeltekens)
   function kentekenFmt(raw: string) {
     return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
   }
@@ -41,11 +43,13 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
     try {
       const res = await fetch(`/api/werk-derden/lookup?kenteken=${encodeURIComponent(kt)}`);
       if (res.ok) {
-        const json = await res.json() as { klant?: string; meldcode?: string };
+        const json = await res.json() as { klant?: string; merk?: string; model?: string };
         if (json.klant) setKlant(json.klant);
+        if (json.merk) setMerk(json.merk);
+        if (json.model) setModel(json.model);
       }
     } catch {
-      // Stil falen — klant blijft leeg
+      // Stil falen
     } finally {
       setOpzoeken(false);
     }
@@ -76,36 +80,42 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
     }
   }
 
-  // Berekend totaal
   const inkoopBedrag = regels.reduce((s, r) => s + (Number(r.bedrag) || 0), 0);
+  const ktFmt = kentekenFmt(kenteken);
 
   async function indienen() {
-    if (!kenteken.trim()) { setFout('Vul een kenteken in.'); return; }
+    if (!ktFmt && !meldcode.trim()) {
+      setFout('Vul een kenteken of meldcode in.');
+      return;
+    }
     const geldig = regels.filter(r => r.omschrijving.trim() && Number(r.bedrag) > 0);
-    if (geldig.length === 0) { setFout('Voeg minimaal één kostenregel toe.'); return; }
+    if (geldig.length === 0) {
+      setFout('Voeg minimaal één kostenregel toe.');
+      return;
+    }
 
     setFout('');
     setBezig(true);
 
     try {
-      // 1. Bijlage uploaden (optioneel)
       let bijlageStoragePath: string | undefined;
       if (bijlageFile) {
         const fd = new FormData();
         fd.append('file', bijlageFile);
-        fd.append('kenteken', kenteken);
+        fd.append('kenteken', ktFmt || meldcode.trim());
         const uploadRes = await fetch('/api/werk-derden/bijlage', { method: 'POST', body: fd });
         if (uploadRes.ok) {
           const { path } = await uploadRes.json() as { path: string };
           bijlageStoragePath = path;
         }
-        // Als upload mislukt: doorgaan zonder bijlage (niet fataal)
       }
 
-      // 2. Record aanmaken
       const result = await addRecord({
         partner: wie,
-        kenteken: kentekenFmt(kenteken),
+        kenteken: ktFmt || undefined,
+        meldcode: meldcode.trim() || undefined,
+        merk: merk || undefined,
+        model: model || undefined,
         klant: klant || undefined,
         regels: geldig,
         btw_pct: btwPct,
@@ -121,6 +131,7 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
         return;
       }
 
+      onIngediend();
       onSluiten();
     } finally {
       setBezig(false);
@@ -131,7 +142,6 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
     <div className={styles.overlay} onClick={onSluiten}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
 
-        {/* Header */}
         <div className={styles.modalHeader}>
           <div>
             <h2 className={styles.titel}>Kosten melden</h2>
@@ -142,27 +152,37 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
 
         <div className={styles.modalBody}>
 
-          {/* Kenteken */}
+          {/* Kenteken + meldcode */}
           <section className={styles.sectie}>
-            <label className={styles.sectieLabel}>Kenteken</label>
-            <div className={styles.kentekenRij}>
+            <label className={styles.sectieLabel}>Kenteken of meldcode <span className={styles.vereistLabel}>(minimaal één)</span></label>
+            <div className={styles.duelRij}>
+              <div className={styles.kentekenWrapper}>
+                <input
+                  className={styles.kentekenInput}
+                  placeholder="AB-123-C"
+                  value={kenteken}
+                  onChange={e => setKenteken(e.target.value.toUpperCase())}
+                  onBlur={() => zoekKlant(ktFmt)}
+                />
+                {opzoeken && <span className={styles.zoekLabel}>Zoeken…</span>}
+              </div>
+              <span className={styles.ofLabel}>of</span>
               <input
-                className={styles.kentekenInput}
-                placeholder="AB-123-C"
-                value={kenteken}
-                onChange={e => setKenteken(e.target.value.toUpperCase())}
-                onBlur={() => zoekKlant(kentekenFmt(kenteken))}
+                className={styles.invoer}
+                placeholder="Meldcode"
+                value={meldcode}
+                onChange={e => setMeldcode(e.target.value)}
               />
-              {opzoeken && <span className={styles.zoekLabel}>Zoeken…</span>}
             </div>
-            {klant && (
-              <div className={styles.klantLabel}>
-                <span>👤</span> <span>{klant}</span>
+            {(merk || model || klant) && (
+              <div className={styles.autofillInfo}>
+                {(merk || model) && <span>🚗 {[merk, model].filter(Boolean).join(' ')}</span>}
+                {klant && <span>👤 {klant}</span>}
               </div>
             )}
           </section>
 
-          {/* Kosten-regels */}
+          {/* Kostenregels */}
           <section className={styles.sectie}>
             <label className={styles.sectieLabel}>Kostenregels</label>
             <div className={styles.regelLijst}>
@@ -195,7 +215,6 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
 
             <button className={styles.regelToevoegen} onClick={regelToevoegen}>+ Regel toevoegen</button>
 
-            {/* BTW */}
             <div className={styles.btwRij}>
               <span className={styles.btwLabel}>BTW</span>
               <div className={styles.btwOpties}>
@@ -211,7 +230,6 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
               </div>
             </div>
 
-            {/* Totaal */}
             {inkoopBedrag > 0 && (
               <div className={styles.totaalRij}>
                 <span>Totaal excl. BTW</span>
@@ -266,10 +284,13 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
           {fout && <div className={styles.foutmelding}>{fout}</div>}
         </div>
 
-        {/* Footer */}
         <div className={styles.modalFooter}>
           <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
-          <button className={styles.indienenKnop} onClick={indienen} disabled={bezig || !kenteken.trim()}>
+          <button
+            className={styles.indienenKnop}
+            onClick={indienen}
+            disabled={bezig || (!kenteken.trim() && !meldcode.trim())}
+          >
             {bezig ? 'Verzenden…' : 'Indienen'}
           </button>
         </div>
