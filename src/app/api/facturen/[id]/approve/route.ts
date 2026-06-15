@@ -11,11 +11,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  findCompany, createCompany,
+  findCompany, createCompany, searchCompanyByKvk, updateCompany,
   searchContactByEmail, searchContactByName, createContact,
   searchDealByKenteken, createDeal,
   associateDealCompany, associateDealContact, associateContactCompany,
 } from '@/lib/hubspot';
+import { kvkOpzoeken } from '@/lib/kvk';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -66,22 +67,44 @@ export async function POST(
   }
 
   try {
+    // ── KVK-verrijking ──────────────────────────────────
+    const kvkData = factuur.kvk ? await kvkOpzoeken(factuur.kvk) : null;
+
     // ── Company (alleen bij zakelijke klant) ────────────
     let companyId: string | null = null;
     if (isBedrijf && factuur.bedrijfsnaam) {
-      companyId = await findCompany({
-        name: factuur.bedrijfsnaam,
-        postcode: factuur.postcode,
-        plaats: factuur.plaats,
-      });
+      // Zoek eerst op KVK-nummer (meest betrouwbaar)
+      if (factuur.kvk) {
+        companyId = await searchCompanyByKvk(factuur.kvk);
+      }
+      // Daarna op naam/postcode (met KVK-adres als fallback)
       if (!companyId) {
+        companyId = await findCompany({
+          name: factuur.bedrijfsnaam,
+          postcode: factuur.postcode ?? kvkData?.postcode,
+          plaats: factuur.plaats ?? kvkData?.plaats,
+        });
+      }
+      if (!companyId) {
+        // Nieuw bedrijf aanmaken — KVK-data heeft prioriteit boven factuurdata
         companyId = await createCompany({
           name: factuur.bedrijfsnaam,
           kvk: factuur.kvk ?? undefined,
-          address: factuur.straat ?? undefined,
-          zip: factuur.postcode ?? undefined,
-          city: factuur.plaats ?? undefined,
-          country: factuur.land ?? undefined,
+          address: kvkData?.straat ?? factuur.straat ?? undefined,
+          zip: kvkData?.postcode ?? factuur.postcode ?? undefined,
+          city: kvkData?.plaats ?? factuur.plaats ?? undefined,
+          country: kvkData?.land ?? factuur.land ?? undefined,
+          domain: kvkData?.website,
+        });
+      } else if (kvkData) {
+        // Bestaand bedrijf verrijken met officiële KVK-data
+        await updateCompany(companyId, {
+          kvk: factuur.kvk ?? undefined,
+          address: kvkData.straat,
+          zip: kvkData.postcode,
+          city: kvkData.plaats,
+          country: kvkData.land,
+          domain: kvkData.website,
         });
       }
     }

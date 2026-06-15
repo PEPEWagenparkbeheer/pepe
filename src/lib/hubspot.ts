@@ -154,6 +154,24 @@ export async function findCompany({ name, postcode, plaats }: CompanyMatchInput)
   return null;
 }
 
+export async function searchCompanyByKvk(kvk: string): Promise<string | null> {
+  if (!kvk?.trim()) return null;
+  const data = await hsFetch<{ results?: { id: string }[] }>(
+    `${HS_BASE}/crm/v3/objects/companies/search`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        limit: 1,
+        properties: ['kvk_nummer'],
+        filterGroups: [{
+          filters: [{ propertyName: 'kvk_nummer', operator: 'EQ', value: kvk.trim() }],
+        }],
+      }),
+    },
+  );
+  return data.results?.[0]?.id ?? null;
+}
+
 export async function createCompany(input: CompanyInput): Promise<string> {
   const properties: Record<string, string> = { name: input.name };
   if (input.kvk) properties.kvk_nummer = input.kvk;
@@ -169,6 +187,22 @@ export async function createCompany(input: CompanyInput): Promise<string> {
     { method: 'POST', body: JSON.stringify({ properties }) },
   );
   return data.id;
+}
+
+export async function updateCompany(id: string, input: Partial<Omit<CompanyInput, 'name'>>): Promise<void> {
+  const properties: Record<string, string> = {};
+  if (input.kvk) properties.kvk_nummer = input.kvk;
+  if (input.domain) properties.domain = input.domain;
+  if (input.phone) properties.phone = input.phone;
+  if (input.address) properties.address = input.address;
+  if (input.city) properties.city = input.city;
+  if (input.zip) properties.zip = input.zip;
+  if (input.country) properties.country = input.country;
+  if (Object.keys(properties).length === 0) return;
+  await hsFetch(
+    `${HS_BASE}/crm/v3/objects/companies/${id}`,
+    { method: 'PATCH', body: JSON.stringify({ properties }) },
+  );
 }
 
 // ── Contact ─────────────────────────────────────────────────────
