@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import type { Factuur } from '@/types';
@@ -21,6 +21,8 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
   const [rdwBezig, setRdwBezig] = useState(false);
+  const [kvkBezig, setKvkBezig] = useState(false);
+  const laatsteKvkNummer = useRef<string>('');
   const [extractBezig, setExtractBezig] = useState(false);
   const laatsteRdwKenteken = useRef<string>('');
 
@@ -51,6 +53,17 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kenteken]);
+  // Auto-KVK zodra er een 8-cijferig KVK-nummer staat dat verschilt van de vorige lookup.
+  const kvkWaarde = form?.kvk ?? '';
+  useEffect(() => {
+    const norm = kvkWaarde.replace(/\D/g, '');
+    if (norm.length !== 8) return;
+    if (norm === laatsteKvkNummer.current) return;
+    const t = setTimeout(() => { void kvkOphalen(true); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kvkWaarde]);
+
 
   if (!open || !form) return null;
 
@@ -65,7 +78,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     try {
       const rec = await onReExtract(form.id);
       if (rec) setForm(rec);
-      else alert('Re-extract mislukt — zie console');
+      else alert('Re-extract mislukt â€” zie console');
     } finally {
       setExtractBezig(false);
     }
@@ -122,6 +135,49 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     await onAkkoord(form);
     setBezig(false);
   }
+  async function kvkOphalen(stil = false) {
+    if (!form?.kvk?.trim()) {
+      if (!stil) alert('Vul eerst een KVK-nummer in');
+      return;
+    }
+    const norm = form.kvk.replace(/\D/g, '');
+    if (norm.length !== 8) {
+      if (!stil) alert('KVK-nummer moet 8 cijfers zijn');
+      return;
+    }
+    laatsteKvkNummer.current = norm;
+    setKvkBezig(true);
+    try {
+      const res = await fetch(`/api/kvk/lookup?kvk=${norm}`);
+      if (!res.ok) {
+        if (!stil) alert('Geen KVK-gegevens gevonden voor dit nummer');
+        return;
+      }
+      const d = await res.json() as {
+        gevonden: boolean; naam?: string; straat?: string;
+        postcode?: string; plaats?: string; land?: string;
+      };
+      if (!d.gevonden) {
+        if (!stil) alert('KVK-nummer niet gevonden in het Handelsregister');
+        return;
+      }
+      // Alleen invullen als het veld nog leeg is (auto-fill, niet overschrijven)
+      setForm((f) => {
+        if (!f) return f;
+        return {
+          ...f,
+          bedrijfsnaam: f.bedrijfsnaam?.trim() ? f.bedrijfsnaam : (d.naam ?? f.bedrijfsnaam),
+          straat:       f.straat?.trim()       ? f.straat       : (d.straat ?? f.straat),
+          postcode:     f.postcode?.trim()     ? f.postcode     : (d.postcode ?? f.postcode),
+          plaats:       f.plaats?.trim()       ? f.plaats       : (d.plaats ?? f.plaats),
+          land:         f.land?.trim()         ? f.land         : (d.land ?? f.land),
+        };
+      });
+    } finally {
+      setKvkBezig(false);
+    }
+  }
+
 
   const isBedrijf = form.is_bedrijf !== false;
   const klaarVoorAkkoord = !!form.kenteken?.trim() && (
@@ -134,8 +190,8 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
       <div className={styles.modal}>
         <div className={styles.header}>
           <div className={styles.titel}>
-            📄 Factuur {form.factuurnummer ? `#${form.factuurnummer}` : ''}
-            {form.afzender && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 13 }}>· {form.afzender}</span>}
+            ðŸ“„ Factuur {form.factuurnummer ? `#${form.factuurnummer}` : ''}
+            {form.afzender && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 13 }}>Â· {form.afzender}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
@@ -145,9 +201,9 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
               disabled={extractBezig || !form.pdf_storage_path}
               title="Run Groq + RDW opnieuw op de PDF"
             >
-              {extractBezig ? '⏳ Bezig...' : '🔄 Opnieuw extraheren'}
+              {extractBezig ? 'â³ Bezig...' : 'ðŸ”„ Opnieuw extraheren'}
             </button>
-            <button className={styles.sluit} onClick={onSluiten}>×</button>
+            <button className={styles.sluit} onClick={onSluiten}>Ã—</button>
           </div>
         </div>
 
@@ -164,7 +220,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
             {pdfUrl && (
               <div className={styles.pdfDownload}>
                 <span>{form.pdf_bestandsnaam}</span>
-                <a href={pdfUrl} target="_blank" rel="noopener noreferrer">⤓ Downloaden</a>
+                <a href={pdfUrl} target="_blank" rel="noopener noreferrer">â¤“ Downloaden</a>
               </div>
             )}
           </div>
@@ -212,18 +268,18 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
                   onChange={(e) => stel('kenteken', e.target.value.toUpperCase().replace(/[-\s]/g, ''))}
                 />
                 <button className="btn" type="button" onClick={() => rdwOphalen()} disabled={rdwBezig || !form.kenteken}>
-                  {rdwBezig ? '⏳ RDW...' : '🔍 RDW ophalen'}
+                  {rdwBezig ? 'â³ RDW...' : 'ðŸ” RDW ophalen'}
                 </button>
               </div>
             </div>
 
             {rdw && (
               <div className={styles.rdwInfo}>
-                <div><label>Merk</label><div>{rdw.merk ?? '—'}</div></div>
-                <div><label>Model</label><div>{rdw.handelsbenaming ?? '—'}</div></div>
-                <div><label>Brandstof</label><div>{rdw.brandstof ?? '—'}</div></div>
-                <div><label>APK</label><div>{rdw.apkDatum ?? '—'}</div></div>
-                <div><label>Fiscale waarde</label><div>{rdw.catalogusprijs != null ? `€ ${rdw.catalogusprijs.toLocaleString('nl-NL')}` : '—'}</div></div>
+                <div><label>Merk</label><div>{rdw.merk ?? 'â€”'}</div></div>
+                <div><label>Model</label><div>{rdw.handelsbenaming ?? 'â€”'}</div></div>
+                <div><label>Brandstof</label><div>{rdw.brandstof ?? 'â€”'}</div></div>
+                <div><label>APK</label><div>{rdw.apkDatum ?? 'â€”'}</div></div>
+                <div><label>Fiscale waarde</label><div>{rdw.catalogusprijs != null ? `â‚¬ ${rdw.catalogusprijs.toLocaleString('nl-NL')}` : 'â€”'}</div></div>
               </div>
             )}
 
@@ -237,13 +293,13 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
                   className={`btn ${isBedrijf ? 'btn-a' : ''}`}
                   style={{ fontSize: 12, padding: '5px 12px' }}
                   onClick={() => stel('is_bedrijf', true)}
-                >🏢 Bedrijf</button>
+                >ðŸ¢ Bedrijf</button>
                 <button
                   type="button"
                   className={`btn ${!isBedrijf ? 'btn-a' : ''}`}
                   style={{ fontSize: 12, padding: '5px 12px' }}
                   onClick={() => stel('is_bedrijf', false)}
-                >👤 Particulier</button>
+                >ðŸ‘¤ Particulier</button>
               </div>
             </div>
 
@@ -254,10 +310,19 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
                   <input className="fi" value={form.bedrijfsnaam ?? ''}
                     onChange={(e) => stel('bedrijfsnaam', e.target.value)} />
                 </div>
-                <div className={styles.fg}>
+                <div className={`${styles.fg} ${styles.vol}`}>
                   <label>KvK-nummer</label>
-                  <input className="fi" value={form.kvk ?? ''}
-                    onChange={(e) => stel('kvk', e.target.value)} />
+                  <div className={styles.rdwRij}>
+                    <input
+                      className="fi"
+                      placeholder="12345678"
+                      value={form.kvk ?? ""}
+                      onChange={(e) => stel("kvk", e.target.value.replace(/\D/g, ""))}
+                    />
+                    <button className="btn" type="button" onClick={() => kvkOphalen()} disabled={kvkBezig || !form.kvk}>
+                      {kvkBezig ? "⏳ KVK..." : "🔍 KVK ophalen"}
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -304,11 +369,11 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
 
         <div className={styles.footer}>
           <div className={styles.footerLinks}>
-            {form.hubspot_deal_id && <>✅ Reeds in HubSpot · Deal {form.hubspot_deal_id}</>}
+            {form.hubspot_deal_id && <>âœ… Reeds in HubSpot Â· Deal {form.hubspot_deal_id}</>}
           </div>
           <button className="btn" onClick={onSluiten}>Sluiten</button>
           <button className="btn" onClick={handleOpslaan} disabled={bezig}>
-            {bezig ? '...' : '💾 Opslaan'}
+            {bezig ? '...' : 'ðŸ’¾ Opslaan'}
           </button>
           <button
             className="btn btn-a"
@@ -316,10 +381,11 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
             disabled={bezig || !klaarVoorAkkoord}
             title={klaarVoorAkkoord ? 'Wegschrijven naar HubSpot' : 'Kenteken en bedrijfsnaam zijn verplicht'}
           >
-            {bezig ? '...' : '✅ Goedkeuren → HubSpot'}
+            {bezig ? '...' : 'âœ… Goedkeuren â†’ HubSpot'}
           </button>
         </div>
       </div>
     </div>
   );
 }
+
