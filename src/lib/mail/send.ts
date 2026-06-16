@@ -33,7 +33,7 @@ export async function verstuurMail(opties: MailOpties): Promise<void> {
       Subject: opties.subject,
       HtmlBody: opties.html,
       ReplyTo: opties.replyTo ?? FROM,
-      MessageStream: 'outbound',
+      MessageStream: 'pepe-flow',
     }),
   });
 
