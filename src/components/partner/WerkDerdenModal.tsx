@@ -7,21 +7,26 @@ import styles from './WerkDerdenModal.module.css';
 
 interface Props {
   wie?: string;
+  /** Bestaand record om te bewerken; afwezig = nieuw aanmaken */
+  record?: WerkDerdenRecord;
   onSluiten: () => void;
   onIngediend: () => void;
   addRecord: (rec: Omit<WerkDerdenRecord, 'id' | 'created_at'>) => Promise<{ ok: boolean; error?: string }>;
+  updateRecord?: (id: string, patch: Partial<WerkDerdenRecord>) => Promise<{ ok: boolean; error?: string }>;
 }
 
-export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord }: Props) {
-  const [partnerNaam, setPartnerNaam] = useState(wie ?? '');
-  const [kenteken, setKenteken] = useState('');
-  const [meldcode, setMeldcode] = useState('');
-  const [klant, setKlant] = useState('');
-  const [merk, setMerk] = useState('');
-  const [model, setModel] = useState('');
+export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, addRecord, updateRecord }: Props) {
+  const isBewerken = !!record;
+  const isNieuwVoorstel = record?.status === 'afgekeurd';
+  const [partnerNaam, setPartnerNaam] = useState(record?.partner ?? wie ?? '');
+  const [kenteken, setKenteken] = useState(record?.kenteken ?? '');
+  const [meldcode, setMeldcode] = useState(record?.meldcode ?? '');
+  const [klant, setKlant] = useState(record?.klant ?? '');
+  const [merk, setMerk] = useState(record?.merk ?? '');
+  const [model, setModel] = useState(record?.model ?? '');
   const [opzoeken, setOpzoeken] = useState(false);
-  const [regels, setRegels] = useState<WerkRegel[]>([{ omschrijving: '', bedrag: 0 }]);
-  const [notitie, setNotitie] = useState('');
+  const [regels, setRegels] = useState<WerkRegel[]>(record?.regels?.length ? record.regels : [{ omschrijving: '', bedrag: 0 }]);
+  const [notitie, setNotitie] = useState(record?.notitie ?? '');
   const [bijlageFile, setBijlageFile] = useState<File | null>(null);
   const [bijlagePreview, setBijlagePreview] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
@@ -109,6 +114,30 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
         }
       }
 
+      if (isBewerken && record && updateRecord) {
+        // Bewerken van bestaande melding (incl. afgekeurd → nieuw voorstel = terug naar open)
+        const result = await updateRecord(record.id, {
+          kenteken: ktFmt || undefined,
+          meldcode: meldcode.trim() || undefined,
+          merk: merk || undefined,
+          model: model || undefined,
+          klant: klant || undefined,
+          regels: geldig,
+          inkoop_bedrag: inkoopBedrag,
+          notitie: notitie.trim() || undefined,
+          status: 'open',
+          afkeur_reden: undefined,
+          ...(bijlageStoragePath ? { bijlage_storage_path: bijlageStoragePath } : {}),
+        });
+        if (!result.ok) {
+          setFout(result.error ?? 'Opslaan mislukt');
+          return;
+        }
+        onIngediend();
+        onSluiten();
+        return;
+      }
+
       const result = await addRecord({
         partner: partnerNaam.trim(),
         kenteken: ktFmt || undefined,
@@ -159,8 +188,8 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
 
         <div className={styles.modalHeader}>
           <div>
-            <h2 className={styles.titel}>Kosten melden</h2>
-            <span className={styles.sub}>Werk derden doorbelasten</span>
+            <h2 className={styles.titel}>{isNieuwVoorstel ? 'Nieuw voorstel' : isBewerken ? 'Melding bewerken' : 'Kosten melden'}</h2>
+            <span className={styles.sub}>{isNieuwVoorstel ? 'Afgekeurde melding aanpassen en opnieuw indienen' : 'Werk derden doorbelasten'}</span>
           </div>
           <button className={styles.sluitenKnop} onClick={onSluiten}>✕</button>
         </div>
@@ -303,7 +332,7 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
             onClick={indienen}
             disabled={bezig || !partnerNaam.trim() || (!kenteken.trim() && !meldcode.trim())}
           >
-            {bezig ? 'Verzenden…' : 'Indienen'}
+            {bezig ? 'Verzenden…' : isNieuwVoorstel ? 'Nieuw voorstel sturen' : isBewerken ? 'Opslaan' : 'Indienen'}
           </button>
         </div>
       </div>

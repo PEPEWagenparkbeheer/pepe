@@ -34,8 +34,9 @@ function datumFmt(d?: string) {
 export default function PartnerPage({ wie }: { wie: string }) {
   const { autos, updateAuto } = useAfterSales();
   const { signOut } = useAuth();
-  const { records: wdRecords, addRecord: wdAddRecord, setKlaarGemeld, bijlageUrl } = useWerkDerden(wie);
+  const { records: wdRecords, addRecord: wdAddRecord, updateRecord: wdUpdateRecord, setKlaarGemeld, bijlageUrl } = useWerkDerden(wie);
   const [wdModalOpen, setWdModalOpen] = useState(false);
+  const [editRecord, setEditRecord] = useState<WerkDerdenRecord | null>(null);
   const [klaarBezig, setKlaarBezig] = useState<string | null>(null);
   const [detailRecord, setDetailRecord] = useState<WerkDerdenRecord | null>(null);
   const [bijlageSignedUrl, setBijlageSignedUrl] = useState<string | null>(null);
@@ -97,6 +98,10 @@ export default function PartnerPage({ wie }: { wie: string }) {
 
   const mijnAutos = tab === 'actief' ? actieveAutos : tab === 'klaar' ? klareAutos : [];
 
+  // Goedgekeurde werk-derden meldingen tonen we als rijen bovenin de Actief-lijst,
+  // met knipperend bolletje totdat de partner ze één keer heeft geopend.
+  const wdActiefRijen = tab === 'actief' ? goedgekeurdeWdRecords : [];
+
   return (
     <div className={styles.pagina}>
       {/* Header */}
@@ -136,30 +141,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
       {/* Auto-tabel — alleen voor actief/klaar tabs */}
       {tab !== 'werkzaamheden' && (
       <div className={styles.content}>
-        {tab === 'actief' && goedgekeurdeWdRecords.length > 0 && (
-          <div className={styles.meldingNotificatieBlok}>
-            <div className={styles.meldingNotificatieTitel}>
-              <span className={styles.notificatieDot} />
-              Goedgekeurde meldingen — klaar melden vereist
-            </div>
-            {goedgekeurdeWdRecords.map(wd => {
-              const voertuig = wd.kenteken ?? wd.meldcode ?? '—';
-              const gezien = gezienIds.has(wd.id);
-              return (
-                <div key={wd.id} className={styles.meldingNotificatieRij} onClick={() => openDetail(wd)}>
-                  <span className={gezien ? styles.notificatieDotGezien : styles.notificatieDotBlink} />
-                  <div style={{ flex: 1 }}>
-                    <strong>{voertuig}</strong>
-                    {wd.klant ? <span style={{ color: 'var(--muted)', fontSize: 12 }}> · {wd.klant}</span> : ''}
-                    {(wd.merk || wd.model) ? <span style={{ color: 'var(--muted)', fontSize: 12 }}> · {[wd.merk, wd.model].filter(Boolean).join(' ')}</span> : ''}
-                  </div>
-                  <span className={styles.meldingKlaarBtn}>Klaar melden →</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {mijnAutos.length === 0 ? (
+        {mijnAutos.length === 0 && wdActiefRijen.length === 0 ? (
           <div className={styles.leeg}>
             {tab === 'actief'
               ? `Geen openstaande auto's voor ${wie}`
@@ -181,6 +163,35 @@ export default function PartnerPage({ wie }: { wie: string }) {
                 </tr>
               </thead>
               <tbody>
+                {/* Goedgekeurde kostenmeldingen — bovenin met knipperend bolletje */}
+                {wdActiefRijen.map((wd) => {
+                  const gezien = gezienIds.has(wd.id);
+                  return (
+                    <tr key={`wd-${wd.id}`} onClick={() => openDetail(wd)}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <KentekenPlaat kenteken={wd.kenteken ?? wd.meldcode ?? ''} />
+                          <span
+                            className={gezien ? styles.notificatieDotGezien : styles.notificatieDotBlink}
+                            title={gezien ? 'Goedgekeurd' : 'Nieuw goedgekeurd — klaar melden'}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <span className={styles.merk}>{wd.merk}</span>{' '}
+                        <span className={styles.model}>{wd.model}</span>
+                        <div className={styles.mobielSub}>
+                          {wd.klant && <span>{wd.klant}</span>}
+                          <span className={styles.stGoedgekeurd}>✓ Goedgekeurd — klaar melden</span>
+                        </div>
+                      </td>
+                      <td className={styles.mobielVerbergen}>{wd.klant || '—'}</td>
+                      <td className={styles.mobielVerbergen} colSpan={5}>
+                        <span className={styles.stGoedgekeurd}>✓ Goedgekeurd — klik om klaar te melden</span>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {mijnAutos.map((r) => {
                   const updates = r.partner_updates ?? [];
                   const wieKlaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === wieUpper);
@@ -265,7 +276,10 @@ export default function PartnerPage({ wie }: { wie: string }) {
                   {wdRecords.map((r) => {
                     const voertuig = r.kenteken ?? r.meldcode ?? '—';
                     return (
-                    <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => openDetail(r)}>
+                    <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => {
+                      if (r.status === 'open' || r.status === 'afgekeurd') setEditRecord(r);
+                      else openDetail(r);
+                    }}>
                       <td>
                         <strong>{voertuig}</strong>
                         {r.klant ? <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {r.klant}</span> : ''}
@@ -292,31 +306,13 @@ export default function PartnerPage({ wie }: { wie: string }) {
                         {r.status === 'afgekeurd' && r.afkeur_reden && (
                           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{r.afkeur_reden}</div>
                         )}
+                        {(r.status === 'open' || r.status === 'afgekeurd') && (
+                          <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>
+                            {r.status === 'afgekeurd' ? 'Klik om aan te passen' : 'Klik om te bewerken'}
+                          </div>
+                        )}
                         {r.status === 'goedgekeurd' && (
-                          <button
-                            onClick={async () => {
-                              setKlaarBezig(r.id);
-                              await setKlaarGemeld(r.id);
-                              setKlaarBezig(null);
-                            }}
-                            disabled={klaarBezig === r.id}
-                            style={{
-                              display: 'block',
-                              marginTop: 6,
-                              padding: '5px 12px',
-                              borderRadius: 6,
-                              border: 'none',
-                              background: 'var(--accent)',
-                              color: '#fff',
-                              fontSize: 12,
-                              fontWeight: 600,
-                              cursor: klaarBezig === r.id ? 'not-allowed' : 'pointer',
-                              opacity: klaarBezig === r.id ? 0.6 : 1,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {klaarBezig === r.id ? 'Bezig…' : '✓ Klaar melden'}
-                          </button>
+                          <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>Klik om klaar te melden</div>
                         )}
                       </td>
                     </tr>
@@ -350,6 +346,17 @@ export default function PartnerPage({ wie }: { wie: string }) {
           onSluiten={() => setWdModalOpen(false)}
           onIngediend={() => setWdModalOpen(false)}
           addRecord={wdAddRecord}
+        />
+      )}
+
+      {editRecord && (
+        <WerkDerdenModal
+          wie={wie}
+          record={editRecord}
+          onSluiten={() => setEditRecord(null)}
+          onIngediend={() => setEditRecord(null)}
+          addRecord={wdAddRecord}
+          updateRecord={wdUpdateRecord}
         />
       )}
 
