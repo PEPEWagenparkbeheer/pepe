@@ -157,17 +157,18 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
 
         <div className={styles.modalBody}>
 
-          {/* Partner naam — altijd tonen, pre-filled als wie is meegegeven */}
-          <section className={styles.sectie}>
-            <label className={styles.sectieLabel}>Partner naam</label>
-            <input
-              className={styles.invoer}
-              placeholder="Naam van het bedrijf / partner…"
-              value={partnerNaam}
-              onChange={e => setPartnerNaam(e.target.value)}
-              readOnly={!!wie}
-            />
-          </section>
+          {/* Partner naam — alleen tonen voor PEPE-interne invoer, niet voor partners zelf */}
+          {!wie && (
+            <section className={styles.sectie}>
+              <label className={styles.sectieLabel}>Partner naam</label>
+              <input
+                className={styles.invoer}
+                placeholder="Naam van het bedrijf / partner…"
+                value={partnerNaam}
+                onChange={e => setPartnerNaam(e.target.value)}
+              />
+            </section>
+          )}
 
           {/* Kenteken + meldcode */}
           <section className={styles.sectie}>

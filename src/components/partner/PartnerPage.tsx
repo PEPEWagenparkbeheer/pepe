@@ -231,10 +231,8 @@ export default function PartnerPage({ wie }: { wie: string }) {
         </div>
       )}
 
-      {/* Floating + knop voor nieuwe melding */}
-      {tab === 'werkzaamheden' && (
-        <button className={styles.fabKnop} onClick={() => setWdModalOpen(true)} title='Kosten melden'>+</button>
-      )}
+      {/* Floating + knop — altijd zichtbaar, opent melding-formulier */}
+      <button className={styles.fabKnop} onClick={() => setWdModalOpen(true)} title='Kosten melden'>+</button>
 
       {modalAuto && (
         <PartnerModal
