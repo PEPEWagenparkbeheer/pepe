@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
+import { useAuth } from '@/hooks/useAuth';
 import WerkDerdenModal from '@/components/partner/WerkDerdenModal';
 import type { WerkDerdenRecord, WerkRegel } from '@/types';
 import styles from './WerkDerdenOverzicht.module.css';
@@ -306,6 +307,8 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
 export default function WerkDerdenOverzicht() {
   const { records, loading, actieCount, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, bijlageUrl } =
     useWerkDerden();
+  const { user } = useAuth();
+  const stamper = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? 'PEPE';
   const [tab, setTab] = useState<Tab>('open');
   const [melding, setMelding] = useState<{ tekst: string; ok: boolean } | null>(null);
   const [bezig, setBezig] = useState<string | null>(null);
@@ -341,7 +344,7 @@ export default function WerkDerdenOverzicht() {
     setGoedkeurenRec(null);
     setBezig(rec.id);
     try {
-      await setGoedgekeurd(rec.id, opties);
+      await setGoedgekeurd(rec.id, { ...opties, door: stamper });
       toonMelding('Werkzaamheden goedgekeurd ✓', true);
     } catch {
       toonMelding('Fout bij goedkeuren', false);
@@ -353,7 +356,7 @@ export default function WerkDerdenOverzicht() {
   async function handleAfronden(id: string) {
     setBezig(id);
     try {
-      await setAfgerond(id);
+      await setAfgerond(id, stamper);
       toonMelding('Afgerond ✓', true);
     } catch {
       toonMelding('Fout bij afronden', false);
@@ -367,7 +370,7 @@ export default function WerkDerdenOverzicht() {
     setAfkeurenRec(null);
     setBezig(rec.id);
     try {
-      await setAfgekeurd(rec.id, reden);
+      await setAfgekeurd(rec.id, reden, stamper);
       toonMelding('Werkzaamheden afgekeurd', true);
     } catch {
       toonMelding('Fout bij afkeuren', false);
