@@ -128,7 +128,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
           className={`${styles.tab} ${tab === "werkzaamheden" ? styles.tabActief : ''}`}
           onClick={() => setTab('werkzaamheden')}
         >
-          Mijn meldingen
+          Openstaand
           {wdActieCount > 0 && <span className={styles.tabBadge}>{wdActieCount}</span>}
         </button>
       </div>
