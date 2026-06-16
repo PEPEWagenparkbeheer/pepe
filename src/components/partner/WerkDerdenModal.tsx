@@ -5,7 +5,7 @@ import type { WerkRegel, WerkDerdenRecord } from '@/types';
 import styles from './WerkDerdenModal.module.css';
 
 interface Props {
-  wie: string;
+  wie?: string;
   onSluiten: () => void;
   onIngediend: () => void;
   addRecord: (rec: Omit<WerkDerdenRecord, 'id' | 'created_at'>) => Promise<{ ok: boolean; error?: string }>;
@@ -18,6 +18,7 @@ const BTW_OPTIES = [
 ];
 
 export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord }: Props) {
+  const [partnerNaam, setPartnerNaam] = useState(wie ?? '');
   const [kenteken, setKenteken] = useState('');
   const [meldcode, setMeldcode] = useState('');
   const [klant, setKlant] = useState('');
@@ -84,6 +85,10 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
   const ktFmt = kentekenFmt(kenteken);
 
   async function indienen() {
+    if (!partnerNaam.trim()) {
+      setFout('Vul een partnernaam in.');
+      return;
+    }
     if (!ktFmt && !meldcode.trim()) {
       setFout('Vul een kenteken of meldcode in.');
       return;
@@ -111,7 +116,7 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
       }
 
       const result = await addRecord({
-        partner: wie,
+        partner: partnerNaam.trim(),
         kenteken: ktFmt || undefined,
         meldcode: meldcode.trim() || undefined,
         merk: merk || undefined,
@@ -123,7 +128,7 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
         notitie: notitie.trim() || undefined,
         bijlage_storage_path: bijlageStoragePath,
         status: 'open',
-        toegevoegd_door: wie,
+        toegevoegd_door: partnerNaam.trim(),
       });
 
       if (!result.ok) {
@@ -151,6 +156,18 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
         </div>
 
         <div className={styles.modalBody}>
+
+          {/* Partner naam — altijd tonen, pre-filled als wie is meegegeven */}
+          <section className={styles.sectie}>
+            <label className={styles.sectieLabel}>Partner naam</label>
+            <input
+              className={styles.invoer}
+              placeholder="Naam van het bedrijf / partner…"
+              value={partnerNaam}
+              onChange={e => setPartnerNaam(e.target.value)}
+              readOnly={!!wie}
+            />
+          </section>
 
           {/* Kenteken + meldcode */}
           <section className={styles.sectie}>
@@ -289,7 +306,7 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
           <button
             className={styles.indienenKnop}
             onClick={indienen}
-            disabled={bezig || (!kenteken.trim() && !meldcode.trim())}
+            disabled={bezig || !partnerNaam.trim() || (!kenteken.trim() && !meldcode.trim())}
           >
             {bezig ? 'Verzenden…' : 'Indienen'}
           </button>

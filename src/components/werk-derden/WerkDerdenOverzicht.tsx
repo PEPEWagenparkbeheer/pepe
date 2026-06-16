@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
+import WerkDerdenModal from '@/components/partner/WerkDerdenModal';
 import type { WerkDerdenRecord } from '@/types';
 import styles from './WerkDerdenOverzicht.module.css';
 
@@ -221,12 +222,13 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
 // --- Hoofd component ---------------------------------------------------------
 
 export default function WerkDerdenOverzicht() {
-  const { records, loading, actieCount, setGoedgekeurd, setAfgekeurd, bijlageUrl } =
+  const { records, loading, actieCount, addRecord, setGoedgekeurd, setAfgekeurd, bijlageUrl } =
     useWerkDerden();
   const [tab, setTab] = useState<Tab>('open');
   const [melding, setMelding] = useState<{ tekst: string; ok: boolean } | null>(null);
   const [bezig, setBezig] = useState<string | null>(null);
 
+  const [nieuwOpen, setNieuwOpen] = useState(false);
   const [goedkeurenRec, setGoedkeurenRec] = useState<WerkDerdenRecord | null>(null);
   const [afkeurenRec, setAfkeurenRec] = useState<WerkDerdenRecord | null>(null);
   const [factureerRec, setFactureerRec] = useState<WerkDerdenRecord | null>(null);
@@ -341,6 +343,7 @@ export default function WerkDerdenOverzicht() {
             <span className={styles.openBadge}>{actieCount} te verwerken</span>
           )}
           <button className={styles.exportKnop} onClick={exportXlsx}>⬇ Excel</button>
+          <button className={styles.nieuwKnop} onClick={() => setNieuwOpen(true)}>+ Nieuw</button>
         </div>
       </div>
 
@@ -510,6 +513,13 @@ export default function WerkDerdenOverzicht() {
             handleFactureren(factureerRec, margeType, margeWaarde)
           }
           onSluiten={() => setFactureerRec(null)}
+        />
+      )}
+      {nieuwOpen && (
+        <WerkDerdenModal
+          addRecord={addRecord}
+          onSluiten={() => setNieuwOpen(false)}
+          onIngediend={() => toonMelding('Kosten ingediend ✓', true)}
         />
       )}
     </div>
