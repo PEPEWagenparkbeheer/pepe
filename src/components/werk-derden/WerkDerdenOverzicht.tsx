@@ -346,18 +346,18 @@ export default function WerkDerdenOverzicht() {
 
   return (
     <div className={styles.pagina}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 className={styles.paginaTitel}>Werk Derden</h1>
-          <p className={styles.paginaSub}>Ingediende werkzaamheden van partners</p>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: 0, lineHeight: 1.3 }}>Werk Derden</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {actieCount > 0 && (
+              <span className={styles.openBadge}>{actieCount} te verwerken</span>
+            )}
+            <button className={styles.exportKnop} onClick={exportXlsx}>⬇ Excel</button>
+            <button className={styles.nieuwKnop} onClick={() => setNieuwOpen(true)}>+ Nieuw</button>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {actieCount > 0 && (
-            <span className={styles.openBadge}>{actieCount} te verwerken</span>
-          )}
-          <button className={styles.exportKnop} onClick={exportXlsx}>⬇ Excel</button>
-          <button className={styles.nieuwKnop} onClick={() => setNieuwOpen(true)}>+ Nieuw</button>
-        </div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>Ingediende werkzaamheden van partners</p>
       </div>
 
       {melding && (
