@@ -346,7 +346,7 @@ export default function WerkDerdenOverzicht() {
 
   return (
     <div className={styles.pagina}>
-      <div className={styles.header}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 className={styles.paginaTitel}>Werk Derden</h1>
           <p className={styles.paginaSub}>Ingediende werkzaamheden van partners</p>
