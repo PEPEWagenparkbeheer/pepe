@@ -1,6 +1,5 @@
 ﻿.pagina {
-  padding: 24px 32px;
-  max-width: 1200px;
+  padding: 22px 28px;
 }
 
 .header {
@@ -107,42 +106,52 @@
   font-size: 14px;
 }
 
-/* Tabel */
+/* Tabel — card-rijen, zelfde look & feel als Lease aanvragen */
 .tabelWrapper {
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 10px;
 }
 
 .tabel {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 6px;
   font-size: 13px;
+  min-width: 900px;
 }
 
 .tabel thead th {
   text-align: left;
-  padding: 10px 14px;
+  padding: 9px 14px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--muted);
-  background: rgba(0, 0, 0, 0.025);
-  border-bottom: 1px solid var(--border);
-}
-
-.rij {
-  border-bottom: 1px solid var(--border);
-}
-
-.rij:last-child {
-  border-bottom: none;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
 }
 
 .rij td {
+  background: var(--surface);
   padding: 12px 14px;
   vertical-align: top;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.rij td:first-child {
+  border-left: 1px solid var(--border);
+  border-radius: 10px 0 0 10px;
+}
+.rij td:last-child {
+  border-right: 1px solid var(--border);
+  border-radius: 0 10px 10px 0;
+}
+.rij:hover td {
+  background: var(--row-hover);
+  border-color: rgba(146, 25, 57, 0.25);
+}
+.rij:hover td:first-child {
+  border-left-color: var(--accent);
 }
 
 .datumKolom {
