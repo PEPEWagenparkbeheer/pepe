@@ -406,6 +406,30 @@ export default function WerkDerdenOverzicht() {
     }
   }
 
+  async function handleVerrijken(rec: WerkDerdenRecord) {
+    if (!rec.kenteken) return;
+    setBezig(rec.id);
+    try {
+      const res = await fetch(`/api/werk-derden/lookup?kenteken=${encodeURIComponent(rec.kenteken)}`);
+      const data = await res.json() as { klant: string | null; hubspot_deal_id: string | null; merk: string | null; model: string | null };
+      const patch: Record<string, string | null> = {};
+      if (data.merk) patch.merk = data.merk;
+      if (data.model) patch.model = data.model;
+      if (data.klant) patch.klant = data.klant;
+      if (data.hubspot_deal_id) patch.hubspot_deal_id = data.hubspot_deal_id;
+      if (Object.keys(patch).length === 0) {
+        toonMelding('Geen RDW/HubSpot-data gevonden', false);
+        return;
+      }
+      await updateRecord(rec.id, patch as never);
+      toonMelding('Verrijkt met RDW/HubSpot ✓', true);
+    } catch {
+      toonMelding('Fout bij verrijken', false);
+    } finally {
+      setBezig(null);
+    }
+  }
+
   async function exportXlsx() {
     const xlsx = await import('xlsx');
     const rows = records.map(rec => ({
@@ -546,15 +570,24 @@ export default function WerkDerdenOverzicht() {
                               onClick={() => setGoedkeurenRec(rec)}
                               disabled={isBusy}
                             >
-                              âœ“ Goedkeuren
+                              ✓ Goedkeuren
                             </button>
                             <button
                               className={styles.afkeurenKnop}
                               onClick={() => setAfkeurenRec(rec)}
                               disabled={isBusy}
                             >
-                              âœ— Afkeuren
+                              ✗ Afkeuren
                             </button>
+                            {rec.kenteken && (
+                              <button
+                                className={styles.bijlageKnop}
+                                onClick={() => handleVerrijken(rec)}
+                                disabled={isBusy}
+                              >
+                                Verrijken
+                              </button>
+                            )}
                           </>
                         )}
                         {(tab === 'goedgekeurd' || tab === 'klaar_gemeld') && (
