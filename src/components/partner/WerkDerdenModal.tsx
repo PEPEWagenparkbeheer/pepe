@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { WerkRegel, WerkDerdenRecord } from '@/types';
 import styles from './WerkDerdenModal.module.css';
 
@@ -143,7 +144,7 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
     }
   }
 
-  return (
+  return createPortal(
     <div className={styles.overlay} onClick={onSluiten}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
 
@@ -313,6 +314,7 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

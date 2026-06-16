@@ -5,8 +5,13 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 200;
+  z-index: 9999;
   padding: 0;
+  /* Zorg dat de overlay altijd het volledige scherm beslaat, ook naast een sidebar */
+  width: 100vw;
+  height: 100vh;
+  left: 0;
+  top: 0;
 }
 
 @media (min-width: 600px) {
