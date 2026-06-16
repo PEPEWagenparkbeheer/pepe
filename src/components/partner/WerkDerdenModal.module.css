@@ -114,6 +114,22 @@
   border-color: var(--accent);
 }
 
+.invoer {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  box-sizing: border-box;
+}
+
+.invoer:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .zoekLabel {
   font-size: 12px;
   color: var(--muted);

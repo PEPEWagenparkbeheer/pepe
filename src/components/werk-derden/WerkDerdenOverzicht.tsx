@@ -110,7 +110,7 @@ function AfkeurenDialog({ record, onBevestigen, onSluiten }: AfkeurenDialogProps
 
 interface FacurerenDialogProps {
   record: WerkDerdenRecord;
-  onBevestigen: (margeType: 'pct' | 'bedrag', margeWaarde: number) => Promise<void>;
+  onBevestigen: (margeType: 'pct' | 'bedrag', margeWaarde: number, btwPct: number) => Promise<void>;
   onSluiten: () => void;
 }
 
@@ -120,6 +120,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
   const [margeWaarde, setMargeWaarde] = useState<string>(
     record.marge_waarde != null ? String(record.marge_waarde) : '',
   );
+  const [btwPct, setBtwPct] = useState(record.btw_pct ?? 21);
   const [bezig, setBezig] = useState(false);
 
   const margeNum = parseFloat(margeWaarde.replace(',', '.'));
@@ -137,7 +138,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
   async function handlerKlik() {
     if (verkoopBerekend == null || verkoopBerekend <= 0) return;
     setBezig(true);
-    try { await onBevestigen(margeType, margeNum); } finally { setBezig(false); }
+    try { await onBevestigen(margeType, margeNum, btwPct); } finally { setBezig(false); }
   }
 
   const toggleStyle = (active: boolean) => ({
@@ -192,6 +193,17 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
               onChange={e => setMargeWaarde(e.target.value)}
               autoFocus
             />
+          </div>
+        </div>
+
+        <div className={styles.dialogVeld}>
+          <label className={styles.dialogLabel}>BTW op verkoopfactuur</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[21, 0].map(pct => (
+              <button key={pct} type="button" onClick={() => setBtwPct(pct)} style={toggleStyle(btwPct === pct)}>
+                {pct}%
+              </button>
+            ))}
           </div>
         </div>
 
@@ -283,6 +295,7 @@ export default function WerkDerdenOverzicht() {
     rec: WerkDerdenRecord,
     margeType: 'pct' | 'bedrag',
     margeWaarde: number,
+    btwPct: number,
   ) {
     setFactureerRec(null);
     setBezig(rec.id);
@@ -290,7 +303,7 @@ export default function WerkDerdenOverzicht() {
       const res = await fetch('/api/werk-derden/factureren', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: rec.id, marge_type: margeType, marge_waarde: margeWaarde }),
+        body: JSON.stringify({ id: rec.id, marge_type: margeType, marge_waarde: margeWaarde, btw_pct: btwPct }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Onbekende fout' }));
@@ -509,8 +522,8 @@ export default function WerkDerdenOverzicht() {
       {factureerRec && (
         <FacurerenDialog
           record={factureerRec}
-          onBevestigen={(margeType, margeWaarde) =>
-            handleFactureren(factureerRec, margeType, margeWaarde)
+          onBevestigen={(margeType, margeWaarde, btwPct) =>
+            handleFactureren(factureerRec, margeType, margeWaarde, btwPct)
           }
           onSluiten={() => setFactureerRec(null)}
         />

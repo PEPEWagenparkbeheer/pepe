@@ -12,12 +12,6 @@ interface Props {
   addRecord: (rec: Omit<WerkDerdenRecord, 'id' | 'created_at'>) => Promise<{ ok: boolean; error?: string }>;
 }
 
-const BTW_OPTIES = [
-  { label: '21%', value: 21 },
-  { label: '9%',  value: 9  },
-  { label: '0%',  value: 0  },
-];
-
 export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord }: Props) {
   const [partnerNaam, setPartnerNaam] = useState(wie ?? '');
   const [kenteken, setKenteken] = useState('');
@@ -27,7 +21,6 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
   const [model, setModel] = useState('');
   const [opzoeken, setOpzoeken] = useState(false);
   const [regels, setRegels] = useState<WerkRegel[]>([{ omschrijving: '', bedrag: 0 }]);
-  const [btwPct, setBtwPct] = useState(21);
   const [notitie, setNotitie] = useState('');
   const [bijlageFile, setBijlageFile] = useState<File | null>(null);
   const [bijlagePreview, setBijlagePreview] = useState<string | null>(null);
@@ -124,7 +117,7 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
         model: model || undefined,
         klant: klant || undefined,
         regels: geldig,
-        btw_pct: btwPct,
+        btw_pct: 21,
         inkoop_bedrag: inkoopBedrag,
         notitie: notitie.trim() || undefined,
         bijlage_storage_path: bijlageStoragePath,
@@ -190,27 +183,23 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
           {/* Kenteken + meldcode */}
           <section className={styles.sectie}>
             <label className={styles.sectieLabel}>Kenteken of meldcode <span className={styles.vereistLabel}>(minimaal één)</span></label>
-            <div className={styles.duelRij}>
-              <div className={styles.kentekenWrapper}>
-                <input
-                  className={styles.kentekenInput}
-                  placeholder="AB-123-C"
-                  value={kenteken}
-                  onChange={e => setKenteken(e.target.value.toUpperCase())}
-                  onBlur={() => zoekKlant(ktFmt)}
-                />
-                {opzoeken && <span className={styles.zoekLabel}>Zoeken…</span>}
-              </div>
-              <span className={styles.ofLabel}>of</span>
-              <input
-                className={styles.invoer}
-                placeholder="Meldcode"
-                value={meldcode}
-                onChange={e => setMeldcode(e.target.value)}
-              />
-            </div>
+            <input
+              className={styles.kentekenInput}
+              placeholder="AB-123-C"
+              value={kenteken}
+              onChange={e => setKenteken(e.target.value.toUpperCase())}
+              onBlur={() => zoekKlant(ktFmt)}
+            />
+            {opzoeken && <span className={styles.zoekLabel}>Zoeken…</span>}
+            <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', margin: '8px 0' }}>of</p>
+            <input
+              className={styles.invoer}
+              placeholder="Meldcode"
+              value={meldcode}
+              onChange={e => setMeldcode(e.target.value)}
+            />
             {(merk || model || klant) && (
-              <div className={styles.autofillInfo}>
+              <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--muted)', paddingTop: 4 }}>
                 {(merk || model) && <span>🚗 {[merk, model].filter(Boolean).join(' ')}</span>}
                 {klant && <span>👤 {klant}</span>}
               </div>
@@ -250,25 +239,13 @@ export default function WerkDerdenModal({ wie, onSluiten, onIngediend, addRecord
 
             <button className={styles.regelToevoegen} onClick={regelToevoegen}>+ Regel toevoegen</button>
 
-            <div className={styles.btwRij}>
-              <span className={styles.btwLabel}>BTW</span>
-              <div className={styles.btwOpties}>
-                {BTW_OPTIES.map(opt => (
-                  <button
-                    key={opt.value}
-                    className={`${styles.btwOptie} ${btwPct === opt.value ? styles.btwActief : ''}`}
-                    onClick={() => setBtwPct(opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {inkoopBedrag > 0 && (
               <div className={styles.totaalRij}>
                 <span>Totaal excl. BTW</span>
-                <strong>{inkoopBedrag.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' })}</strong>
+                <div style={{ textAlign: 'right' }}>
+                  <strong>{inkoopBedrag.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' })}</strong>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Alle bedragen zijn ex. BTW</div>
+                </div>
               </div>
             )}
           </section>
