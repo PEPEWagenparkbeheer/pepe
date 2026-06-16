@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
 import { useAuth } from '@/hooks/useAuth';
-import { createPortal } from 'react-dom';
 import type { AfterSalesAuto, WerkDerdenRecord } from '@/types';
 import KentekenPlaat from '@/components/aftersales/KentekenPlaat';
 import PartnerModal from './PartnerModal';
 import WerkDerdenModal from './WerkDerdenModal';
+import WerkDerdenDetailModal from './WerkDerdenDetailModal';
 import styles from './PartnerPage.module.css';
 
 type Tab = 'actief' | 'klaar' | 'werkzaamheden';
@@ -37,9 +37,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
   const { records: wdRecords, addRecord: wdAddRecord, updateRecord: wdUpdateRecord, setKlaarGemeld, bijlageUrl } = useWerkDerden(wie);
   const [wdModalOpen, setWdModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<WerkDerdenRecord | null>(null);
-  const [klaarBezig, setKlaarBezig] = useState<string | null>(null);
   const [detailRecord, setDetailRecord] = useState<WerkDerdenRecord | null>(null);
-  const [bijlageSignedUrl, setBijlageSignedUrl] = useState<string | null>(null);
   const [gezienIds, setGezienIds] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set<string>();
     try {
@@ -55,14 +53,9 @@ export default function PartnerPage({ wie }: { wie: string }) {
       return next;
     });
   };
-  async function openDetail(r: WerkDerdenRecord) {
+  function openDetail(r: WerkDerdenRecord) {
     markeerGezien(r.id);
     setDetailRecord(r);
-    setBijlageSignedUrl(null);
-    if (r.bijlage_storage_path) {
-      const url = await bijlageUrl(r.bijlage_storage_path);
-      setBijlageSignedUrl(url);
-    }
   }
 
   // Records die actie van de partner vereisen (goedgekeurd → klaar melden)
@@ -360,124 +353,13 @@ export default function PartnerPage({ wie }: { wie: string }) {
         />
       )}
 
-      {detailRecord && createPortal(
-        <div
-          onClick={() => setDetailRecord(null)}
-          style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.55)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            padding: 16, zIndex: 9999, boxSizing: 'border-box',
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              background: 'var(--bg)', borderRadius: 12, width: '100%',
-              maxWidth: 520, maxHeight: '85vh', overflow: 'auto',
-              border: '1px solid var(--border)', boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
-            }}
-          >
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '18px 20px', borderBottom: '1px solid var(--border)' }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>{detailRecord.kenteken ?? detailRecord.meldcode ?? '—'}</div>
-                {detailRecord.klant && <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{detailRecord.klant}</div>}
-                {(detailRecord.merk || detailRecord.model) && (
-                  <div style={{ fontSize: 13, color: 'var(--muted)' }}>{[detailRecord.merk, detailRecord.model].filter(Boolean).join(' ')}</div>
-                )}
-              </div>
-              <button onClick={() => setDetailRecord(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--muted)', padding: '0 0 0 16px' }}>✕</button>
-            </div>
-
-            {/* Body */}
-            <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Status */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Status</div>
-                <span className={
-                  detailRecord.status === 'gefactureerd' ? styles.stGefactureerd :
-                  detailRecord.status === 'afgekeurd' ? styles.stAfgekeurd :
-                  detailRecord.status === 'goedgekeurd' || detailRecord.status === 'klaar_gemeld' ? styles.stGoedgekeurd :
-                  styles.stOpen
-                }>
-                  {detailRecord.status === 'gefactureerd' ? '✓ Gefactureerd' :
-                   detailRecord.status === 'afgekeurd' ? '✕ Afgekeurd' :
-                   detailRecord.status === 'klaar_gemeld' ? '✓ Klaar gemeld' :
-                   detailRecord.status === 'goedgekeurd' ? '✓ Goedgekeurd' :
-                   '⏳ Openstaand'}
-                </span>
-                {detailRecord.status === 'afgekeurd' && detailRecord.afkeur_reden && (
-                  <div style={{ fontSize: 12, color: '#991b1b', marginTop: 6 }}>{detailRecord.afkeur_reden}</div>
-                )}
-              </div>
-
-              {/* Kostenregels */}
-              {detailRecord.regels.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 8 }}>Kostenregels</div>
-                  <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                    {detailRecord.regels.map((regel, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', borderBottom: i < detailRecord.regels.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 14 }}>
-                        <span>{regel.omschrijving}</span>
-                        <span style={{ fontWeight: 600 }}>{regel.bedrag.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' })}</span>
-                      </div>
-                    ))}
-                    {detailRecord.inkoop_bedrag != null && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', borderTop: '1px solid var(--border)', background: 'var(--surface)', fontSize: 14, fontWeight: 700 }}>
-                        <span>Totaal excl. BTW</span>
-                        <span>{detailRecord.inkoop_bedrag.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' })}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Toelichting */}
-              {detailRecord.notitie && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Toelichting</div>
-                  <div style={{ fontSize: 14 }}>{detailRecord.notitie}</div>
-                </div>
-              )}
-
-              {/* Bijlage */}
-              {detailRecord.bijlage_storage_path && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)', marginBottom: 6 }}>Bijlage</div>
-                  {bijlageSignedUrl
-                    ? <a href={bijlageSignedUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: 'var(--accent)', textDecoration: 'underline' }}>📎 Bijlage openen</a>
-                    : <span style={{ fontSize: 14, color: 'var(--muted)' }}>Laden…</span>}
-                </div>
-              )}
-            </div>
-
-            {/* Footer — Klaar melden knop */}
-            {detailRecord.status === 'goedgekeurd' && (
-              <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)' }}>
-                <button
-                  onClick={async () => {
-                    setKlaarBezig(detailRecord.id);
-                    await setKlaarGemeld(detailRecord.id);
-                    setKlaarBezig(null);
-                    setDetailRecord(null);
-                  }}
-                  disabled={klaarBezig === detailRecord.id}
-                  style={{
-                    width: '100%', padding: '10px 0', borderRadius: 8,
-                    border: 'none', background: 'var(--accent)', color: '#fff',
-                    fontSize: 14, fontWeight: 700,
-                    cursor: klaarBezig === detailRecord.id ? 'not-allowed' : 'pointer',
-                    opacity: klaarBezig === detailRecord.id ? 0.6 : 1,
-                  }}
-                >
-                  {klaarBezig === detailRecord.id ? 'Bezig…' : '✓ Klaar melden'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body,
+      {detailRecord && (
+        <WerkDerdenDetailModal
+          record={detailRecord}
+          bijlageUrl={bijlageUrl}
+          onSluiten={() => setDetailRecord(null)}
+          onKlaarMelden={setKlaarGemeld}
+        />
       )}
     </div>
   );

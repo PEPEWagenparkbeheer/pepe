@@ -227,12 +227,33 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
               value={meldcode}
               onChange={e => setMeldcode(e.target.value)}
             />
-            {(merk || model || klant) && (
-              <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--muted)', paddingTop: 4 }}>
-                {(merk || model) && <span>🚗 {[merk, model].filter(Boolean).join(' ')}</span>}
-                {klant && <span>👤 {klant}</span>}
-              </div>
-            )}
+          </section>
+
+          {/* Klant + voertuig */}
+          <section className={styles.sectie}>
+            <label className={styles.sectieLabel}>Klant</label>
+            <input
+              className={styles.invoer}
+              placeholder="Naam klant / berijder…"
+              value={klant}
+              onChange={e => setKlant(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <input
+                className={styles.invoer}
+                style={{ flex: 1 }}
+                placeholder="Merk"
+                value={merk}
+                onChange={e => setMerk(e.target.value)}
+              />
+              <input
+                className={styles.invoer}
+                style={{ flex: 1 }}
+                placeholder="Model"
+                value={model}
+                onChange={e => setModel(e.target.value)}
+              />
+            </div>
           </section>
 
           {/* Kostenregels */}
