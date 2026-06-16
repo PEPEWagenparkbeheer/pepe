@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { WerkDerdenRecord, WerkDerdenStatus } from '@/types';
+import type { WerkDerdenRecord, WerkDerdenStatus, WerkRegel } from '@/types';
 
 const CACHE_KEY = 'pepe_wd_v1';
 
@@ -11,6 +11,7 @@ function deserialize(r: Record<string, unknown>): WerkDerdenRecord {
     ...(r as unknown as WerkDerdenRecord),
     status: (r.status as WerkDerdenStatus) ?? 'open',
     regels: Array.isArray(r.regels) ? r.regels : [],
+    bestemming: ((r.bestemming as string) ?? 'doorbelasten') as import('@/types').WerkDerdenBestemming,
   };
 }
 
@@ -27,7 +28,7 @@ function cacheSave(records: WerkDerdenRecord[]) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(records));
   } catch {
-    // quota exceeded — ignore
+    // quota exceeded â€” ignore
   }
 }
 
@@ -113,14 +114,33 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
   );
 
   const setGoedgekeurd = useCallback(
-    async (id: string) =>
-      updateRecord(id, { status: 'goedgekeurd', goedgekeurd_op: new Date().toISOString() }),
+    async (
+      id: string,
+      opties?: { regels?: WerkRegel[]; voorwaarden?: string; klant?: string },
+    ) => {
+      const patch: Partial<WerkDerdenRecord> = {
+        status: 'goedgekeurd',
+        goedgekeurd_op: new Date().toISOString(),
+      };
+      if (opties?.regels) {
+        patch.regels = opties.regels;
+        patch.inkoop_bedrag = opties.regels.reduce((s, r) => s + r.bedrag, 0);
+      }
+      if (opties?.voorwaarden != null) patch.voorwaarden = opties.voorwaarden;
+      if (opties?.klant) patch.klant = opties.klant;
+      return updateRecord(id, patch);
+    },
     [updateRecord],
   );
 
   const setAfgekeurd = useCallback(
     async (id: string, reden: string) =>
       updateRecord(id, { status: 'afgekeurd', afkeur_reden: reden }),
+    [updateRecord],
+  );
+
+  const setAfgerond = useCallback(
+    async (id: string) => updateRecord(id, { status: 'afgerond' }),
     [updateRecord],
   );
 
@@ -168,9 +188,12 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     addRecord,
     updateRecord,
     setGoedgekeurd,
+    setAfgerond,
     setAfgekeurd,
     setKlaarGemeld,
     setGefactureerd,
     bijlageUrl,
   };
 }
+
+

@@ -1,9 +1,9 @@
-// ── Zoekopdrachten (Zoeken) ──────────────────────────────────
+﻿// â”€â”€ Zoekopdrachten (Zoeken) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Zoekopdracht {
   id: number;
   klant: string;
-  auto: string; // "Merk Model" — gecombineerde string
+  auto: string; // "Merk Model" â€” gecombineerde string
   details?: string;
   km?: string;
   jaar?: string;
@@ -30,7 +30,7 @@ export interface Zoekopdracht {
   uitgesteld?: boolean;
 }
 
-// ── After Sales ──────────────────────────────────────────────
+// â”€â”€ After Sales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type ASAutoType = 'import' | 'nl' | 'nieuw' | 'voorraad';
 
@@ -134,7 +134,7 @@ export interface ASKlacht {
   updates?: KlachtUpdate[];
 }
 
-// ── Lease ────────────────────────────────────────────────────
+// â”€â”€ Lease â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface LeaseKlant {
   id: string;
@@ -164,7 +164,7 @@ export interface LeaseAanvraag {
 
   // Lease details
   leasemaatschappij?: string;
-  leasenormbedrag?: number;   // verwacht normbedrag €/mnd
+  leasenormbedrag?: number;   // verwacht normbedrag â‚¬/mnd
   leasetarief?: number;       // scherpste tarief (ingevuld door inkoper)
 
   // Verdiensten
@@ -199,7 +199,7 @@ export interface LeaseAanvraag {
   status?: 'nieuw' | 'offerte' | 'akkoord_klant' | 'verkocht';
 }
 
-// ── BTW / Credit ─────────────────────────────────────────────
+// â”€â”€ BTW / Credit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type BtwAutoType = 'btw' | 'credit';
 
@@ -238,7 +238,7 @@ export interface BtwRecord {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
-// ── Inname formulier ─────────────────────────────────────────
+// â”€â”€ Inname formulier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface InnameFormulier {
   id: string;
@@ -266,7 +266,7 @@ export interface InnameFormulier {
   schade_omschrijving?: string;
 }
 
-// ── Leads ────────────────────────────────────────────────────
+// â”€â”€ Leads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type LeadStatus = 'nieuw' | 'opgepakt' | 'gebeld' | 'interesse' | 'verkocht' | 'geen_interesse';
 export type LeadBron = 'autoscout24' | 'autowereld' | 'marktplaats' | 'email' | 'anders';
@@ -292,7 +292,7 @@ export interface Lead {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
-// ── Facturen (inbox → HubSpot) ───────────────────────────────
+// â”€â”€ Facturen (inbox â†’ HubSpot) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type FactuurStatus =
   | 'nieuw'
@@ -353,7 +353,7 @@ export interface Factuur {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
-// ── Auth ─────────────────────────────────────────────────────
+// â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface AppUser {
   id: string;
@@ -361,14 +361,17 @@ export interface AppUser {
   naam?: string;
 }
 
-// ── Werk Derden (partner-meldingen voor doorbelasting) ──────────────────────
+// â”€â”€ Werk Derden (partner-meldingen voor doorbelasting) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type WerkDerdenStatus =
   | 'open'
   | 'afgekeurd'
   | 'goedgekeurd'
   | 'klaar_gemeld'
-  | 'gefactureerd';
+  | 'gefactureerd'     // terminus doorbelast-route (Twinfield-factuur)
+  | 'afgerond';        // terminus voertuigprijs-route (kosten in voertuigprijs, geen factuur)
+
+export type WerkDerdenBestemming = 'doorbelasten' | 'voertuigprijs';
 
 export interface WerkRegel {
   omschrijving: string;
@@ -388,7 +391,7 @@ export interface WerkDerdenRecord {
   klant?: string;
   toegevoegd_door?: string;
 
-  // Werk-regels + financiën
+  // Werk-regels + financiÃ«n
   regels: WerkRegel[];
   btw_pct?: number;
   inkoop_bedrag?: number;
@@ -409,4 +412,10 @@ export interface WerkDerdenRecord {
   gefactureerd_op?: string;
   hubspot_deal_id?: string;
   twinfield_invoice_id?: string;
+
+  // After Sales koppeling + bestemming
+  after_sales_id?: string;           // FK naar after_sales.id (ON DELETE SET NULL)
+  bestemming?: WerkDerdenBestemming; // default 'doorbelasten'; 'voertuigprijs' = niet factureren
+  voorwaarden?: string;              // aanpassingen door PEPE bij goedkeuren
 }
+
