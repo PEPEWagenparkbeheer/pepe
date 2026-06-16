@@ -22,18 +22,19 @@ function datumFmt(d?: string | null) {
 
 interface GoedkeurenDialogProps {
   record: WerkDerdenRecord;
-  onBevestigen: () => Promise<void>;
+  onBevestigen: (klant: string) => Promise<void>;
   onSluiten: () => void;
 }
 
 function GoedkeurenDialog({ record, onBevestigen, onSluiten }: GoedkeurenDialogProps) {
   const [bezig, setBezig] = useState(false);
+  const [klant, setKlant] = useState(record.klant ?? '');
   const voertuig = record.kenteken ?? record.meldcode ?? '—';
   const merk = [record.merk, record.model].filter(Boolean).join(' ') || null;
 
   async function handlerKlik() {
     setBezig(true);
-    try { await onBevestigen(); } finally { setBezig(false); }
+    try { await onBevestigen(klant.trim()); } finally { setBezig(false); }
   }
 
   return (
@@ -43,8 +44,16 @@ function GoedkeurenDialog({ record, onBevestigen, onSluiten }: GoedkeurenDialogP
         <div className={styles.dialogInfo}>
           <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` — ${merk}` : ''}</div>
           <div className={styles.dialogRij}><span>Partner</span>{record.partner}</div>
-          <div className={styles.dialogRij}><span>Klant</span>{record.klant ?? '—'}</div>
           <div className={styles.dialogRij}><span>Inkoop</span>{euroFmt(record.inkoop_bedrag)}</div>
+        </div>
+        <div className={styles.dialogVeld}>
+          <label className={styles.dialogLabel}>Klant</label>
+          <input
+            className={styles.dialogInput}
+            value={klant}
+            onChange={e => setKlant(e.target.value)}
+            placeholder="Naam klant — moet matchen met HubSpot voor facturatie…"
+          />
         </div>
         <div className={styles.dialogKnoppen}>
           <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
@@ -234,7 +243,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
 // --- Hoofd component ---------------------------------------------------------
 
 export default function WerkDerdenOverzicht() {
-  const { records, loading, actieCount, addRecord, setGoedgekeurd, setAfgekeurd, bijlageUrl } =
+  const { records, loading, actieCount, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, bijlageUrl } =
     useWerkDerden();
   const [tab, setTab] = useState<Tab>('open');
   const [melding, setMelding] = useState<{ tekst: string; ok: boolean } | null>(null);
@@ -266,10 +275,14 @@ export default function WerkDerdenOverzicht() {
     if (url) window.open(url, '_blank');
   }
 
-  async function handleGoedkeuren(rec: WerkDerdenRecord) {
+  async function handleGoedkeuren(rec: WerkDerdenRecord, klant: string) {
     setGoedkeurenRec(null);
     setBezig(rec.id);
     try {
+      // Klant bijwerken indien gewijzigd (moet later matchen met HubSpot voor facturatie)
+      if (klant && klant !== (rec.klant ?? '')) {
+        await updateRecord(rec.id, { klant });
+      }
       await setGoedgekeurd(rec.id);
       toonMelding('Werkzaamheden goedgekeurd ✓', true);
     } catch {
@@ -509,7 +522,7 @@ export default function WerkDerdenOverzicht() {
       {goedkeurenRec && (
         <GoedkeurenDialog
           record={goedkeurenRec}
-          onBevestigen={() => handleGoedkeuren(goedkeurenRec)}
+          onBevestigen={(klant) => handleGoedkeuren(goedkeurenRec, klant)}
           onSluiten={() => setGoedkeurenRec(null)}
         />
       )}

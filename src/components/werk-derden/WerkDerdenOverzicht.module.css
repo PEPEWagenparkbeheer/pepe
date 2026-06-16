@@ -402,6 +402,23 @@
   border-color: var(--accent);
 }
 
+.dialogInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.dialogInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .dialogKnoppen {
   display: flex;
   gap: 10px;
