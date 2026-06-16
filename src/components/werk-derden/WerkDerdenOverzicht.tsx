@@ -579,15 +579,6 @@ export default function WerkDerdenOverzicht() {
                             >
                               ✗ Afkeuren
                             </button>
-                            {rec.kenteken && (
-                              <button
-                                className={styles.bijlageKnop}
-                                onClick={() => handleVerrijken(rec)}
-                                disabled={isBusy}
-                              >
-                                Verrijken
-                              </button>
-                            )}
                           </>
                         )}
                         {(tab === 'goedgekeurd' || tab === 'klaar_gemeld') && (
