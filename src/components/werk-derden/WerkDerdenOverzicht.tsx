@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
@@ -10,12 +10,12 @@ import styles from './WerkDerdenOverzicht.module.css';
 type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgerond' | 'afgekeurd';
 
 function euroFmt(n?: number | null) {
-  if (n == null) return 'â€”';
+  if (n == null) return '—';
   return n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' });
 }
 
 function datumFmt(d?: string | null) {
-  if (!d) return 'â€”';
+  if (!d) return '—';
   return new Date(d).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
@@ -139,7 +139,7 @@ interface AfkeurenDialogProps {
 function AfkeurenDialog({ record, onBevestigen, onSluiten }: AfkeurenDialogProps) {
   const [reden, setReden] = useState('');
   const [bezig, setBezig] = useState(false);
-  const voertuig = record.kenteken ?? record.meldcode ?? 'â€”';
+  const voertuig = record.kenteken ?? record.meldcode ?? '—';
 
   async function handlerKlik() {
     if (!reden.trim()) return;
@@ -162,14 +162,14 @@ function AfkeurenDialog({ record, onBevestigen, onSluiten }: AfkeurenDialogProps
             rows={3}
             value={reden}
             onChange={e => setReden(e.target.value)}
-            placeholder="Beschrijf de reden van afkeuringâ€¦"
+            placeholder="Beschrijf de reden van afkeuring…"
             autoFocus
           />
         </div>
         <div className={styles.dialogKnoppen}>
           <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
           <button className={styles.bevestigenKnop} onClick={handlerKlik} disabled={bezig || !reden.trim()}>
-            {bezig ? 'Verwerkenâ€¦' : 'Afkeuren'}
+            {bezig ? 'Verwerken…' : 'Afkeuren'}
           </button>
         </div>
       </div>
@@ -203,7 +203,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
         : inkoopTotaal + margeNum;
   const margePositief = verkoopBerekend != null && verkoopBerekend >= inkoopTotaal;
 
-  const voertuig = record.kenteken ?? record.meldcode ?? 'â€”';
+  const voertuig = record.kenteken ?? record.meldcode ?? '—';
   const merk = [record.merk, record.model].filter(Boolean).join(' ') || null;
 
   async function handlerKlik() {
@@ -229,9 +229,9 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
       <div className={styles.dialog} onClick={e => e.stopPropagation()}>
         <h2 className={styles.dialogTitel}>Factureren via Twinfield</h2>
         <div className={styles.dialogInfo}>
-          <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` â€” ${merk}` : ''}</div>
+          <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` — ${merk}` : ''}</div>
           <div className={styles.dialogRij}><span>Partner</span>{record.partner}</div>
-          <div className={styles.dialogRij}><span>Klant</span>{record.klant ?? 'â€”'}</div>
+          <div className={styles.dialogRij}><span>Klant</span>{record.klant ?? '—'}</div>
           <div className={styles.dialogRij}><span>Inkoop</span>{euroFmt(inkoopTotaal)}</div>
           {record.goedgekeurd_op && (
             <div className={styles.dialogRij}><span>Goedgekeurd</span>{datumFmt(record.goedgekeurd_op)}</div>
@@ -245,15 +245,15 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
               Percentage (%)
             </button>
             <button type="button" onClick={() => setMargeType('bedrag')} style={toggleStyle(margeType === 'bedrag')}>
-              Vaste marge (â‚¬)
+              Vaste marge (€)
             </button>
           </div>
         </div>
 
         <div className={styles.dialogVeld}>
-          <label className={styles.dialogLabel}>Marge {margeType === 'pct' ? '(%)' : '(â‚¬)'}</label>
+          <label className={styles.dialogLabel}>Marge {margeType === 'pct' ? '(%)' : '(€)'}</label>
           <div className={styles.bedragWrapper}>
-            <span className={styles.euroPrefix}>{margeType === 'pct' ? '%' : 'â‚¬'}</span>
+            <span className={styles.euroPrefix}>{margeType === 'pct' ? '%' : '€'}</span>
             <input
               className={styles.bedragInput}
               type="number"
@@ -293,7 +293,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
               onClick={handlerKlik}
               disabled={bezig || verkoopBerekend == null || verkoopBerekend <= 0}
             >
-              {bezig ? 'Verwerkenâ€¦' : 'Factureren'}
+              {bezig ? 'Verwerken…' : 'Factureren'}
             </button>
           </div>
         </div>
@@ -397,7 +397,7 @@ export default function WerkDerdenOverzicht() {
         const err = await res.json().catch(() => ({ error: 'Onbekende fout' }));
         toonMelding(`Fout: ${(err as { error?: string }).error ?? 'factureren mislukt'}`, false);
       } else {
-        toonMelding('Gefactureerd via Twinfield âœ“', true);
+        toonMelding('Gefactureerd via Twinfield ✓', true);
       }
     } catch {
       toonMelding('Netwerkfout bij factureren', false);
@@ -454,7 +454,7 @@ export default function WerkDerdenOverzicht() {
     xlsx.writeFile(wb, `werk-derden-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
-  if (loading) return <div className={styles.laden}>Ladenâ€¦</div>;
+  if (loading) return <div className={styles.laden}>Laden…</div>;
 
   return (
     <div className={styles.pagina}>
@@ -465,7 +465,7 @@ export default function WerkDerdenOverzicht() {
             {actieCount > 0 && (
               <span className={styles.openBadge}>{actieCount} te verwerken</span>
             )}
-            <button className={styles.exportKnop} onClick={exportXlsx}>â¬‡ Excel</button>
+            <button className={styles.exportKnop} onClick={exportXlsx}>⬇ Excel</button>
             <button className={styles.nieuwKnop} onClick={() => setNieuwOpen(true)}>+ Nieuw</button>
           </div>
         </div>
@@ -515,7 +515,7 @@ export default function WerkDerdenOverzicht() {
             </thead>
             <tbody>
               {gefilterd.map(rec => {
-                const voertuig = rec.kenteken ?? rec.meldcode ?? 'â€”';
+                const voertuig = rec.kenteken ?? rec.meldcode ?? '—';
                 const merk = [rec.merk, rec.model].filter(Boolean).join(' ') || null;
                 const isBusy = bezig === rec.id;
 
@@ -555,10 +555,10 @@ export default function WerkDerdenOverzicht() {
                     <td>
                       {rec.bijlage_storage_path ? (
                         <button className={styles.bijlageKnop} onClick={() => openBijlage(rec)}>
-                          ðŸ“Ž Bijlage
+                          📎 Bijlage
                         </button>
                       ) : (
-                        <span className={styles.geenBijlage}>â€”</span>
+                        <span className={styles.geenBijlage}>—</span>
                       )}
                     </td>
                     <td>
@@ -658,7 +658,7 @@ export default function WerkDerdenOverzicht() {
         <WerkDerdenModal
           addRecord={addRecord}
           onSluiten={() => setNieuwOpen(false)}
-          onIngediend={() => toonMelding('Kosten ingediend âœ“', true)}
+          onIngediend={() => toonMelding('Kosten ingediend ✓', true)}
         />
       )}
     </div>
