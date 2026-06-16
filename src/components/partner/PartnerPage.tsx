@@ -339,6 +339,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
           onSluiten={() => setWdModalOpen(false)}
           onIngediend={() => setWdModalOpen(false)}
           addRecord={wdAddRecord}
+          afterSalesAutos={alleVoorPartner}
         />
       )}
 
@@ -349,6 +350,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
           onSluiten={() => setEditRecord(null)}
           onIngediend={() => setEditRecord(null)}
           addRecord={wdAddRecord}
+          afterSalesAutos={alleVoorPartner}
           updateRecord={wdUpdateRecord}
         />
       )}

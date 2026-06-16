@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
@@ -9,12 +9,12 @@ import styles from './WerkDerdenOverzicht.module.css';
 type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgekeurd';
 
 function euroFmt(n?: number | null) {
-  if (n == null) return '—';
+  if (n == null) return 'â€”';
   return n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' });
 }
 
 function datumFmt(d?: string | null) {
-  if (!d) return '—';
+  if (!d) return 'â€”';
   return new Date(d).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
@@ -29,7 +29,7 @@ interface GoedkeurenDialogProps {
 function GoedkeurenDialog({ record, onBevestigen, onSluiten }: GoedkeurenDialogProps) {
   const [bezig, setBezig] = useState(false);
   const [klant, setKlant] = useState(record.klant ?? '');
-  const voertuig = record.kenteken ?? record.meldcode ?? '—';
+  const voertuig = record.kenteken ?? record.meldcode ?? 'â€”';
   const merk = [record.merk, record.model].filter(Boolean).join(' ') || null;
 
   async function handlerKlik() {
@@ -42,7 +42,7 @@ function GoedkeurenDialog({ record, onBevestigen, onSluiten }: GoedkeurenDialogP
       <div className={styles.dialog} onClick={e => e.stopPropagation()}>
         <h2 className={styles.dialogTitel}>Werkzaamheden goedkeuren</h2>
         <div className={styles.dialogInfo}>
-          <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` — ${merk}` : ''}</div>
+          <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` â€” ${merk}` : ''}</div>
           <div className={styles.dialogRij}><span>Partner</span>{record.partner}</div>
           <div className={styles.dialogRij}><span>Inkoop</span>{euroFmt(record.inkoop_bedrag)}</div>
         </div>
@@ -52,13 +52,13 @@ function GoedkeurenDialog({ record, onBevestigen, onSluiten }: GoedkeurenDialogP
             className={styles.dialogInput}
             value={klant}
             onChange={e => setKlant(e.target.value)}
-            placeholder="Naam klant — moet matchen met HubSpot voor facturatie…"
+            placeholder="Naam klant â€” moet matchen met HubSpot voor facturatieâ€¦"
           />
         </div>
         <div className={styles.dialogKnoppen}>
           <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
           <button className={styles.bevestigenKnop} onClick={handlerKlik} disabled={bezig}>
-            {bezig ? 'Verwerken…' : '✓ Goedkeuren'}
+            {bezig ? 'Verwerkenâ€¦' : 'âœ“ Goedkeuren'}
           </button>
         </div>
       </div>
@@ -77,7 +77,7 @@ interface AfkeurenDialogProps {
 function AfkeurenDialog({ record, onBevestigen, onSluiten }: AfkeurenDialogProps) {
   const [reden, setReden] = useState('');
   const [bezig, setBezig] = useState(false);
-  const voertuig = record.kenteken ?? record.meldcode ?? '—';
+  const voertuig = record.kenteken ?? record.meldcode ?? 'â€”';
 
   async function handlerKlik() {
     if (!reden.trim()) return;
@@ -100,14 +100,14 @@ function AfkeurenDialog({ record, onBevestigen, onSluiten }: AfkeurenDialogProps
             rows={3}
             value={reden}
             onChange={e => setReden(e.target.value)}
-            placeholder="Beschrijf de reden van afkeuring…"
+            placeholder="Beschrijf de reden van afkeuringâ€¦"
             autoFocus
           />
         </div>
         <div className={styles.dialogKnoppen}>
           <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
           <button className={styles.bevestigenKnop} onClick={handlerKlik} disabled={bezig || !reden.trim()}>
-            {bezig ? 'Verwerken…' : 'Afkeuren'}
+            {bezig ? 'Verwerkenâ€¦' : 'Afkeuren'}
           </button>
         </div>
       </div>
@@ -141,7 +141,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
         : inkoopTotaal + margeNum;
   const margePositief = verkoopBerekend != null && verkoopBerekend >= inkoopTotaal;
 
-  const voertuig = record.kenteken ?? record.meldcode ?? '—';
+  const voertuig = record.kenteken ?? record.meldcode ?? 'â€”';
   const merk = [record.merk, record.model].filter(Boolean).join(' ') || null;
 
   async function handlerKlik() {
@@ -167,9 +167,9 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
       <div className={styles.dialog} onClick={e => e.stopPropagation()}>
         <h2 className={styles.dialogTitel}>Factureren via Twinfield</h2>
         <div className={styles.dialogInfo}>
-          <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` — ${merk}` : ''}</div>
+          <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` â€” ${merk}` : ''}</div>
           <div className={styles.dialogRij}><span>Partner</span>{record.partner}</div>
-          <div className={styles.dialogRij}><span>Klant</span>{record.klant ?? '—'}</div>
+          <div className={styles.dialogRij}><span>Klant</span>{record.klant ?? 'â€”'}</div>
           <div className={styles.dialogRij}><span>Inkoop</span>{euroFmt(inkoopTotaal)}</div>
           {record.goedgekeurd_op && (
             <div className={styles.dialogRij}><span>Goedgekeurd</span>{datumFmt(record.goedgekeurd_op)}</div>
@@ -183,15 +183,15 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
               Percentage (%)
             </button>
             <button type="button" onClick={() => setMargeType('bedrag')} style={toggleStyle(margeType === 'bedrag')}>
-              Vaste marge (€)
+              Vaste marge (â‚¬)
             </button>
           </div>
         </div>
 
         <div className={styles.dialogVeld}>
-          <label className={styles.dialogLabel}>Marge {margeType === 'pct' ? '(%)' : '(€)'}</label>
+          <label className={styles.dialogLabel}>Marge {margeType === 'pct' ? '(%)' : '(â‚¬)'}</label>
           <div className={styles.bedragWrapper}>
-            <span className={styles.euroPrefix}>{margeType === 'pct' ? '%' : '€'}</span>
+            <span className={styles.euroPrefix}>{margeType === 'pct' ? '%' : 'â‚¬'}</span>
             <input
               className={styles.bedragInput}
               type="number"
@@ -231,7 +231,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
               onClick={handlerKlik}
               disabled={bezig || verkoopBerekend == null || verkoopBerekend <= 0}
             >
-              {bezig ? 'Verwerken…' : 'Factureren'}
+              {bezig ? 'Verwerkenâ€¦' : 'Factureren'}
             </button>
           </div>
         </div>
@@ -284,7 +284,7 @@ export default function WerkDerdenOverzicht() {
         await updateRecord(rec.id, { klant });
       }
       await setGoedgekeurd(rec.id);
-      toonMelding('Werkzaamheden goedgekeurd ✓', true);
+      toonMelding('Werkzaamheden goedgekeurd âœ“', true);
     } catch {
       toonMelding('Fout bij goedkeuren', false);
     } finally {
@@ -323,7 +323,7 @@ export default function WerkDerdenOverzicht() {
         const err = await res.json().catch(() => ({ error: 'Onbekende fout' }));
         toonMelding(`Fout: ${(err as { error?: string }).error ?? 'factureren mislukt'}`, false);
       } else {
-        toonMelding('Gefactureerd via Twinfield ✓', true);
+        toonMelding('Gefactureerd via Twinfield âœ“', true);
       }
     } catch {
       toonMelding('Netwerkfout bij factureren', false);
@@ -356,7 +356,7 @@ export default function WerkDerdenOverzicht() {
     xlsx.writeFile(wb, `werk-derden-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
-  if (loading) return <div className={styles.laden}>Laden…</div>;
+  if (loading) return <div className={styles.laden}>Ladenâ€¦</div>;
 
   return (
     <div className={styles.pagina}>
@@ -367,7 +367,7 @@ export default function WerkDerdenOverzicht() {
             {actieCount > 0 && (
               <span className={styles.openBadge}>{actieCount} te verwerken</span>
             )}
-            <button className={styles.exportKnop} onClick={exportXlsx}>⬇ Excel</button>
+            <button className={styles.exportKnop} onClick={exportXlsx}>â¬‡ Excel</button>
             <button className={styles.nieuwKnop} onClick={() => setNieuwOpen(true)}>+ Nieuw</button>
           </div>
         </div>
@@ -417,7 +417,7 @@ export default function WerkDerdenOverzicht() {
             </thead>
             <tbody>
               {gefilterd.map(rec => {
-                const voertuig = rec.kenteken ?? rec.meldcode ?? '—';
+                const voertuig = rec.kenteken ?? rec.meldcode ?? 'â€”';
                 const merk = [rec.merk, rec.model].filter(Boolean).join(' ') || null;
                 const isBusy = bezig === rec.id;
 
@@ -428,6 +428,7 @@ export default function WerkDerdenOverzicht() {
                       <span className={styles.kenteken}>{voertuig}</span>
                       {merk && <span className={styles.klant}>{merk}</span>}
                       {rec.klant && <span className={styles.klant}>{rec.klant}</span>}
+                      {rec.bestemming === 'voertuigprijs' && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', background: 'rgba(82,196,126,0.15)', color: '#32a868', borderRadius: 4, padding: '2px 6px', marginLeft: 6 }}>VP</span>}
                     </td>
                     <td>{rec.partner}</td>
                     <td>
@@ -456,10 +457,10 @@ export default function WerkDerdenOverzicht() {
                     <td>
                       {rec.bijlage_storage_path ? (
                         <button className={styles.bijlageKnop} onClick={() => openBijlage(rec)}>
-                          📎 Bijlage
+                          ðŸ“Ž Bijlage
                         </button>
                       ) : (
-                        <span className={styles.geenBijlage}>—</span>
+                        <span className={styles.geenBijlage}>â€”</span>
                       )}
                     </td>
                     <td>
@@ -471,14 +472,14 @@ export default function WerkDerdenOverzicht() {
                               onClick={() => setGoedkeurenRec(rec)}
                               disabled={isBusy}
                             >
-                              ✓ Goedkeuren
+                              âœ“ Goedkeuren
                             </button>
                             <button
                               className={styles.afkeurenKnop}
                               onClick={() => setAfkeurenRec(rec)}
                               disabled={isBusy}
                             >
-                              ✗ Afkeuren
+                              âœ— Afkeuren
                             </button>
                           </>
                         )}
@@ -496,7 +497,7 @@ export default function WerkDerdenOverzicht() {
                               onClick={() => setAfkeurenRec(rec)}
                               disabled={isBusy}
                             >
-                              ✗ Afkeuren
+                              âœ— Afkeuren
                             </button>
                           </>
                         )}
@@ -546,7 +547,7 @@ export default function WerkDerdenOverzicht() {
         <WerkDerdenModal
           addRecord={addRecord}
           onSluiten={() => setNieuwOpen(false)}
-          onIngediend={() => toonMelding('Kosten ingediend ✓', true)}
+          onIngediend={() => toonMelding('Kosten ingediend âœ“', true)}
         />
       )}
     </div>

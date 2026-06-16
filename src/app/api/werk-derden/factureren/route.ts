@@ -1,10 +1,10 @@
-// POST /api/werk-derden/factureren
+﻿// POST /api/werk-derden/factureren
 // Body: { id: string, marge_type: 'pct' | 'bedrag', marge_waarde: number }
 // Vereiste status: 'goedgekeurd'
 // 1. Haal de melding op uit Supabase
 // 2. Bereken verkoop_bedrag uit inkoop + marge
 // 3. Roep Twinfield aan (stub)
-// 4. Update status → 'gefactureerd' + marge + verkoop + twinfield_invoice_id + gefactureerd_op
+// 4. Update status â†’ 'gefactureerd' + marge + verkoop + twinfield_invoice_id + gefactureerd_op
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -55,6 +55,15 @@ export async function POST(req: NextRequest) {
   if (rec.status !== 'goedgekeurd') {
     return NextResponse.json(
       { error: `Kan niet factureren: status is "${rec.status}" (verwacht "goedgekeurd")` },
+      { status: 409 },
+    );
+  }
+
+  // Voertuigprijs-meldingen (gekoppeld aan After Sales auto) mogen niet via Twinfield
+  // gefactureerd worden — de kosten zitten al in de voertuigprijs. Gebruik 'Afronden'.
+  if (rec.after_sales_id || (rec as unknown as Record<string,unknown>).bestemming === 'voertuigprijs') {
+    return NextResponse.json(
+      { error: 'Voertuigprijs-melding kan niet via Twinfield gefactureerd worden. Gebruik de Afronden-actie.' },
       { status: 409 },
     );
   }
