@@ -322,7 +322,7 @@
   color: #92400e;
 }
 
-.stGefactureerd {
+.stGoedgekeurd {
   display: inline-block;
   padding: 3px 8px;
   border-radius: 5px;
@@ -330,6 +330,16 @@
   font-weight: 600;
   background: rgba(34, 197, 94, 0.12);
   color: #166534;
+}
+
+.stGefactureerd {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.12);
+  color: #1e40af;
 }
 
 .stAfgekeurd {

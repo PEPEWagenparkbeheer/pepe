@@ -6,7 +6,7 @@ import WerkDerdenModal from '@/components/partner/WerkDerdenModal';
 import type { WerkDerdenRecord } from '@/types';
 import styles from './WerkDerdenOverzicht.module.css';
 
-type Tab = 'open' | 'goedgekeurd' | 'gefactureerd' | 'afgekeurd';
+type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgekeurd';
 
 function euroFmt(n?: number | null) {
   if (n == null) return '—';
@@ -255,6 +255,7 @@ export default function WerkDerdenOverzicht() {
   const tabLabels: Record<Tab, string> = {
     open: 'Open',
     goedgekeurd: 'Goedgekeurd',
+    klaar_gemeld: 'Klaar gemeld',
     gefactureerd: 'Gefactureerd',
     afgekeurd: 'Afgekeurd',
   };
@@ -368,7 +369,7 @@ export default function WerkDerdenOverzicht() {
 
       {/* Tabs */}
       <div className={styles.tabs}>
-        {(['open', 'goedgekeurd', 'gefactureerd', 'afgekeurd'] as Tab[]).map(t => {
+        {(['open', 'goedgekeurd', 'klaar_gemeld', 'gefactureerd', 'afgekeurd'] as Tab[]).map(t => {
           const count = records.filter(r => r.status === t).length;
           return (
             <button
@@ -396,7 +397,7 @@ export default function WerkDerdenOverzicht() {
                 <th>Partner</th>
                 <th>Regels</th>
                 <th style={{ textAlign: 'right' }}>Inkoop</th>
-                {tab === 'gefactureerd' && <th style={{ textAlign: 'right' }}>Verkoop</th>}
+                {(tab === 'gefactureerd') && <th style={{ textAlign: 'right' }}>Verkoop</th>}
                 <th>Bijlage</th>
                 <th>Acties</th>
               </tr>
@@ -468,7 +469,7 @@ export default function WerkDerdenOverzicht() {
                             </button>
                           </>
                         )}
-                        {tab === 'goedgekeurd' && (
+                        {(tab === 'goedgekeurd' || tab === 'klaar_gemeld') && (
                           <>
                             <button
                               className={styles.facturerenKnop}

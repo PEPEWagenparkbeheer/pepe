@@ -367,6 +367,7 @@ export type WerkDerdenStatus =
   | 'open'
   | 'afgekeurd'
   | 'goedgekeurd'
+  | 'klaar_gemeld'
   | 'gefactureerd';
 
 export interface WerkRegel {

@@ -33,8 +33,12 @@ function datumFmt(d?: string) {
 export default function PartnerPage({ wie }: { wie: string }) {
   const { autos, updateAuto } = useAfterSales();
   const { signOut } = useAuth();
-  const { records: wdRecords, actieCount: wdOpenCount, addRecord: wdAddRecord } = useWerkDerden(wie);
+  const { records: wdRecords, addRecord: wdAddRecord, setKlaarGemeld } = useWerkDerden(wie);
   const [wdModalOpen, setWdModalOpen] = useState(false);
+  const [klaarBezig, setKlaarBezig] = useState<string | null>(null);
+
+  // Records die actie van de partner vereisen (goedgekeurd → klaar melden)
+  const wdActieCount = wdRecords.filter(r => r.status === 'goedgekeurd').length;
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
   const [tab, setTab] = useState<Tab>('actief');
 
@@ -97,17 +101,18 @@ export default function PartnerPage({ wie }: { wie: string }) {
           onClick={() => setTab('werkzaamheden')}
         >
           Mijn meldingen
-          {wdOpenCount > 0 && <span className={styles.tabBadge}>{wdOpenCount}</span>}
+          {wdActieCount > 0 && <span className={styles.tabBadge}>{wdActieCount}</span>}
         </button>
       </div>
 
-      {/* Tabel */}
+      {/* Auto-tabel — alleen voor actief/klaar tabs */}
+      {tab !== 'werkzaamheden' && (
       <div className={styles.content}>
         {mijnAutos.length === 0 ? (
           <div className={styles.leeg}>
             {tab === 'actief'
-              ? `Geen openstaande auto's voor `
-              : tab === 'klaar' ? `Nog geen klaar gemelde auto's voor ` : 'Nog geen meldingen.'}
+              ? `Geen openstaande auto's voor ${wie}`
+              : `Nog geen klaar gemelde auto's voor ${wie}`}
           </div>
         ) : (
           <div className={styles.tabelWrapper}>
@@ -187,6 +192,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
           </div>
         )}
       </div>
+      )}
 
       {/* Werkzaamheden tab */}
       {tab === 'werkzaamheden' && (
@@ -205,9 +211,14 @@ export default function PartnerPage({ wie }: { wie: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {wdRecords.map((r) => (
+                  {wdRecords.map((r) => {
+                    const voertuig = r.kenteken ?? r.meldcode ?? '—';
+                    return (
                     <tr key={r.id}>
-                      <td><strong>{r.kenteken}</strong>{r.klant ? ' · ' + r.klant : ''}</td>
+                      <td>
+                        <strong>{voertuig}</strong>
+                        {r.klant ? <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {r.klant}</span> : ''}
+                      </td>
                       <td style={{ fontSize: 12, color: 'var(--muted)' }}>
                         {r.created_at ? new Date(r.created_at).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
                       </td>
@@ -215,15 +226,51 @@ export default function PartnerPage({ wie }: { wie: string }) {
                         {r.inkoop_bedrag != null ? r.inkoop_bedrag.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' }) : '—'}
                       </td>
                       <td>
-                        <span className={r.status === 'gefactureerd' ? styles.stGefactureerd : r.status === 'afgekeurd' ? styles.stAfgekeurd : styles.stOpen}>
-                          {r.status === 'gefactureerd' ? '✓ Gefactureerd' : r.status === 'afgekeurd' ? '✕ Afgekeurd' : '⏳ Open'}
+                        <span className={
+                          r.status === 'gefactureerd' ? styles.stGefactureerd :
+                          r.status === 'afgekeurd' ? styles.stAfgekeurd :
+                          r.status === 'goedgekeurd' || r.status === 'klaar_gemeld' ? styles.stGoedgekeurd :
+                          styles.stOpen
+                        }>
+                          {r.status === 'gefactureerd' ? '✓ Gefactureerd' :
+                           r.status === 'afgekeurd' ? '✕ Afgekeurd' :
+                           r.status === 'klaar_gemeld' ? '✓ Klaar gemeld' :
+                           r.status === 'goedgekeurd' ? '✓ Goedgekeurd' :
+                           '⏳ Ingediend'}
                         </span>
                         {r.status === 'afgekeurd' && r.afkeur_reden && (
                           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{r.afkeur_reden}</div>
                         )}
+                        {r.status === 'goedgekeurd' && (
+                          <button
+                            onClick={async () => {
+                              setKlaarBezig(r.id);
+                              await setKlaarGemeld(r.id);
+                              setKlaarBezig(null);
+                            }}
+                            disabled={klaarBezig === r.id}
+                            style={{
+                              display: 'block',
+                              marginTop: 6,
+                              padding: '5px 12px',
+                              borderRadius: 6,
+                              border: 'none',
+                              background: 'var(--accent)',
+                              color: '#fff',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: klaarBezig === r.id ? 'not-allowed' : 'pointer',
+                              opacity: klaarBezig === r.id ? 0.6 : 1,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {klaarBezig === r.id ? 'Bezig…' : '✓ Klaar melden'}
+                          </button>
+                        )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

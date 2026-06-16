@@ -79,9 +79,9 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     return () => { supabase.removeChannel(ch); };
   }, [wie, rol]);
 
-  // Actieve records die aandacht van PEPE vereisen
+  // Actieve records die aandacht vereisen
   const actieCount = records.filter(
-    (r) => r.status === 'open' || r.status === 'goedgekeurd',
+    (r) => r.status === 'open' || r.status === 'goedgekeurd' || r.status === 'klaar_gemeld',
   ).length;
 
   const addRecord = useCallback(
@@ -121,6 +121,11 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
   const setAfgekeurd = useCallback(
     async (id: string, reden: string) =>
       updateRecord(id, { status: 'afgekeurd', afkeur_reden: reden }),
+    [updateRecord],
+  );
+
+  const setKlaarGemeld = useCallback(
+    async (id: string) => updateRecord(id, { status: 'klaar_gemeld' }),
     [updateRecord],
   );
 
@@ -164,6 +169,7 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     updateRecord,
     setGoedgekeurd,
     setAfgekeurd,
+    setKlaarGemeld,
     setGefactureerd,
     bijlageUrl,
   };
