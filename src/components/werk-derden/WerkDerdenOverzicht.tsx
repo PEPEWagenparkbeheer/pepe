@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
 import WerkDerdenModal from '@/components/partner/WerkDerdenModal';
-import type { WerkDerdenRecord } from '@/types';
+import type { WerkDerdenRecord, WerkRegel } from '@/types';
 import styles from './WerkDerdenOverzicht.module.css';
 
-type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgekeurd';
+type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgerond' | 'afgekeurd';
 
 function euroFmt(n?: number | null) {
   if (n == null) return 'â€”';
@@ -22,27 +22,42 @@ function datumFmt(d?: string | null) {
 
 interface GoedkeurenDialogProps {
   record: WerkDerdenRecord;
-  onBevestigen: (klant: string) => Promise<void>;
+  onBevestigen: (opties: { klant: string; regels?: WerkRegel[]; voorwaarden?: string }) => Promise<void>;
   onSluiten: () => void;
 }
 
 function GoedkeurenDialog({ record, onBevestigen, onSluiten }: GoedkeurenDialogProps) {
   const [bezig, setBezig] = useState(false);
   const [klant, setKlant] = useState(record.klant ?? '');
-  const voertuig = record.kenteken ?? record.meldcode ?? 'â€”';
+  const [metVoorwaarden, setMetVoorwaarden] = useState(false);
+  const [regels, setRegels] = useState<WerkRegel[]>(record.regels ?? []);
+  const [voorwaarden, setVoorwaarden] = useState('');
+  const voertuig = record.kenteken ?? record.meldcode ?? '—';
   const merk = [record.merk, record.model].filter(Boolean).join(' ') || null;
+  const totaal = regels.reduce((s, r) => s + (r.bedrag ?? 0), 0);
 
   async function handlerKlik() {
     setBezig(true);
-    try { await onBevestigen(klant.trim()); } finally { setBezig(false); }
+    try {
+      const opties: { klant: string; regels?: WerkRegel[]; voorwaarden?: string } = { klant: klant.trim() };
+      if (metVoorwaarden) {
+        opties.regels = regels;
+        if (voorwaarden.trim()) opties.voorwaarden = voorwaarden.trim();
+      }
+      await onBevestigen(opties);
+    } finally {
+      setBezig(false);
+    }
   }
 
   return (
     <div className={styles.dialogOverlay} onClick={onSluiten}>
       <div className={styles.dialog} onClick={e => e.stopPropagation()}>
-        <h2 className={styles.dialogTitel}>Werkzaamheden goedkeuren</h2>
+        <h2 className={styles.dialogTitel}>
+          {metVoorwaarden ? 'Goedkeuren met voorwaarden' : 'Werkzaamheden goedkeuren'}
+        </h2>
         <div className={styles.dialogInfo}>
-          <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` â€” ${merk}` : ''}</div>
+          <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` — ${merk}` : ''}</div>
           <div className={styles.dialogRij}><span>Partner</span>{record.partner}</div>
           <div className={styles.dialogRij}><span>Inkoop</span>{euroFmt(record.inkoop_bedrag)}</div>
         </div>
@@ -52,19 +67,65 @@ function GoedkeurenDialog({ record, onBevestigen, onSluiten }: GoedkeurenDialogP
             className={styles.dialogInput}
             value={klant}
             onChange={e => setKlant(e.target.value)}
-            placeholder="Naam klant â€” moet matchen met HubSpot voor facturatieâ€¦"
+            placeholder="Naam klant — moet matchen met HubSpot voor facturatie…"
           />
         </div>
+        {metVoorwaarden && (
+          <>
+            <div className={styles.dialogVeld}>
+              <label className={styles.dialogLabel}>Kostenregels aanpassen</label>
+              {regels.map((r, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                  <span style={{ flex: 1, fontSize: 13 }}>{r.omschrijving}</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className={styles.dialogInput}
+                    style={{ width: 100 }}
+                    value={r.bedrag ?? 0}
+                    onChange={e => {
+                      const copy = [...regels];
+                      copy[idx] = { ...copy[idx], bedrag: parseFloat(e.target.value) || 0 };
+                      setRegels(copy);
+                    }}
+                  />
+                </div>
+              ))}
+              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>Totaal: {euroFmt(totaal)}</div>
+            </div>
+            <div className={styles.dialogVeld}>
+              <label className={styles.dialogLabel}>Voorwaarden / aanpassingen</label>
+              <textarea
+                className={styles.dialogInput}
+                rows={3}
+                value={voorwaarden}
+                onChange={e => setVoorwaarden(e.target.value)}
+                placeholder="Omschrijf de voorwaarden of aanpassingen die PEPE heeft goedgekeurd…"
+                style={{ resize: 'vertical' }}
+              />
+            </div>
+          </>
+        )}
         <div className={styles.dialogKnoppen}>
           <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
+          {!metVoorwaarden && (
+            <button
+              type="button"
+              className={styles.annuleerKnop}
+              style={{ background: 'rgba(234,179,8,0.10)', borderColor: 'rgba(234,179,8,0.4)' }}
+              onClick={() => setMetVoorwaarden(true)}
+              disabled={bezig}
+            >✎ Met voorwaarden</button>
+          )}
           <button className={styles.bevestigenKnop} onClick={handlerKlik} disabled={bezig}>
-            {bezig ? 'Verwerkenâ€¦' : 'âœ“ Goedkeuren'}
+            {bezig ? 'Verwerken…' : metVoorwaarden ? '✓ Goedkeuren met voorwaarden' : '✓ Goedkeuren'}
           </button>
         </div>
       </div>
     </div>
   );
 }
+
 
 // --- AfkeurenDialog ----------------------------------------------------------
 
@@ -243,7 +304,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
 // --- Hoofd component ---------------------------------------------------------
 
 export default function WerkDerdenOverzicht() {
-  const { records, loading, actieCount, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, bijlageUrl } =
+  const { records, loading, actieCount, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, bijlageUrl } =
     useWerkDerden();
   const [tab, setTab] = useState<Tab>('open');
   const [melding, setMelding] = useState<{ tekst: string; ok: boolean } | null>(null);
@@ -266,6 +327,7 @@ export default function WerkDerdenOverzicht() {
     goedgekeurd: 'Goedgekeurd',
     klaar_gemeld: 'Klaar gemeld',
     gefactureerd: 'Gefactureerd',
+    afgerond: 'Afgerond',
     afgekeurd: 'Afgekeurd',
   };
 
@@ -275,22 +337,31 @@ export default function WerkDerdenOverzicht() {
     if (url) window.open(url, '_blank');
   }
 
-  async function handleGoedkeuren(rec: WerkDerdenRecord, klant: string) {
+  async function handleGoedkeuren(rec: WerkDerdenRecord, opties: { klant: string; regels?: WerkRegel[]; voorwaarden?: string }) {
     setGoedkeurenRec(null);
     setBezig(rec.id);
     try {
-      // Klant bijwerken indien gewijzigd (moet later matchen met HubSpot voor facturatie)
-      if (klant && klant !== (rec.klant ?? '')) {
-        await updateRecord(rec.id, { klant });
-      }
-      await setGoedgekeurd(rec.id);
-      toonMelding('Werkzaamheden goedgekeurd âœ“', true);
+      await setGoedgekeurd(rec.id, opties);
+      toonMelding('Werkzaamheden goedgekeurd ✓', true);
     } catch {
       toonMelding('Fout bij goedkeuren', false);
     } finally {
       setBezig(null);
     }
   }
+
+  async function handleAfronden(id: string) {
+    setBezig(id);
+    try {
+      await setAfgerond(id);
+      toonMelding('Afgerond ✓', true);
+    } catch {
+      toonMelding('Fout bij afronden', false);
+    } finally {
+      setBezig(null);
+    }
+  }
+
 
   async function handleAfkeuren(rec: WerkDerdenRecord, reden: string) {
     setAfkeurenRec(null);
@@ -382,7 +453,7 @@ export default function WerkDerdenOverzicht() {
 
       {/* Tabs */}
       <div className={styles.tabs}>
-        {(['open', 'goedgekeurd', 'klaar_gemeld', 'gefactureerd', 'afgekeurd'] as Tab[]).map(t => {
+        {(['open', 'goedgekeurd', 'klaar_gemeld', 'gefactureerd', 'afgerond', 'afgekeurd'] as Tab[]).map(t => {
           const count = records.filter(r => r.status === t).length;
           return (
             <button
@@ -485,20 +556,33 @@ export default function WerkDerdenOverzicht() {
                         )}
                         {(tab === 'goedgekeurd' || tab === 'klaar_gemeld') && (
                           <>
-                            <button
-                              className={styles.facturerenKnop}
-                              onClick={() => setFactureerRec(rec)}
-                              disabled={isBusy}
-                            >
-                              Factureren
-                            </button>
-                            <button
-                              className={styles.afkeurenKnop}
-                              onClick={() => setAfkeurenRec(rec)}
-                              disabled={isBusy}
-                            >
-                              âœ— Afkeuren
-                            </button>
+                            {rec.bestemming === 'voertuigprijs' ? (
+                              <button
+                                className={styles.facturerenKnop}
+                                onClick={() => handleAfronden(rec.id)}
+                                disabled={isBusy}
+                                style={{ background: 'rgba(82,196,126,0.15)', color: '#32a868', borderColor: 'rgba(82,196,126,0.4)' }}
+                              >
+                                ✓ Afronden
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  className={styles.facturerenKnop}
+                                  onClick={() => setFactureerRec(rec)}
+                                  disabled={isBusy}
+                                >
+                                  Factureren
+                                </button>
+                                <button
+                                  className={styles.afkeurenKnop}
+                                  onClick={() => setAfkeurenRec(rec)}
+                                  disabled={isBusy}
+                                >
+                                  ✗ Afkeuren
+                                </button>
+                              </>
+                            )}
                           </>
                         )}
                         {tab === 'gefactureerd' && rec.twinfield_invoice_id && (
@@ -523,7 +607,7 @@ export default function WerkDerdenOverzicht() {
       {goedkeurenRec && (
         <GoedkeurenDialog
           record={goedkeurenRec}
-          onBevestigen={(klant) => handleGoedkeuren(goedkeurenRec, klant)}
+          onBevestigen={(opties) => handleGoedkeuren(goedkeurenRec, opties)}
           onSluiten={() => setGoedkeurenRec(null)}
         />
       )}
