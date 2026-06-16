@@ -15,6 +15,15 @@ function deserialize(r: Record<string, unknown>): WerkDerdenRecord {
   };
 }
 
+/** Fire-and-forget notificatie-mail bij status-overgang; faalt stil. */
+function notify(id: string, event: 'ingediend' | 'goedgekeurd' | 'afgekeurd') {
+  void fetch('/api/werk-derden/notify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, event }),
+  }).catch(() => {});
+}
+
 function cacheLoad(): WerkDerdenRecord[] {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -95,6 +104,7 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
       if (error) return { ok: false, error: error.message };
       const inserted = deserialize(data as Record<string, unknown>);
       update([inserted, ...ref.current]);
+      notify(inserted.id, 'ingediend');
       return { ok: true };
     },
     [],
@@ -116,31 +126,50 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
   const setGoedgekeurd = useCallback(
     async (
       id: string,
-      opties?: { regels?: WerkRegel[]; voorwaarden?: string; klant?: string },
+      opties?: { regels?: WerkRegel[]; voorwaarden?: string; klant?: string; door?: string },
     ) => {
       const patch: Partial<WerkDerdenRecord> = {
         status: 'goedgekeurd',
         goedgekeurd_op: new Date().toISOString(),
       };
+      if (opties?.door) patch.goedgekeurd_door = opties.door;
       if (opties?.regels) {
         patch.regels = opties.regels;
         patch.inkoop_bedrag = opties.regels.reduce((s, r) => s + r.bedrag, 0);
       }
       if (opties?.voorwaarden != null) patch.voorwaarden = opties.voorwaarden;
       if (opties?.klant) patch.klant = opties.klant;
-      return updateRecord(id, patch);
+      const result = await updateRecord(id, patch);
+      if (result.ok) notify(id, 'goedgekeurd');
+      return result;
     },
     [updateRecord],
   );
 
   const setAfgekeurd = useCallback(
-    async (id: string, reden: string) =>
-      updateRecord(id, { status: 'afgekeurd', afkeur_reden: reden }),
+    async (id: string, reden: string, door?: string) => {
+      const patch: Partial<WerkDerdenRecord> = {
+        status: 'afgekeurd',
+        afkeur_reden: reden,
+        afgekeurd_op: new Date().toISOString(),
+      };
+      if (door) patch.afgekeurd_door = door;
+      const result = await updateRecord(id, patch);
+      if (result.ok) notify(id, 'afgekeurd');
+      return result;
+    },
     [updateRecord],
   );
 
   const setAfgerond = useCallback(
-    async (id: string) => updateRecord(id, { status: 'afgerond' }),
+    async (id: string, door?: string) => {
+      const patch: Partial<WerkDerdenRecord> = {
+        status: 'afgerond',
+        afgerond_op: new Date().toISOString(),
+      };
+      if (door) patch.afgerond_door = door;
+      return updateRecord(id, patch);
+    },
     [updateRecord],
   );
 

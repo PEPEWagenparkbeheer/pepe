@@ -407,8 +407,13 @@ export interface WerkDerdenRecord {
   // Bijlage
   bijlage_storage_path?: string;
 
-  // Tijdstempels
+  // Tijdstempels + stamps (wie + wanneer per status-overgang)
   goedgekeurd_op?: string;
+  goedgekeurd_door?: string;
+  afgekeurd_op?: string;
+  afgekeurd_door?: string;
+  afgerond_op?: string;
+  afgerond_door?: string;
   gefactureerd_op?: string;
   hubspot_deal_id?: string;
   twinfield_invoice_id?: string;

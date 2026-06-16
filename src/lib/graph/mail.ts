@@ -165,3 +165,37 @@ export async function replyToMessage(
     throw new Error(`Reply versturen mislukt (HTTP ${response.status}): ${detail}`)
   }
 }
+
+/**
+ * Verstuurt een nieuw e-mailbericht vanuit een mailbox via Graph API.
+ * Vereist Mail.Send permissie op de app-registratie.
+ */
+export async function sendMail(
+  accessToken: string,
+  from: string,
+  to: string,
+  subject: string,
+  bodyHtml: string,
+): Promise<void> {
+  const url = `${GRAPH_BASE}/users/${encodeURIComponent(from)}/sendMail`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: {
+        subject,
+        body: { contentType: 'HTML', content: bodyHtml },
+        toRecipients: [{ emailAddress: { address: to } }],
+      },
+      saveToSentItems: true,
+    }),
+  });
+  if (!response.ok) {
+    const data = (await response.json()) as { error?: { message: string } };
+    const detail = data?.error?.message ?? 'onbekende fout';
+    throw new Error(`Mail versturen mislukt (HTTP ${response.status}): ${detail}`);
+  }
+}
