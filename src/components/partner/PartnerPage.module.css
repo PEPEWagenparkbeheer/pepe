@@ -351,3 +351,81 @@
   background: rgba(239, 68, 68, 0.1);
   color: #991b1b;
 }
+
+/* ── Melding notificatie in Actief tab ── */
+.meldingNotificatieBlok {
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.04);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.meldingNotificatieTitel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #166534;
+  border-bottom: 1px solid rgba(34, 197, 94, 0.15);
+  background: rgba(34, 197, 94, 0.07);
+}
+
+.meldingNotificatieRij {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border-bottom: 1px solid rgba(34, 197, 94, 0.1);
+}
+
+.meldingNotificatieRij:last-child {
+  border-bottom: none;
+}
+
+.meldingNotificatieRij:hover {
+  background: rgba(34, 197, 94, 0.06);
+}
+
+.meldingKlaarBtn {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #166534;
+  white-space: nowrap;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+.notificatieDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
+.notificatieDotBlink {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  animation: blink 1.4s ease-in-out infinite;
+}
+
+.notificatieDotGezien {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.3);
+  flex-shrink: 0;
+}
