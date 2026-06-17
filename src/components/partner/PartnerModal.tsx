@@ -10,11 +10,13 @@ interface Props {
   wie: string;
   onSluiten: () => void;
   onOpslaan: (bijgewerkt: AfterSalesAuto) => Promise<void>;
+  /** Opent de compacte "Offerte versturen"-modal voor deze auto */
+  onOfferteVersturen: (auto: AfterSalesAuto) => void;
 }
 
 type Update = { tekst: string; op: string; door: string };
 
-export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props) {
+export default function PartnerModal({ auto, wie, onSluiten, onOpslaan, onOfferteVersturen }: Props) {
   const [binnen, setBinnen] = useState(!!auto.partner_binnen);
   const [datum, setDatum] = useState(auto.partner_datum ?? '');
   const [onderdelenBesteld, setOnderdelenBesteld] = useState(!!auto.partner_onderdelen_besteld);
@@ -147,6 +149,18 @@ export default function PartnerModal({ auto, wie, onSluiten, onOpslaan }: Props)
         </div>
 
         <div className={styles.modalBody}>
+
+          {/* Offerte versturen — opent compacte werk-derden offerte voor deze auto */}
+          <section className={styles.sectie}>
+            <button
+              type="button"
+              className={styles.offerteKnop}
+              onClick={() => onOfferteVersturen(auto)}
+              disabled={bezig}
+            >
+              📎 Offerte versturen
+            </button>
+          </section>
 
           {/* Binnen bij partner */}
           <section className={styles.sectie}>

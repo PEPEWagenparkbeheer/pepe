@@ -404,3 +404,20 @@
 }
 
 .klaarKnop:disabled { opacity: 0.4; }
+
+/* Offerte versturen knop */
+.offerteKnop {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--accent, #c0392b);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent, #c0392b);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.offerteKnop:hover { background: var(--accent, #c0392b); color: #fff; }
+.offerteKnop:disabled { opacity: 0.4; cursor: default; }
+

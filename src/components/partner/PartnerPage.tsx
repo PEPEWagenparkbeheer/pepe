@@ -62,6 +62,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
   const wdActieCount = wdRecords.filter(r => r.status === 'goedgekeurd').length;
   const goedgekeurdeWdRecords = wdRecords.filter(r => r.status === 'goedgekeurd');
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
+  const [offerteAuto, setOfferteAuto] = useState<AfterSalesAuto | null>(null);
   const [tab, setTab] = useState<Tab>('actief');
 
   const wieUpper = wie.toUpperCase();
@@ -330,6 +331,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
             await updateAuto(bijgewerkt);
             setModalAuto(bijgewerkt);
           }}
+          onOfferteVersturen={(auto) => { setModalAuto(null); setOfferteAuto(auto); }}
         />
       )}
 
@@ -340,6 +342,16 @@ export default function PartnerPage({ wie }: { wie: string }) {
           onIngediend={() => setWdModalOpen(false)}
           addRecord={wdAddRecord}
           afterSalesAutos={alleVoorPartner}
+        />
+      )}
+
+      {offerteAuto && (
+        <WerkDerdenModal
+          wie={wie}
+          vastAuto={offerteAuto}
+          onSluiten={() => setOfferteAuto(null)}
+          onIngediend={() => setOfferteAuto(null)}
+          addRecord={wdAddRecord}
         />
       )}
 
@@ -363,9 +375,22 @@ export default function PartnerPage({ wie }: { wie: string }) {
           onKlaarMelden={setKlaarGemeld}
         />
       )}
+
+      {offerteAuto && (
+        <WerkDerdenModal
+          wie={wie}
+          vastAuto={offerteAuto}
+          onSluiten={() => setOfferteAuto(null)}
+          onIngediend={() => setOfferteAuto(null)}
+          addRecord={wdAddRecord}
+        />
+      )}
     </div>
   );
 }
+
+
+
 
 
 
