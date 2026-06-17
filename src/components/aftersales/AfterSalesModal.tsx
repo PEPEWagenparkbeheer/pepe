@@ -46,9 +46,11 @@ interface Props {
   onAfleveren?: (rec: AfterSalesAuto) => void;
   /** Werk-derden offertes gekoppeld aan deze auto (via after_sales_id) */
   werkDerden?: WerkDerdenRecord[];
+  /** Haalt een signed URL op voor een werk-derden bijlage */
+  onBijlageUrl?: (path: string) => Promise<string | null>;
 }
 
-export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, onVerwijder, onAfleveren, werkDerden = [] }: Props) {
+export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, onVerwijder, onAfleveren, werkDerden = [], onBijlageUrl }: Props) {
   const { namen: wieLijst } = usePartnerLijst();
   const { namen: medewerkers } = useMedewerkers();
   const { latest: inname } = useInname(record?.id);
@@ -327,7 +329,19 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
                             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, fontStyle: 'italic' }}>Voorwaarden: {wd.voorwaarden}</div>
                           )}
                           {wd.bijlage_storage_path && (
-                            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>📎 Bijlage aanwezig (zie Werk Derden)</div>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!onBijlageUrl || !wd.bijlage_storage_path) return;
+                                const w = window.open('', '_blank');
+                                const url = await onBijlageUrl(wd.bijlage_storage_path);
+                                if (url) { if (w) w.location.href = url; else window.open(url, '_blank'); }
+                                else if (w) w.close();
+                              }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, padding: 0, background: 'none', border: 'none', color: 'var(--accent)', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                              📎 Bijlage openen
+                            </button>
                           )}
                         </div>
                       );
