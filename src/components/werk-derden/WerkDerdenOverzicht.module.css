@@ -1,35 +1,7 @@
-﻿.pagina {
-  padding: 22px 28px;
-}
-
-.header {
+.pagina {
+  min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.paginaTitel {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0 0 4px;
-}
-
-.paginaSub {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 0;
-}
-
-.openBadge {
-  background: rgba(239, 68, 68, 0.1);
-  color: #c53030;
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 5px 12px;
-  border-radius: 20px;
+  flex-direction: column;
 }
 
 .laden {
@@ -43,7 +15,7 @@
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 16px;
+  margin: 12px 20px;
 }
 
 .meldingOk {
@@ -58,45 +30,84 @@
   border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
-/* Tabs */
-.tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 20px;
+/* Tab-balk — zelfde page-shell als Lease / After Sales */
+.tabBalk {
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding-bottom: 0;
-}
-
-.tab {
-  padding: 10px 18px;
-  border: none;
-  background: none;
-  font-size: 14px;
-  color: var(--muted);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-weight: 500;
+  gap: 2px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
 }
 
-.tabActief {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-  font-weight: 700;
+.tabBalkRechts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
 }
 
-.tabBadge {
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 6px;
+.zoekbalk {
+  padding: 8px 12px;
   border-radius: 10px;
-  min-width: 18px;
-  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  width: 200px;
+  font-family: inherit;
+}
+.zoekbalk::placeholder { color: var(--muted); }
+.zoekbalk:focus { outline: none; border-color: var(--accent); }
+
+/* KPI-strip */
+.kpiStrip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.kpiCard {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.kpiCard:hover {
+  border-color: rgba(21, 28, 39, .18);
+  background: var(--surface2);
+  transform: translateY(-1px);
+}
+.kpiCard.hot  { border-color: rgba(248, 113, 113, .3);  background: rgba(146, 25, 57, .05); }
+.kpiCard.warn { border-color: rgba(251, 191, 36, .25);  background: rgba(251, 191, 36, .04); }
+.kpiCard.good { border-color: rgba(74, 222, 128, .25);  background: rgba(74, 222, 128, .04); }
+.kpiCard.actief { border-color: var(--accent); background: rgba(146, 25, 57, .06); }
+
+.kpiIcoon { font-size: 16px; margin-bottom: 4px; }
+.kpiGetal {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1;
+}
+.kpiGetal.ok   { color: var(--green); }
+.kpiGetal.warn { color: #b45309; }
+.kpiLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-top: 3px;
 }
 
 .leeg {
@@ -117,6 +128,7 @@
   border-spacing: 0 6px;
   font-size: 13px;
   min-width: 900px;
+  padding: 8px 20px;
 }
 
 .tabel thead th {
@@ -460,105 +472,6 @@
 .bevestigenKnop:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-}
-
-/* KPI strip */
-.kpiStrip {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.kpiKaart {
-  flex: 1;
-  min-width: 140px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.kpiGetal {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.kpiLabel {
-  font-size: 12px;
-  color: var(--muted);
-  font-weight: 500;
-}
-
-/* Filter balk */
-.filterBalk {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.filterSelect {
-  padding: 9px 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.filterInput {
-  flex: 1;
-  min-width: 160px;
-  padding: 9px 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 13px;
-}
-
-.filterInput:focus,
-.filterSelect:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.exportKnop {
-  padding: 9px 16px;
-  border-radius: 8px;
-  border: 1.5px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.exportKnop:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.nieuwKnop {
-  padding: 9px 16px;
-  border-radius: 8px;
-  border: none;
-  background: var(--accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.nieuwKnop:hover {
-  opacity: 0.88;
 }
 
 /* Status badges */

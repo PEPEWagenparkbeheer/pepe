@@ -305,11 +305,12 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
 // --- Hoofd component ---------------------------------------------------------
 
 export default function WerkDerdenOverzicht() {
-  const { records, loading, actieCount, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, bijlageUrl } =
+  const { records, loading, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, bijlageUrl } =
     useWerkDerden();
   const { user } = useAuth();
   const stamper = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? 'PEPE';
   const [tab, setTab] = useState<Tab>('open');
+  const [zoek, setZoek] = useState('');
   const [melding, setMelding] = useState<{ tekst: string; ok: boolean } | null>(null);
   const [bezig, setBezig] = useState<string | null>(null);
 
@@ -323,7 +324,13 @@ export default function WerkDerdenOverzicht() {
     setTimeout(() => setMelding(null), 4000);
   }
 
-  const gefilterd = records.filter(r => r.status === tab);
+  const zoekTerm = zoek.trim().toLowerCase();
+  const gefilterd = records.filter(r => {
+    if (r.status !== tab) return false;
+    if (!zoekTerm) return true;
+    return [r.kenteken, r.meldcode, r.partner, r.klant, r.merk, r.model]
+      .some(v => v?.toLowerCase().includes(zoekTerm));
+  });
 
   const tabLabels: Record<Tab, string> = {
     open: 'Open',
@@ -332,6 +339,15 @@ export default function WerkDerdenOverzicht() {
     gefactureerd: 'Gefactureerd',
     afgerond: 'Afgerond',
     afgekeurd: 'Afgekeurd',
+  };
+
+  const tabIconen: Record<Tab, string> = {
+    open: '📥',
+    goedgekeurd: '✓',
+    klaar_gemeld: '🔧',
+    gefactureerd: '🧾',
+    afgerond: '🏁',
+    afgekeurd: '✗',
   };
 
   async function openBijlage(rec: WerkDerdenRecord) {
@@ -456,20 +472,53 @@ export default function WerkDerdenOverzicht() {
 
   if (loading) return <div className={styles.laden}>Laden…</div>;
 
+  const tabVolgorde: Tab[] = ['open', 'goedgekeurd', 'klaar_gemeld', 'gefactureerd', 'afgerond', 'afgekeurd'];
+
   return (
     <div className={styles.pagina}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: 0, lineHeight: 1.3 }}>Werk Derden</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {actieCount > 0 && (
-              <span className={styles.openBadge}>{actieCount} te verwerken</span>
-            )}
-            <button className={styles.exportKnop} onClick={exportXlsx}>⬇ Excel</button>
-            <button className={styles.nieuwKnop} onClick={() => setNieuwOpen(true)}>+ Nieuw</button>
-          </div>
+      <div className={styles.tabBalk}>
+        {tabVolgorde.map(t => (
+          <button
+            key={t}
+            className={`tab ${tab === t ? 'on' : ''}`}
+            onClick={() => setTab(t)}
+          >
+            {tabLabels[t]}
+          </button>
+        ))}
+        <div className={styles.tabBalkRechts}>
+          <input
+            className={styles.zoekbalk}
+            placeholder="Zoeken in werk derden..."
+            value={zoek}
+            onChange={e => setZoek(e.target.value)}
+          />
+          <button className="btn" onClick={exportXlsx}>⬇ Excel</button>
+          <button className="btn btn-a" onClick={() => setNieuwOpen(true)}>+ Nieuw</button>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>Ingediende werkzaamheden van partners</p>
+      </div>
+
+      <div className={styles.kpiStrip}>
+        {tabVolgorde.map(t => {
+          const count = records.filter(r => r.status === t).length;
+          const accent = t === 'open' && count > 0 ? styles.hot
+            : (t === 'gefactureerd' || t === 'afgerond') && count > 0 ? styles.good
+            : '';
+          const getalAccent = t === 'open' && count > 0 ? styles.warn
+            : (t === 'gefactureerd' || t === 'afgerond') && count > 0 ? styles.ok
+            : '';
+          return (
+            <div
+              key={t}
+              className={`${styles.kpiCard} ${accent} ${tab === t ? styles.actief : ''}`}
+              onClick={() => setTab(t)}
+            >
+              <div className={styles.kpiIcoon}>{tabIconen[t]}</div>
+              <div className={`${styles.kpiGetal} ${getalAccent}`}>{count}</div>
+              <div className={styles.kpiLabel}>{tabLabels[t]}</div>
+            </div>
+          );
+        })}
       </div>
 
       {melding && (
@@ -477,23 +526,6 @@ export default function WerkDerdenOverzicht() {
           {melding.tekst}
         </div>
       )}
-
-      {/* Tabs */}
-      <div className={styles.tabs}>
-        {(['open', 'goedgekeurd', 'klaar_gemeld', 'gefactureerd', 'afgerond', 'afgekeurd'] as Tab[]).map(t => {
-          const count = records.filter(r => r.status === t).length;
-          return (
-            <button
-              key={t}
-              className={`${styles.tab} ${tab === t ? styles.tabActief : ''}`}
-              onClick={() => setTab(t)}
-            >
-              {tabLabels[t]}
-              {count > 0 && <span className={styles.tabBadge}>{count}</span>}
-            </button>
-          );
-        })}
-      </div>
 
       {/* Tabel */}
       {gefilterd.length === 0 ? (
