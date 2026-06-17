@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { AfterSalesAuto, ASAutoType, WerkDerdenRecord } from '@/types';
+import { medewerkerNaam } from '@/lib/naam';
 import { MERKEN_LIJST } from '@/lib/constants';
 import { usePartnerLijst } from '@/hooks/usePartnerLijst';
 import { useMedewerkers } from '@/hooks/useMedewerkers';
@@ -321,12 +322,12 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
                           <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{wd.partner}</div>
                           {wd.goedgekeurd_door && (
                             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
-                              ✓ Goedgekeurd door {wd.goedgekeurd_door}{wd.goedgekeurd_op ? ` · ${new Date(wd.goedgekeurd_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })}` : ''}
+                              ✓ Goedgekeurd door {medewerkerNaam(wd.goedgekeurd_door)}{wd.goedgekeurd_op ? ` · ${new Date(wd.goedgekeurd_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })}` : ''}
                             </div>
                           )}
                           {wd.afgekeurd_door && (
                             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
-                              ✕ Afgekeurd door {wd.afgekeurd_door}
+                              ✕ Afgekeurd door {medewerkerNaam(wd.afgekeurd_door)}
                             </div>
                           )}
                           {(wd.regels ?? []).map((r, i) => (

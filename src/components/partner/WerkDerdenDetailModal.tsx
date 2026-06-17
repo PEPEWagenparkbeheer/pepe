@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WerkDerdenRecord, WerkDerdenStatus } from '@/types';
 import KentekenPlaat from '@/components/aftersales/KentekenPlaat';
+import { medewerkerNaam } from '@/lib/naam';
 import styles from './PartnerModal.module.css';
 
 interface Props {
@@ -78,19 +79,19 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
               )}
               {(record.goedgekeurd_door || record.goedgekeurd_op) && (
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
-                  Goedgekeurd{record.goedgekeurd_door ? ` door ${record.goedgekeurd_door}` : ''}
+                  Goedgekeurd{record.goedgekeurd_door ? ` door ${medewerkerNaam(record.goedgekeurd_door)}` : ''}
                   {record.goedgekeurd_op ? ` op ${new Date(record.goedgekeurd_op).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}
                 </div>
               )}
               {(record.afgekeurd_door || record.afgekeurd_op) && (
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
-                  Afgekeurd{record.afgekeurd_door ? ` door ${record.afgekeurd_door}` : ''}
+                  Afgekeurd{record.afgekeurd_door ? ` door ${medewerkerNaam(record.afgekeurd_door)}` : ''}
                   {record.afgekeurd_op ? ` op ${new Date(record.afgekeurd_op).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}
                 </div>
               )}
               {(record.afgerond_door || record.afgerond_op) && (
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
-                  Afgerond{record.afgerond_door ? ` door ${record.afgerond_door}` : ''}
+                  Afgerond{record.afgerond_door ? ` door ${medewerkerNaam(record.afgerond_door)}` : ''}
                   {record.afgerond_op ? ` op ${new Date(record.afgerond_op).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}
                 </div>
               )}

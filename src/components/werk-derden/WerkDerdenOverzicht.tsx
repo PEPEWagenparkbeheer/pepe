@@ -5,6 +5,7 @@ import { useWerkDerden } from '@/hooks/useWerkDerden';
 import { useAuth } from '@/hooks/useAuth';
 import WerkDerdenModal from '@/components/partner/WerkDerdenModal';
 import type { WerkDerdenRecord, WerkRegel } from '@/types';
+import { medewerkerNaam } from '@/lib/naam';
 import styles from './WerkDerdenOverzicht.module.css';
 
 type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgerond' | 'afgekeurd';
@@ -234,7 +235,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
           <div className={styles.dialogRij}><span>Klant</span>{record.klant ?? '—'}</div>
           <div className={styles.dialogRij}><span>Inkoop</span>{euroFmt(inkoopTotaal)}</div>
           {record.goedgekeurd_op && (
-            <div className={styles.dialogRij}><span>Goedgekeurd</span>{datumFmt(record.goedgekeurd_op)}{record.goedgekeurd_door ? ` — ${record.goedgekeurd_door}` : ''}</div>
+            <div className={styles.dialogRij}><span>Goedgekeurd</span>{datumFmt(record.goedgekeurd_op)}{record.goedgekeurd_door ? ` — ${medewerkerNaam(record.goedgekeurd_door)}` : ''}</div>
           )}
         </div>
 
@@ -308,7 +309,11 @@ export default function WerkDerdenOverzicht() {
   const { records, loading, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, bijlageUrl } =
     useWerkDerden();
   const { user } = useAuth();
-  const stamper = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? 'PEPE';
+  const stamper = medewerkerNaam(
+    (user?.user_metadata?.full_name as string | undefined) ??
+    (user?.user_metadata?.name as string | undefined) ??
+    user?.email,
+  ) || 'PEPE';
   const [tab, setTab] = useState<Tab>('open');
   const [zoek, setZoek] = useState('');
   const [melding, setMelding] = useState<{ tekst: string; ok: boolean } | null>(null);
@@ -562,8 +567,8 @@ export default function WerkDerdenOverzicht() {
                     </td>
                     <td>
                       {rec.partner}
-                      {rec.goedgekeurd_door && <span className={styles.klant}>✓ {rec.goedgekeurd_door}</span>}
-                      {rec.afgekeurd_door && <span className={styles.klant}>✕ {rec.afgekeurd_door}</span>}
+                      {rec.goedgekeurd_door && <span className={styles.klant}>✓ {medewerkerNaam(rec.goedgekeurd_door)}</span>}
+                      {rec.afgekeurd_door && <span className={styles.klant}>✕ {medewerkerNaam(rec.afgekeurd_door)}</span>}
                     </td>
                     <td>
                       <div className={styles.regelLijst}>
