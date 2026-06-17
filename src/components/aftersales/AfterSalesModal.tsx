@@ -319,6 +319,16 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
                             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>€ {totaal.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
                           </div>
                           <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{wd.partner}</div>
+                          {wd.goedgekeurd_door && (
+                            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
+                              ✓ Goedgekeurd door {wd.goedgekeurd_door}{wd.goedgekeurd_op ? ` · ${new Date(wd.goedgekeurd_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })}` : ''}
+                            </div>
+                          )}
+                          {wd.afgekeurd_door && (
+                            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
+                              ✕ Afgekeurd door {wd.afgekeurd_door}
+                            </div>
+                          )}
                           {(wd.regels ?? []).map((r, i) => (
                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: 'var(--text)', padding: '2px 0' }}>
                               <span>{r.omschrijving}</span>

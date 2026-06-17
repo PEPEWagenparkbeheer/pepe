@@ -234,7 +234,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
           <div className={styles.dialogRij}><span>Klant</span>{record.klant ?? '—'}</div>
           <div className={styles.dialogRij}><span>Inkoop</span>{euroFmt(inkoopTotaal)}</div>
           {record.goedgekeurd_op && (
-            <div className={styles.dialogRij}><span>Goedgekeurd</span>{datumFmt(record.goedgekeurd_op)}</div>
+            <div className={styles.dialogRij}><span>Goedgekeurd</span>{datumFmt(record.goedgekeurd_op)}{record.goedgekeurd_door ? ` — ${record.goedgekeurd_door}` : ''}</div>
           )}
         </div>
 
@@ -560,7 +560,11 @@ export default function WerkDerdenOverzicht() {
                       {rec.klant && <span className={styles.klant}>{rec.klant}</span>}
                       {rec.bestemming === 'voertuigprijs' && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', background: 'rgba(82,196,126,0.15)', color: '#32a868', borderRadius: 4, padding: '2px 6px', marginLeft: 6 }}>VP</span>}
                     </td>
-                    <td>{rec.partner}</td>
+                    <td>
+                      {rec.partner}
+                      {rec.goedgekeurd_door && <span className={styles.klant}>✓ {rec.goedgekeurd_door}</span>}
+                      {rec.afgekeurd_door && <span className={styles.klant}>✕ {rec.afgekeurd_door}</span>}
+                    </td>
                     <td>
                       <div className={styles.regelLijst}>
                         {rec.regels.map((r, i) => (

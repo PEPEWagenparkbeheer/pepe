@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -14,11 +14,11 @@ interface Props {
 }
 
 const STATUS_LABEL: Record<WerkDerdenStatus, string> = {
-  open: 'â³ Openstaand',
-  goedgekeurd: 'âœ“ Goedgekeurd',
-  klaar_gemeld: 'âœ“ Klaar gemeld',
-  gefactureerd: 'âœ“ Gefactureerd',
-  afgekeurd: 'âœ• Afgekeurd',
+  open: '⏳ Openstaand',
+  goedgekeurd: '✓ Goedgekeurd',
+  klaar_gemeld: '✓ Klaar gemeld',
+  gefactureerd: '✓ Gefactureerd',
+  afgekeurd: '✕ Afgekeurd',
   afgerond: '✓ Afgerond',
 };
 
@@ -45,7 +45,7 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
     return () => { actief = false; };
   }, [record.bijlage_storage_path, bijlageUrl]);
 
-  const voertuig = record.kenteken ?? record.meldcode ?? 'â€”';
+  const voertuig = record.kenteken ?? record.meldcode ?? '—';
 
   return createPortal(
     <div className={styles.overlay} onClick={onSluiten}>
@@ -61,7 +61,7 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
               {record.klant && <span className={styles.klant}>{record.klant}</span>}
             </div>
           </div>
-          <button className={styles.sluitenKnop} onClick={onSluiten}>âœ•</button>
+          <button className={styles.sluitenKnop} onClick={onSluiten}>✕</button>
         </div>
 
         {/* Body */}
@@ -141,13 +141,13 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
             <section className={styles.sectie}>
               <h3 className={styles.sectieLabel}>Bijlage</h3>
               {bijlageSignedUrl
-                ? <a href={bijlageSignedUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: 'var(--accent)', textDecoration: 'underline' }}>ðŸ“Ž Bijlage openen</a>
-                : <span style={{ fontSize: 14, color: 'var(--muted)' }}>Ladenâ€¦</span>}
+                ? <a href={bijlageSignedUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: 'var(--accent)', textDecoration: 'underline' }}>📎 Bijlage openen</a>
+                : <span style={{ fontSize: 14, color: 'var(--muted)' }}>Laden…</span>}
             </section>
           )}
         </div>
 
-        {/* Footer â€” alleen klaar melden bij goedgekeurd */}
+        {/* Footer — alleen klaar melden bij goedgekeurd */}
         {record.status === 'goedgekeurd' && (
           <div className={styles.modalFooter}>
             <button
@@ -160,7 +160,7 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
                 onSluiten();
               }}
             >
-              {bezig ? 'Bezigâ€¦' : 'âœ“ Klaar melden'}
+              {bezig ? 'Bezig…' : '✓ Klaar melden'}
             </button>
           </div>
         )}
@@ -169,4 +169,3 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
     document.body,
   );
 }
-
