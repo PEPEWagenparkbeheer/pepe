@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
     if (bestaande) {
       await supabaseAdmin.auth.admin.updateUserById(bestaande.id, {
         password: STANDAARD_WACHTWOORD,
+        email_confirm: true,
         user_metadata: metadata,
       });
     }
