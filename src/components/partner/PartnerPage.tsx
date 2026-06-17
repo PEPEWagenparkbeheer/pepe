@@ -375,16 +375,6 @@ export default function PartnerPage({ wie }: { wie: string }) {
           onKlaarMelden={setKlaarGemeld}
         />
       )}
-
-      {offerteAuto && (
-        <WerkDerdenModal
-          wie={wie}
-          vastAuto={offerteAuto}
-          onSluiten={() => setOfferteAuto(null)}
-          onIngediend={() => setOfferteAuto(null)}
-          addRecord={wdAddRecord}
-        />
-      )}
     </div>
   );
 }
