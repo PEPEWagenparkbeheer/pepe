@@ -14,8 +14,6 @@ import { NextResponse } from 'next/server';
 import { createClient, type User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-const PEPE_DOMEIN = '@pepewagenparkbeheer.nl';
-
 type Gate =
   | { ok: true; user: User; token: string }
   | { ok: false; response: NextResponse };
@@ -45,11 +43,16 @@ export async function requireUser(req: Request): Promise<Gate> {
   return { ok: true, user, token };
 }
 
-/** True als dit account een (actieve) PEPE-medewerker is: domein of medewerkers-tabel. */
+/**
+ * True als dit account een (actieve) PEPE-medewerker is.
+ * NB: NIET op e-maildomein — sommige partners hebben ook een @pepewagenparkbeheer.nl
+ * adres (bv. robin@, kurdo@). De `medewerkers`-tabel is de bron van waarheid.
+ */
 export async function isPepeUser(user: User): Promise<boolean> {
+  if ((user.user_metadata as { rol?: string } | null)?.rol === 'partner') return false;
+
   const email = (user.email ?? '').toLowerCase();
   if (!email) return false;
-  if (email.endsWith(PEPE_DOMEIN)) return true;
 
   // supabaseAdmin omzeilt RLS, dus deze lookup werkt ook met strenge policies.
   const { data } = await supabaseAdmin

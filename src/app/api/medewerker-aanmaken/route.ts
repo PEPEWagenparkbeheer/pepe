@@ -1,24 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requirePepe } from '@/lib/apiAuth';
 
 // Standaardwachtwoord voor nieuwe medewerkers. Zij kunnen dit zelf wijzigen
 // via Instellingen → "Mijn wachtwoord".
 const STANDAARD_WACHTWOORD = 'PEPE2026';
 
 export async function POST(req: NextRequest) {
-  // Verifieer dat de aanroeper ingelogd is via Supabase JWT
-  const authHeader = req.headers.get('authorization') ?? '';
-  const token = authHeader.replace('Bearer ', '');
-  if (!token) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 });
-
-  const caller = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } },
-  );
-  const { data: { user } } = await caller.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 });
+  // Alleen een PEPE-medewerker mag accounts aanmaken.
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
 
   const { naam } = await req.json().catch(() => ({}));
   if (!naam?.trim()) return NextResponse.json({ error: 'Naam vereist' }, { status: 400 });
