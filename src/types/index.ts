@@ -1,7 +1,7 @@
 ﻿// â”€â”€ Zoekopdrachten (Zoeken) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Zoekopdracht {
-  id: number;
+  id: string;
   klant: string;
   auto: string; // "Merk Model" â€” gecombineerde string
   details?: string;

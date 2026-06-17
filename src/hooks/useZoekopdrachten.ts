@@ -94,7 +94,7 @@ export function useZoekopdrachten() {
             ? recordsRef.current.map(r => r.id === rec.id ? rec : r)
             : [...recordsRef.current, rec]);
         } else if (payload.eventType === 'DELETE') {
-          updateRecords(recordsRef.current.filter(r => r.id !== (payload.old as { id: number }).id));
+          updateRecords(recordsRef.current.filter(r => r.id !== (payload.old as { id: string }).id));
         }
       }).subscribe();
 
@@ -102,7 +102,7 @@ export function useZoekopdrachten() {
   }, []);
 
   const add = useCallback(async (rec: Omit<Zoekopdracht, 'id'>) => {
-    const nieuw: Zoekopdracht = { ...rec, id: Date.now() };
+    const nieuw: Zoekopdracht = { ...rec, id: crypto.randomUUID() };
     const next = [...recordsRef.current, nieuw];
     updateRecords(next);
     const { error } = await supabase.from('zoekopdrachten').upsert(serialize(nieuw));
@@ -117,20 +117,20 @@ export function useZoekopdrachten() {
     if (error) console.error('zoekopdrachten upsert fout:', error.message, error.details);
   }, []);
 
-  const remove = useCallback(async (id: number) => {
+  const remove = useCallback(async (id: string) => {
     const next = recordsRef.current.filter((r) => r.id !== id);
     updateRecords(next);
     const { error } = await supabase.from('zoekopdrachten').delete().eq('id', id);
     if (error) console.error('zoekopdrachten delete fout:', error.message);
   }, []);
 
-  const togglePrio = useCallback(async (id: number) => {
+  const togglePrio = useCallback(async (id: string) => {
     const rec = recordsRef.current.find((r) => r.id === id);
     if (!rec) return;
     await update({ ...rec, prio: !rec.prio });
   }, [update]);
 
-  const quickToggle = useCallback(async (id: number, veld: keyof Zoekopdracht) => {
+  const quickToggle = useCallback(async (id: string, veld: keyof Zoekopdracht) => {
     const rec = recordsRef.current.find((r) => r.id === id);
     if (!rec) return;
     await update({ ...rec, [veld]: !rec[veld] });

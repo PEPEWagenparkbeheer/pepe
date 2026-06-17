@@ -9,6 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { webhookSecretOk } from '@/lib/apiAuth';
 import { extractText, getDocumentProxy } from 'unpdf';
 import { parseFactuurTekst } from '@/lib/factuur-parser';
 import { rdwOpzoeken } from '@/lib/rdw';
@@ -36,7 +37,7 @@ interface PostmarkInbound {
 }
 
 export async function POST(req: NextRequest) {
-  if (req.nextUrl.searchParams.get('secret') !== process.env.FACTUREN_WEBHOOK_SECRET) {
+  if (!webhookSecretOk(req, process.env.FACTUREN_WEBHOOK_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

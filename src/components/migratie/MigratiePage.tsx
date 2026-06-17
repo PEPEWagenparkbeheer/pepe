@@ -22,7 +22,7 @@ function normDatum(v: unknown): string | null {
 
 function mapZoeken(r: Record<string, unknown>) {
   return {
-    id:                 r.id != null ? Number(r.id) : undefined,
+    id:                 r.id != null ? String(r.id) : nieuweId(),
     klant:              r.klant ?? '',
     auto:               r.auto ?? '',
     details:            r.details ?? '',

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { webhookSecretOk } from '@/lib/apiAuth';
 import { parseLeaseAanvraagMail } from '@/lib/tender-parser';
 
 export const runtime = 'nodejs';
@@ -11,8 +12,8 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  // Secret check via query param (zelfde patroon als leads-inbound)
-  if (req.nextUrl.searchParams.get('secret') !== process.env.TENDER_WEBHOOK_SECRET) {
+  // Secret via Authorization/x-webhook-secret header óf ?secret= (legacy).
+  if (!webhookSecretOk(req, process.env.TENDER_WEBHOOK_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

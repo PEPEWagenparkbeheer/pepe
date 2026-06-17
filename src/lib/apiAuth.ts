@@ -71,3 +71,17 @@ export async function requirePepe(req: Request): Promise<Gate> {
   if (!(await isPepeUser(gate.user))) return forbidden('Alleen voor PEPE-medewerkers');
   return gate;
 }
+
+/**
+ * Webhook-auth voor externe bronnen (Postmark e.d.). Accepteert het gedeelde secret
+ * via `Authorization: Bearer <secret>` of `x-webhook-secret` (aanbevolen) én via
+ * `?secret=` (legacy, blijft werken zodat bestaande webhooks niet breken).
+ */
+export function webhookSecretOk(req: Request, expected: string | undefined): boolean {
+  if (!expected) return false;
+  const url = new URL(req.url);
+  const query = url.searchParams.get('secret');
+  const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
+  const header = req.headers.get('x-webhook-secret');
+  return query === expected || bearer === expected || header === expected;
+}

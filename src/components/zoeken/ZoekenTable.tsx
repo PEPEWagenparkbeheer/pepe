@@ -12,9 +12,9 @@ interface Props {
   sortRichting: 'asc' | 'desc';
   onSort: (veld: SortVeld) => void;
   onEdit: (rec: Zoekopdracht) => void;
-  onQuickToggle: (id: number, veld: keyof Zoekopdracht) => void;
-  onTogglePrio: (id: number) => void;
-  onAkkoord: (id: number) => void;
+  onQuickToggle: (id: string, veld: keyof Zoekopdracht) => void;
+  onTogglePrio: (id: string) => void;
+  onAkkoord: (id: string) => void;
   onTerugzetten?: (rec: Zoekopdracht) => void;
 }
 

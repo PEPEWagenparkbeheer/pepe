@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { webhookSecretOk } from '@/lib/apiAuth';
 import { isLeaseAanvraag, parseLeaseAanvraagMail } from '@/lib/tender-parser';
 
 // Probeert een advertentielink te vinden uit HTML + tekst van de e-mail.
@@ -65,7 +66,7 @@ async function groqExtract(subject: string, body: string) {
 const GELDIGE_BRON = ['autoscout24', 'marktplaats', 'autowereld', 'email'];
 
 export async function POST(req: NextRequest) {
-  if (req.nextUrl.searchParams.get('secret') !== process.env.LEADS_WEBHOOK_SECRET)
+  if (!webhookSecretOk(req, process.env.LEADS_WEBHOOK_SECRET))
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();

@@ -23,10 +23,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Eerst auth, dan pas routing. Voorheen werd /inname (SIDEBAR_HIDDEN) vóór de
+  // login-check gerenderd; nu vereist elke route eerst een ingelogde gebruiker.
+  if (!user) return <LoginScreen />;
+
   const hideSidebar = SIDEBAR_HIDDEN.some(p => pathname === p || pathname.startsWith(p + '/'));
   if (hideSidebar) return <>{children}</>;
-
-  if (!user) return <LoginScreen />;
 
   // Partner-portaal: aparte view zonder sidebar
   if (user.user_metadata?.rol === 'partner') {

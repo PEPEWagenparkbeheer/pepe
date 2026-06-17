@@ -29,7 +29,7 @@ interface Props {
   open: boolean;
   onSluiten: () => void;
   onOpslaan: (rec: Zoekopdracht | Omit<Zoekopdracht, 'id'>) => Promise<void>;
-  onVerwijder: (id: number) => Promise<void>;
+  onVerwijder: (id: string) => Promise<void>;
 }
 
 export default function ZoekenModal({ record, open, onSluiten, onOpslaan, onVerwijder }: Props) {
