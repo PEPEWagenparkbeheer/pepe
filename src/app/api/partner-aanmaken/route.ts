@@ -16,14 +16,19 @@ export async function POST(req: NextRequest) {
   if (!voornaam) return NextResponse.json({ error: 'Ongeldige naam' }, { status: 400 });
 
   const email = opgegeven_email?.trim() || `${voornaam}@pepewagenparkbeheer.nl`;
-  const metadata = { naam: naam.trim(), rol: 'partner', wie: wie.trim().toUpperCase() };
+  // rol/wie in app_metadata: alleen door admin te zetten, NIET door de gebruiker
+  // zelf te wijzigen (auth.updateUser raakt enkel user_metadata). Dit is de
+  // identiteit waarop de RLS afschermt. naam blijft user_metadata (weergave).
+  const userMeta = { naam: naam.trim() };
+  const appMeta = { rol: 'partner', wie: wie.trim().toUpperCase() };
 
   // Probeer nieuw account aan te maken
   const { data: nieuw, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password: wachtwoord.trim(),
     email_confirm: true,
-    user_metadata: metadata,
+    user_metadata: userMeta,
+    app_metadata: appMeta,
   });
 
   if (!createError) {
@@ -45,7 +50,8 @@ export async function POST(req: NextRequest) {
 
   const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(bestaande.id, {
     password: wachtwoord.trim(),
-    user_metadata: metadata,
+    user_metadata: userMeta,
+    app_metadata: appMeta,
   });
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });

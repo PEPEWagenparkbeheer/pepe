@@ -30,9 +30,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const hideSidebar = SIDEBAR_HIDDEN.some(p => pathname === p || pathname.startsWith(p + '/'));
   if (hideSidebar) return <>{children}</>;
 
-  // Partner-portaal: aparte view zonder sidebar
-  if (user.user_metadata?.rol === 'partner') {
-    return <PartnerPage wie={String(user.user_metadata.wie ?? '')} />;
+  // Partner-portaal: aparte view zonder sidebar. rol/wie uit app_metadata
+  // (niet door de gebruiker zelf te wijzigen — zie partner-RLS).
+  if (user.app_metadata?.rol === 'partner') {
+    return <PartnerPage wie={String(user.app_metadata.wie ?? '')} />;
   }
 
   return (

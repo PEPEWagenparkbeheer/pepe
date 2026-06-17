@@ -49,7 +49,8 @@ export async function requireUser(req: Request): Promise<Gate> {
  * adres (bv. robin@, kurdo@). De `medewerkers`-tabel is de bron van waarheid.
  */
 export async function isPepeUser(user: User): Promise<boolean> {
-  if ((user.user_metadata as { rol?: string } | null)?.rol === 'partner') return false;
+  // rol staat in app_metadata (niet door de gebruiker zelf te wijzigen).
+  if ((user.app_metadata as { rol?: string } | null)?.rol === 'partner') return false;
 
   const email = (user.email ?? '').toLowerCase();
   if (!email) return false;
