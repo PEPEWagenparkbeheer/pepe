@@ -110,7 +110,7 @@ function PartnersBeheer() {
   }
 
   return (
-    <div className={styles.kaart}>
+    <div className={styles.kaart} style={{ gridColumn: '1 / -1' }}>
       <div className={styles.kaartHeader}>
         <span className={styles.kaartIcon}>🤝</span>
         <div style={{ flex: 1 }}>
@@ -160,12 +160,12 @@ function PartnersBeheer() {
                       flash();
                     }}
                   />
+                  <button
+                    className="btn"
+                    style={{ padding: '4px 12px', fontSize: 12, whiteSpace: 'nowrap' }}
+                    onClick={() => openLogin(p)}
+                  >Login</button>
                   <div className={styles.acties}>
-                    <button
-                      className="btn"
-                      style={{ padding: '4px 10px', fontSize: 12 }}
-                      onClick={() => openLogin(p)}
-                    >Login</button>
                     <button
                       className={styles.bewerkKnop}
                       onClick={() => { setBewerkenId(p.id); setBewerkenWaarde(p.naam); }}
@@ -559,17 +559,8 @@ function MijnWachtwoord() {
   }
 
   return (
-    <div className={styles.kaart}>
-      <div className={styles.kaartHeader}>
-        <span className={styles.kaartIcon}>🔑</span>
-        <div>
-          <div className={styles.kaartTitel}>Mijn wachtwoord</div>
-          <div className={styles.kaartSub}>Wijzig je eigen inlogwachtwoord</div>
-        </div>
-      </div>
-      <div className={styles.toevoegBlok}>
-        <button className="btn btn-a" onClick={() => setOpen(true)}>Wachtwoord wijzigen</button>
-      </div>
+    <>
+      <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => setOpen(true)}>🔑 Wachtwoord wijzigen</button>
 
       {open && (
         <Modal titel="Wachtwoord wijzigen" sub="Minimaal 6 tekens" onSluiten={sluit}>
@@ -604,7 +595,7 @@ function MijnWachtwoord() {
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }
 
@@ -613,13 +604,13 @@ export default function InstellingenPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.titel}>Instellingen</h1>
+        <MijnWachtwoord />
       </div>
 
       <div className={styles.grid}>
-        <MijnWachtwoord />
         <MedewerkersBeheer />
-        <PartnersBeheer />
         <TransConnectBeheer />
+        <PartnersBeheer />
       </div>
     </div>
   );
