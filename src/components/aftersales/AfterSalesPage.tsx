@@ -1754,6 +1754,7 @@ function zoekMatch(r: AfterSalesAuto, q: string): boolean {
 // ── Hoofdpagina ───────────────────────────────────────────────
 export default function AfterSalesPage() {
   const { autos, klachten, loading, gebruiker, addAuto, updateAuto, removeAuto, toggleAuto, toggleAutoMeta, addKlacht, updateKlacht, removeKlacht } = useAfterSales();
+  const { records: wdRecords } = useWerkDerden();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<HoofdTab>(
     (searchParams.get('tab') as HoofdTab) || 'lopend'
@@ -1865,6 +1866,7 @@ export default function AfterSalesPage() {
         onOpslaan={handleOpslaan}
         onVerwijder={removeAuto}
         onAfleveren={(r) => { setModalOpen(false); setAfleverAuto({ auto: r, bewerken: false }); }}
+        werkDerden={editRecord ? wdRecords.filter((w) => w.after_sales_id === editRecord.id) : []}
       />
 
       {/* Aflevering plannen popup */}

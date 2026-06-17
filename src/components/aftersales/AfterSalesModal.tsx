@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { AfterSalesAuto, ASAutoType } from '@/types';
+import type { AfterSalesAuto, ASAutoType, WerkDerdenRecord } from '@/types';
 import { MERKEN_LIJST } from '@/lib/constants';
 import { usePartnerLijst } from '@/hooks/usePartnerLijst';
 import { useMedewerkers } from '@/hooks/useMedewerkers';
@@ -11,6 +11,15 @@ import InnameDetailModal from './InnameDetailModal';
 import styles from './AfterSalesPage.module.css';
 
 const ACC_TAGS = ['Alarm', 'Alarm keuren', 'Voertuigvolg', 'Trekhaak', 'Matten'];
+
+const WD_STATUS: Record<string, { label: string; kleur: string }> = {
+  open: { label: 'Open – wacht op goedkeuring', kleur: '#d97706' },
+  goedgekeurd: { label: 'Goedgekeurd ✓', kleur: 'var(--green)' },
+  afgekeurd: { label: 'Afgekeurd', kleur: '#c53030' },
+  klaar_gemeld: { label: 'Klaar gemeld', kleur: '#2563eb' },
+  gefactureerd: { label: 'Gefactureerd', kleur: '#7c3aed' },
+  afgerond: { label: 'Afgerond', kleur: 'var(--green)' },
+};
 
 const PLATEN_OPTIES = ['— onbekend / NVT —', 'Besteld', 'Ontvangen', 'Gemonteerd'];
 
@@ -35,9 +44,11 @@ interface Props {
   onOpslaan: (rec: AfterSalesAuto | Omit<AfterSalesAuto, 'id' | 'created_at'>) => Promise<void>;
   onVerwijder: (id: string) => Promise<void>;
   onAfleveren?: (rec: AfterSalesAuto) => void;
+  /** Werk-derden offertes gekoppeld aan deze auto (via after_sales_id) */
+  werkDerden?: WerkDerdenRecord[];
 }
 
-export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, onVerwijder, onAfleveren }: Props) {
+export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, onVerwijder, onAfleveren, werkDerden = [] }: Props) {
   const { namen: wieLijst } = usePartnerLijst();
   const { namen: medewerkers } = useMedewerkers();
   const { latest: inname } = useInname(record?.id);
@@ -238,7 +249,7 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
           )}
 
           {/* ── PARTNER STATUS ── */}
-          {((form.partners_toegewezen ?? []).length > 0 || (form.partner_updates ?? []).length > 0 || form.partner_binnen || !!form.partner_datum) && (
+          {((form.partners_toegewezen ?? []).length > 0 || (form.partner_updates ?? []).length > 0 || form.partner_binnen || !!form.partner_datum || werkDerden.length > 0) && (
             <>
               <div className={styles.sectieHdr}>Partner status</div>
               <div className={`${styles.fg} ${styles.vol}`}>
@@ -290,6 +301,38 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
                   </div>
                 ) : (
                   <div style={{ fontSize: 12, color: 'var(--muted)' }}>Nog geen updates van de partner.</div>
+                )}
+
+                {/* Offertes partner — gekoppeld via after_sales_id */}
+                {werkDerden.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.5px', color: 'var(--muted)', textTransform: 'uppercase' }}>Offertes partner</div>
+                    {werkDerden.map((wd) => {
+                      const totaal = (wd.regels ?? []).reduce((s, r) => s + (Number(r.bedrag) || 0), 0) || (wd.inkoop_bedrag ?? 0);
+                      const st = WD_STATUS[wd.status] ?? { label: wd.status, kleur: 'var(--muted)' };
+                      return (
+                        <div key={wd.id} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: st.kleur, borderRadius: 6, padding: '2px 8px' }}>{st.label}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>€ {totaal.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{wd.partner}</div>
+                          {(wd.regels ?? []).map((r, i) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: 'var(--text)', padding: '2px 0' }}>
+                              <span>{r.omschrijving}</span>
+                              <span style={{ whiteSpace: 'nowrap' }}>€ {(Number(r.bedrag) || 0).toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          ))}
+                          {wd.voorwaarden && (
+                            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, fontStyle: 'italic' }}>Voorwaarden: {wd.voorwaarden}</div>
+                          )}
+                          {wd.bijlage_storage_path && (
+                            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>📎 Bijlage aanwezig (zie Werk Derden)</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </>
