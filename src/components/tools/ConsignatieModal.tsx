@@ -405,7 +405,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     const updates = await Promise.all(
       pending.map(async (r) => {
         try {
-          const res = await fetch(`/api/consignatie/docusign/status?envelopeId=${encodeURIComponent(r.docusignEnvelopeId!)}`);
+          const res = await fetch(`/api/consignatie/docusign/status?envelopeId=${encodeURIComponent(r.docusignEnvelopeId!)}`, { headers: await authHeaders() });
           const j = (await res.json()) as { ok?: boolean; status?: string };
           return res.ok && j.ok && j.status ? { id: r.id, status: j.status } : null;
         } catch {
@@ -434,7 +434,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     }
     setStatusCheckId(id);
     try {
-      const res = await fetch(`/api/consignatie/docusign/status?envelopeId=${encodeURIComponent(record.docusignEnvelopeId)}`);
+      const res = await fetch(`/api/consignatie/docusign/status?envelopeId=${encodeURIComponent(record.docusignEnvelopeId)}`, { headers: await authHeaders() });
       const j = (await res.json()) as { ok?: boolean; status?: string; error?: string };
       if (!res.ok || !j.ok || !j.status) throw new Error(j.error || 'Status ophalen mislukt');
       persistSavedInkoop(savedInkoop.map((r) => (r.id === id ? { ...r, docusignStatus: j.status } : r)));
@@ -986,7 +986,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     try {
       const [rdw, hs] = await Promise.all([
         rdwInkoopOphalen(inkoop.kenteken),
-        fetch(`/api/consignatie/hubspot?kenteken=${encodeURIComponent(inkoop.kenteken)}`)
+        fetch(`/api/consignatie/hubspot?kenteken=${encodeURIComponent(inkoop.kenteken)}`, { headers: await authHeaders() })
           .then((r) => r.json() as Promise<HubSpotNaw>)
           .catch((): HubSpotNaw => ({ gevonden: false })),
       ]);

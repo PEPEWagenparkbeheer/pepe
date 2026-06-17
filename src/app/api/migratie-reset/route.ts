@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { requirePepe } from '@/lib/apiAuth';
 
-// Dit endpoint wist alle productiedata. Alleen toegankelijk met RESET_SECRET env var.
-// Zet RESET_SECRET NIET in de Vercel productie-omgeving — dan is het endpoint dood.
+// Dit endpoint wist alle productiedata. Dubbel beveiligd: vereist een ingelogde
+// PEPE-medewerker ÉN de RESET_SECRET env var. Zet RESET_SECRET NIET in de Vercel
+// productie-omgeving — dan is het endpoint sowieso dood.
 export async function POST(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const secret = process.env.RESET_SECRET;
   if (!secret) return NextResponse.json({ error: 'Niet beschikbaar in productie' }, { status: 403 });
 

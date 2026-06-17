@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/clientAuth';
 
 type Status = { label: string; ok: number; fout: number; overgeslagen: number; foutTekst?: string };
 
@@ -182,7 +183,7 @@ export default function MigratiePage() {
     }
 
     // ── Wis bestaande data ──────────────────────────────────────
-    const resetRes = await fetch('/api/migratie-reset', { method: 'POST' });
+    const resetRes = await fetch('/api/migratie-reset', { method: 'POST', headers: await authHeaders() });
     if (!resetRes.ok) {
       setStatussen([{ label: 'Kon bestaande data niet wissen — probeer opnieuw', ok: 0, fout: 1, overgeslagen: 0 }]);
       setBezig(false);

@@ -432,7 +432,7 @@ export default function WerkDerdenOverzicht() {
     if (!rec.kenteken) return;
     setBezig(rec.id);
     try {
-      const res = await fetch(`/api/werk-derden/lookup?kenteken=${encodeURIComponent(rec.kenteken)}`);
+      const res = await fetch(`/api/werk-derden/lookup?kenteken=${encodeURIComponent(rec.kenteken)}`, { headers: await authHeaders() });
       const data = await res.json() as { klant: string | null; hubspot_deal_id: string | null; merk: string | null; model: string | null };
       const patch: Record<string, string | null> = {};
       if (data.merk) patch.merk = data.merk;

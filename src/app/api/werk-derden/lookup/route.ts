@@ -4,10 +4,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchDealByKenteken, getInkoopNawByKenteken } from '@/lib/hubspot';
 import { rdwOpzoeken } from '@/lib/rdw';
+import { requireUser } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
+  const gate = await requireUser(req);
+  if (!gate.ok) return gate.response;
+
   const kenteken = req.nextUrl.searchParams.get('kenteken')?.toUpperCase().replace(/[^A-Z0-9]/g, '') ?? '';
   if (!kenteken) {
     return NextResponse.json({ error: 'kenteken vereist' }, { status: 400 });

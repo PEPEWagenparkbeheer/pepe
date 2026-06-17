@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { authHeaders } from '@/lib/clientAuth';
 import type { Zoekopdracht } from '@/types';
 import styles from './WhatsAppModal.module.css';
 
@@ -25,7 +26,7 @@ export default function WhatsAppModal({ open, onParse, onSluiten }: Props) {
     try {
       const res = await fetch('/api/whatsapp-parse', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ tekst }),
       });
 

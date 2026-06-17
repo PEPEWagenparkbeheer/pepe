@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseLeaseAanvraagMail } from '@/lib/tender-parser';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const body = await req.json().catch(() => ({}));
   const emailText: string = body.email ?? '';
 

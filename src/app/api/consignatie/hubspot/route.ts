@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInkoopNawByKenteken } from '@/lib/hubspot';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -7,6 +8,9 @@ export const dynamic = 'force-dynamic';
 // GET /api/consignatie/hubspot?kenteken=AB123C
 // Zoekt de auto in HubSpot en geeft NAW-gegevens van de verkoper terug.
 export async function GET(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const kenteken = req.nextUrl.searchParams.get('kenteken')?.trim();
   if (!kenteken) {
     return NextResponse.json({ gevonden: false, error: 'Kenteken ontbreekt.' }, { status: 400 });

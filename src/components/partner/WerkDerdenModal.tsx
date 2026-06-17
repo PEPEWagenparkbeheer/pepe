@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WerkRegel, WerkDerdenRecord, AfterSalesAuto, WerkDerdenBestemming } from '@/types';
 import { usePartnerLijst } from '@/hooks/usePartnerLijst';
+import { authHeaders } from '@/lib/clientAuth';
 import KentekenPlaat from '@/components/aftersales/KentekenPlaat';
 import styles from './WerkDerdenModal.module.css';
 
@@ -55,7 +56,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
     if (kt.length < 5) return;
     setOpzoeken(true);
     try {
-      const res = await fetch(`/api/werk-derden/lookup?kenteken=${encodeURIComponent(kt)}`);
+      const res = await fetch(`/api/werk-derden/lookup?kenteken=${encodeURIComponent(kt)}`, { headers: await authHeaders() });
       if (res.ok) {
         const json = await res.json() as { klant?: string; merk?: string; model?: string };
         if (json.klant) setKlant(json.klant);
@@ -121,7 +122,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
         const fd = new FormData();
         fd.append('file', bijlageFile);
         fd.append('kenteken', ktFmt || meldcode.trim());
-        const uploadRes = await fetch('/api/werk-derden/bijlage', { method: 'POST', body: fd });
+        const uploadRes = await fetch('/api/werk-derden/bijlage', { method: 'POST', headers: await authHeaders(), body: fd });
         if (uploadRes.ok) {
           const { path } = await uploadRes.json() as { path: string };
           bijlageStoragePath = path;

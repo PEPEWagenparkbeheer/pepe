@@ -1,5 +1,6 @@
 import Groq from 'groq-sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { requirePepe } from '@/lib/apiAuth';
 
 const MERKEN = [
   'Alfa Romeo', 'Audi', 'BMW', 'Bentley', 'BYD', 'Citroën', 'Cupra', 'Dacia', 'DS', 'Ferrari',
@@ -26,6 +27,9 @@ const OPTIES_LABELS: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   try {
     const body = await req.json();
     const tekst = body?.tekst;

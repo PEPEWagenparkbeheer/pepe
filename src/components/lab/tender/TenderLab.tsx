@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/clientAuth';
 import type { TenderInput, Tender } from '@/lib/types/tender';
 import TenderConfirmModal from './TenderConfirmModal';
 import styles from './TenderLab.module.css';
@@ -70,7 +71,7 @@ export default function TenderLab() {
     try {
       const res = await fetch('/api/parse-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ email: tekst }),
       });
       const data = await res.json();

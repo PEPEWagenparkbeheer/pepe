@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Factuur } from '@/types';
 import { rdwOpzoeken } from '@/lib/rdw';
+import { authHeaders } from '@/lib/clientAuth';
 import styles from './FacturenModal.module.css';
 
 interface Props {
@@ -148,7 +149,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     laatsteKvkNummer.current = norm;
     setKvkBezig(true);
     try {
-      const res = await fetch(`/api/kvk/lookup?kvk=${norm}`);
+      const res = await fetch(`/api/kvk/lookup?kvk=${norm}`, { headers: await authHeaders() });
       if (!res.ok) {
         if (!stil) alert('Geen KVK-gegevens gevonden voor dit nummer');
         return;

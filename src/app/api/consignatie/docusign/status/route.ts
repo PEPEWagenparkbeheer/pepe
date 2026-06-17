@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEnvelopeStatus } from '@/lib/consignatie-docusign';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -7,6 +8,9 @@ export const dynamic = 'force-dynamic';
 // GET /api/consignatie/docusign/status?envelopeId=...
 // Geeft de actuele status van een envelope terug (sent | delivered | completed | …).
 export async function GET(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const envelopeId = req.nextUrl.searchParams.get('envelopeId')?.trim();
   if (!envelopeId) {
     return NextResponse.json({ error: 'envelopeId ontbreekt.' }, { status: 400 });
