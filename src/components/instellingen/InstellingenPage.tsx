@@ -266,11 +266,9 @@ function MedewerkersBeheer() {
     if (!res.ok) {
       setMelding({ type: 'fout', tekst: data.error ?? 'Onbekende fout' });
     } else {
-      const tekst = data.rateLimited
-        ? `${data.email} toegevoegd aan lijst — uitnodigingsmail niet verstuurd (mail-limiet bereikt), login later regelen`
-        : data.bestaatAl
-          ? `${data.email} bestond al in Supabase — toegevoegd aan medewerkerslijst`
-          : `Uitnodiging verstuurd naar ${data.email}`;
+      const tekst = data.bestaatAl
+        ? `${data.email} bestond al — wachtwoord gereset naar ${data.wachtwoord}`
+        : `${data.email} aangemaakt — wachtwoord: ${data.wachtwoord} (zelf te wijzigen via Instellingen)`;
       setMelding({ type: 'ok', tekst });
       setNieuwNaam('');
       await laadMedewerkers();
@@ -520,6 +518,77 @@ function PartnersBeheer() {
 }
 
 // ── Pagina ────────────────────────────────────────────────────────────────────
+// ── Mijn wachtwoord (self-service) ────────────────────────────────────────────
+function MijnWachtwoord() {
+  const [nieuw, setNieuw] = useState('');
+  const [herhaal, setHerhaal] = useState('');
+  const [bezig, setBezig] = useState(false);
+  const [melding, setMelding] = useState<{ type: 'ok' | 'fout'; tekst: string } | null>(null);
+
+  async function opslaan() {
+    if (nieuw.length < 6) {
+      setMelding({ type: 'fout', tekst: 'Minimaal 6 tekens' });
+      return;
+    }
+    if (nieuw !== herhaal) {
+      setMelding({ type: 'fout', tekst: 'Wachtwoorden komen niet overeen' });
+      return;
+    }
+    setBezig(true);
+    setMelding(null);
+    const { error } = await supabase.auth.updateUser({ password: nieuw });
+    setBezig(false);
+    if (error) {
+      setMelding({ type: 'fout', tekst: error.message });
+    } else {
+      setMelding({ type: 'ok', tekst: 'Wachtwoord gewijzigd ✓' });
+      setNieuw('');
+      setHerhaal('');
+    }
+    setTimeout(() => setMelding(null), 5000);
+  }
+
+  return (
+    <div className={styles.kaart}>
+      <div className={styles.kaartHeader}>
+        <span className={styles.kaartIcon}>🔑</span>
+        <div>
+          <div className={styles.kaartTitel}>Mijn wachtwoord</div>
+          <div className={styles.kaartSub}>Wijzig je eigen inlogwachtwoord</div>
+        </div>
+      </div>
+      <div className={styles.toevoegBlok}>
+        <input
+          className={styles.toevoegInput}
+          type="password"
+          placeholder="Nieuw wachtwoord..."
+          value={nieuw}
+          onChange={e => setNieuw(e.target.value)}
+          style={{ marginBottom: 8 }}
+        />
+        <div className={styles.toevoegRij}>
+          <input
+            className={styles.toevoegInput}
+            type="password"
+            placeholder="Herhaal wachtwoord..."
+            value={herhaal}
+            onChange={e => setHerhaal(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') opslaan(); }}
+          />
+          <button className={styles.toevoegKnop} onClick={opslaan} disabled={bezig || !nieuw || !herhaal}>
+            {bezig ? 'Bezig...' : 'Opslaan'}
+          </button>
+        </div>
+        {melding && (
+          <div className={`${styles.melding} ${melding.type === 'fout' ? styles.meldingFout : styles.meldingOk}`}>
+            {melding.tekst}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function InstellingenPage() {
   return (
     <div className={styles.page}>
@@ -528,6 +597,7 @@ export default function InstellingenPage() {
       </div>
 
       <div className={styles.grid}>
+        <MijnWachtwoord />
         <MedewerkersBeheer />
         <PartnersBeheer />
         <TransConnectBeheer />

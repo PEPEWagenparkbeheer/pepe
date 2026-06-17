@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+// Standaardwachtwoord voor nieuwe medewerkers. Zij kunnen dit zelf wijzigen
+// via Instellingen → "Mijn wachtwoord".
+const STANDAARD_WACHTWOORD = 'PEPE2026';
+
 export async function POST(req: NextRequest) {
   // Verifieer dat de aanroeper ingelogd is via Supabase JWT
   const authHeader = req.headers.get('authorization') ?? '';
@@ -28,25 +32,42 @@ export async function POST(req: NextRequest) {
   if (!voornaam) return NextResponse.json({ error: 'Ongeldige naam' }, { status: 400 });
 
   const email = `${voornaam}@pepewagenparkbeheer.nl`;
+  const metadata = { naam: naam.trim() };
 
-  const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    data: { naam: naam.trim() },
+  // Maak account aan met standaardwachtwoord, direct inlogbaar (geen e-mailbevestiging nodig)
+  const { error: createError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password: STANDAARD_WACHTWOORD,
+    email_confirm: true,
+    user_metadata: metadata,
   });
 
-  const bestaatAl = !!inviteError && inviteError.message.toLowerCase().includes('already');
-  const rateLimited = !!inviteError && /rate limit/i.test(inviteError.message);
+  let bestaatAl = false;
+  if (createError) {
+    bestaatAl = createError.message.toLowerCase().includes('already') ||
+                createError.message.toLowerCase().includes('exists') ||
+                createError.message.toLowerCase().includes('registered');
+    if (!bestaatAl) {
+      return NextResponse.json({ error: createError.message }, { status: 500 });
+    }
 
-  // Alleen echte fouten (niet "bestaat al" of mail-limiet) blokkeren het toevoegen
-  if (inviteError && !bestaatAl && !rateLimited) {
-    return NextResponse.json({ error: inviteError.message }, { status: 500 });
+    // Bestaat al — wachtwoord resetten naar standaard (handig als iemand het kwijt is)
+    const { data: lijst } = await supabaseAdmin.auth.admin.listUsers();
+    const bestaande = lijst?.users.find((u) => u.email === email);
+    if (bestaande) {
+      await supabaseAdmin.auth.admin.updateUserById(bestaande.id, {
+        password: STANDAARD_WACHTWOORD,
+        user_metadata: metadata,
+      });
+    }
   }
 
-  // Medewerker wordt altijd aan de lijst toegevoegd, ook als de uitnodigingsmail niet verstuurd kon worden
+  // Medewerker in de lijst zetten/bijwerken
   const { error: dbError } = await supabaseAdmin
     .from('medewerkers')
     .upsert({ naam: naam.trim(), email, actief: true }, { onConflict: 'email' });
 
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, email, bestaatAl, rateLimited });
+  return NextResponse.json({ ok: true, email, bestaatAl, wachtwoord: STANDAARD_WACHTWOORD });
 }
