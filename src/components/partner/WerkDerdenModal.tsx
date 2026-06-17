@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WerkRegel, WerkDerdenRecord, AfterSalesAuto, WerkDerdenBestemming } from '@/types';
+import { usePartnerLijst } from '@/hooks/usePartnerLijst';
 import styles from './WerkDerdenModal.module.css';
 
 interface Props {
@@ -39,6 +40,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
   const [bestemming, setBestemming] = useState<WerkDerdenBestemming>(
     (record?.bestemming as WerkDerdenBestemming) ?? 'doorbelasten'
   );
+  const { namen: partnerNamen } = usePartnerLijst();
 
   function kentekenFmt(raw: string) {
     return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -101,7 +103,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
     }
     const geldig = regels.filter(r => r.omschrijving.trim() && Number(r.bedrag) > 0);
     if (geldig.length === 0) {
-      setFout('Voeg minimaal Ã©Ã©n kostenregel toe.');
+      setFout('Voeg minimaal één kostenregel toe.');
       return;
     }
 
@@ -122,7 +124,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
       }
 
       if (isBewerken && record && updateRecord) {
-        // Bewerken van bestaande melding (incl. afgekeurd â†’ nieuw voorstel = terug naar open)
+        // Bewerken van bestaande melding (incl. afgekeurd → nieuw voorstel = terug naar open)
         const result = await updateRecord(record.id, {
           kenteken: ktFmt || undefined,
           meldcode: meldcode.trim() || undefined,
@@ -200,21 +202,28 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
             <h2 className={styles.titel}>{isNieuwVoorstel ? 'Nieuw voorstel' : isBewerken ? 'Melding bewerken' : 'Kosten melden'}</h2>
             <span className={styles.sub}>{isNieuwVoorstel ? 'Afgekeurde melding aanpassen en opnieuw indienen' : 'Werk derden doorbelasten'}</span>
           </div>
-          <button className={styles.sluitenKnop} onClick={onSluiten}>âœ•</button>
+          <button className={styles.sluitenKnop} onClick={onSluiten}>✕</button>
         </div>
 
         <div className={styles.modalBody}>
 
-          {/* Partner naam â€” alleen tonen voor PEPE-interne invoer, niet voor partners zelf */}
+          {/* Partner naam — alleen tonen voor PEPE-interne invoer, niet voor partners zelf */}
           {!wie && (
             <section className={styles.sectie}>
               <label className={styles.sectieLabel}>Partner naam</label>
-              <input
+              <select
                 className={styles.invoer}
-                placeholder="Naam van het bedrijf / partnerâ€¦"
                 value={partnerNaam}
                 onChange={e => setPartnerNaam(e.target.value)}
-              />
+              >
+                <option value="">— Kies partner —</option>
+                {partnerNamen.map(naam => (
+                  <option key={naam} value={naam}>{naam}</option>
+                ))}
+                {partnerNaam && !partnerNamen.includes(partnerNaam) && (
+                  <option value={partnerNaam}>{partnerNaam}</option>
+                )}
+              </select>
             </section>
           )}
 
@@ -271,24 +280,29 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
             </section>
           )}
 
-          {/* Kenteken + meldcode */}
+          {/* Kenteken + meldcode naast elkaar */}
           <section className={styles.sectie}>
-            <label className={styles.sectieLabel}>Kenteken of meldcode <span className={styles.vereistLabel}>(minimaal Ã©Ã©n)</span></label>
-            <input
-              className={styles.kentekenInput}
-              placeholder="AB-123-C"
-              value={kenteken}
-              onChange={e => setKenteken(e.target.value.toUpperCase())}
-              onBlur={() => zoekKlant(ktFmt)}
-            />
-            {opzoeken && <span className={styles.zoekLabel}>Zoekenâ€¦</span>}
-            <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', margin: '8px 0' }}>of</p>
-            <input
-              className={styles.invoer}
-              placeholder="Meldcode"
-              value={meldcode}
-              onChange={e => setMeldcode(e.target.value)}
-            />
+            <label className={styles.sectieLabel}>Kenteken of meldcode <span className={styles.vereistLabel}>(minimaal één)</span></label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <input
+                  className={styles.kentekenInput}
+                  style={{ width: '100%' }}
+                  placeholder="AB-123-C"
+                  value={kenteken}
+                  onChange={e => setKenteken(e.target.value.toUpperCase())}
+                  onBlur={() => zoekKlant(ktFmt)}
+                />
+                {opzoeken && <span className={styles.zoekLabel}>Zoeken…</span>}
+              </div>
+              <input
+                className={styles.invoer}
+                style={{ flex: 1 }}
+                placeholder="Meldcode"
+                value={meldcode}
+                onChange={e => setMeldcode(e.target.value)}
+              />
+            </div>
           </section>
 
           {/* Klant + voertuig */}
@@ -296,7 +310,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
             <label className={styles.sectieLabel}>Klant</label>
             <input
               className={styles.invoer}
-              placeholder="Naam klant / berijderâ€¦"
+              placeholder="Naam klant / berijder…"
               value={klant}
               onChange={e => setKlant(e.target.value)}
             />
@@ -326,12 +340,12 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
                 <div key={i} className={styles.regelRij}>
                   <input
                     className={styles.regelOmschrijving}
-                    placeholder="Omschrijvingâ€¦"
+                    placeholder="Omschrijving…"
                     value={r.omschrijving}
                     onChange={e => regelWijzig(i, 'omschrijving', e.target.value)}
                   />
                   <div className={styles.regelBedragWrapper}>
-                    <span className={styles.euroTeken}>â‚¬</span>
+                    <span className={styles.euroTeken}>€</span>
                     <input
                       className={styles.regelBedrag}
                       type="number"
@@ -343,7 +357,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
                     />
                   </div>
                   {regels.length > 1 && (
-                    <button className={styles.regelVerwijder} onClick={() => regelVerwijder(i)} title="Verwijder">âœ•</button>
+                    <button className={styles.regelVerwijder} onClick={() => regelVerwijder(i)} title="Verwijder">✕</button>
                   )}
                 </div>
               ))}
@@ -377,7 +391,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
                 {bijlagePreview ? (
                   <img src={bijlagePreview} alt="Bijlage preview" className={styles.bijlagePreview} />
                 ) : (
-                  <span className={styles.bijlageNaam}>ðŸ“Ž {bijlageFile.name}</span>
+                  <span className={styles.bijlageNaam}>📎 {bijlageFile.name}</span>
                 )}
                 <button
                   className={styles.bijlageVerwijder}
@@ -388,7 +402,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
               </div>
             ) : (
               <button className={styles.bijlageKiezen} onClick={() => fileRef.current?.click()}>
-                ðŸ“Ž PDF of foto kiezen
+                📎 PDF of foto kiezen
               </button>
             )}
           </section>
@@ -398,7 +412,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
             <label className={styles.sectieLabel}>Toelichting (optioneel)</label>
             <textarea
               className={styles.textarea}
-              placeholder="Extra info voor PEPEâ€¦"
+              placeholder="Extra info voor PEPE…"
               rows={3}
               value={notitie}
               onChange={e => setNotitie(e.target.value)}
@@ -415,7 +429,7 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
             onClick={indienen}
             disabled={bezig || !partnerNaam.trim() || (!kenteken.trim() && !meldcode.trim())}
           >
-            {bezig ? 'Verzendenâ€¦' : isNieuwVoorstel ? 'Nieuw voorstel sturen' : isBewerken ? 'Opslaan' : 'Indienen'}
+            {bezig ? 'Verzenden…' : isNieuwVoorstel ? 'Nieuw voorstel sturen' : isBewerken ? 'Opslaan' : 'Indienen'}
           </button>
         </div>
       </div>
