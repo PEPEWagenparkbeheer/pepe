@@ -9,10 +9,9 @@ import { genereerConcept } from '@/lib/brein/concept';
 import { PEPE_PROCEDURES } from '@/lib/brein/kennis';
 import { buildBreinContext } from '@/lib/brein/context';
 import { readAzureConfig, getAccessToken, getSentMessages } from '@/lib/graph';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
-
-const BREIN_SYNC_SECRET = process.env.BREIN_SYNC_SECRET ?? '';
 
 /** Zeer eenvoudige HTML→tekst, genoeg voor een mailtekst als prompt-input. */
 function htmlNaarTekst(html: string): string {
@@ -30,10 +29,8 @@ function htmlNaarTekst(html: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get('secret');
-  if (!BREIN_SYNC_SECRET || secret !== BREIN_SYNC_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
 
   let id: string | undefined;
   try {

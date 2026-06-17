@@ -9,11 +9,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createTwinfieldInvoice } from '@/lib/twinfield';
+import { requirePepe } from '@/lib/apiAuth';
 import type { WerkDerdenRecord, WerkRegel } from '@/types';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

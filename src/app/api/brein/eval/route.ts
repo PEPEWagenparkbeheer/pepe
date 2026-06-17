@@ -7,14 +7,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { genereerConcept } from '@/lib/brein/concept';
 import { PEPE_PROCEDURES } from '@/lib/brein/kennis';
 import { buildBreinContext } from '@/lib/brein/context';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
-const BREIN_SYNC_SECRET = process.env.BREIN_SYNC_SECRET ?? '';
 
 export async function POST(req: NextRequest) {
-  if (req.nextUrl.searchParams.get('secret') !== BREIN_SYNC_SECRET || !BREIN_SYNC_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
 
   const s = (await req.json()) as {
     onderwerp?: string; body?: string; categorie?: string;

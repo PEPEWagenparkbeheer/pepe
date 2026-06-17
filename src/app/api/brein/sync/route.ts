@@ -4,16 +4,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runBreinSync } from '@/lib/brein/sync';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 
-const BREIN_SYNC_SECRET = process.env.BREIN_SYNC_SECRET ?? '';
-
 export async function POST(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get('secret');
-  if (!BREIN_SYNC_SECRET || secret !== BREIN_SYNC_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
 
   try {
     const results = await runBreinSync();

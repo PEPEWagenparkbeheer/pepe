@@ -17,6 +17,7 @@ import {
   associateDealCompany, associateDealContact, associateContactCompany,
 } from '@/lib/hubspot';
 import { kvkOpzoeken } from '@/lib/kvk';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -37,9 +38,12 @@ function mapBrandstof(rdwLabel?: string | null): string | undefined {
 }
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const { id } = await ctx.params;
 
   const admin = createClient(

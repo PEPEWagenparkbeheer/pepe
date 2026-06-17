@@ -1,26 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { registerWebhook } from '@/lib/transconnect';
+import { requirePepe } from '@/lib/apiAuth';
 
 // POST /api/transconnect/register-webhook
-// Eenmalig uitvoeren om de TC webhook te activeren.
-// Vereist een ingelogde gebruiker (Authorization header).
+// Eenmalig uitvoeren om de TC webhook te activeren. Alleen PEPE-medewerkers.
+// Als TRANSCONNECT_WEBHOOK_SECRET is gezet, wordt die in de callback-URL gebakken
+// zodat de webhook-route de inkomende calls kan verifiëren.
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get('authorization') ?? '';
-  const token = authHeader.replace('Bearer ', '');
-  if (!token) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 });
-
-  const caller = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } },
-  );
-  const { data: { user } } = await caller.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 });
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
 
   const host = req.headers.get('host') ?? '';
   const protocol = host.includes('localhost') ? 'http' : 'https';
-  const callbackUrl = `${protocol}://${host}/api/transconnect/webhook`;
+  const secret = process.env.TRANSCONNECT_WEBHOOK_SECRET ?? '';
+  const callbackUrl =
+    `${protocol}://${host}/api/transconnect/webhook` +
+    (secret ? `?secret=${encodeURIComponent(secret)}` : '');
 
   try {
     await registerWebhook(callbackUrl);

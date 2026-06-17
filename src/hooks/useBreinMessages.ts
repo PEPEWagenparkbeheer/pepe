@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/clientAuth';
 
 // Matches brein_messages.status column values in the DB migration
 export type BreinStatus = 'nieuw' | 'opgepakt' | 'in_behandeling' | 'afgehandeld' | 'overgeslagen' | 'verzonden';
@@ -122,8 +123,7 @@ export function useBreinMessages() {
 
   /** Haalt nieuwe mail uit Outlook (Graph â†’ DB) en herlaadt daarna de lijst. */
   const sync = useCallback(async () => {
-    const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
-    const res = await fetch(`/api/brein/sync?secret=${secret}`, { method: 'POST' });
+    const res = await fetch('/api/brein/sync', { method: 'POST', headers: await authHeaders() });
     if (!res.ok) throw new Error(`sync ${res.status}`);
     const data = (await res.json()) as { synced: number; skipped: number };
     await refresh();
@@ -132,8 +132,7 @@ export function useBreinMessages() {
 
   /** Stuur onverwerkte berichten naar de classifier (server-side). */
   const classify = useCallback(async () => {
-    const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
-    const res = await fetch(`/api/brein/classify?secret=${secret}`, { method: 'POST' });
+    const res = await fetch('/api/brein/classify', { method: 'POST', headers: await authHeaders() });
     if (!res.ok) throw new Error(`classify ${res.status}`);
     const data = (await res.json()) as { classified: number; errors: number; total_onverwerkt: number };
     if (data.classified > 0) await refresh();
@@ -142,10 +141,9 @@ export function useBreinMessages() {
 
   /** Laat Claude een concept-antwoord genereren (server-side) en zet het in state. */
   const genereerConcept = useCallback(async (id: string) => {
-    const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
-    const res = await fetch(`/api/brein/concept?secret=${secret}`, {
+    const res = await fetch('/api/brein/concept', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ id }),
     });
     if (!res.ok) {
@@ -169,11 +167,10 @@ export function useBreinMessages() {
 
   /** Verstuurt het concept als reply namens fues@ (server-side) en markeert verzonden. */
   const verstuur = useCallback(async (id: string) => {
-    const secret = process.env.NEXT_PUBLIC_BREIN_SYNC_SECRET ?? 'brein-sync-dev-2026';
     const door = gebruikerRef.current || '?';
-    const res = await fetch(`/api/brein/send?secret=${secret}`, {
+    const res = await fetch('/api/brein/send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ id, door }),
     });
     if (!res.ok) {

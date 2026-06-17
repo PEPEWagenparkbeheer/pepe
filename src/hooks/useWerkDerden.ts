@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/clientAuth';
 import type { WerkDerdenRecord, WerkDerdenStatus, WerkRegel } from '@/types';
 
 const CACHE_KEY = 'pepe_wd_v1';
@@ -17,11 +18,13 @@ function deserialize(r: Record<string, unknown>): WerkDerdenRecord {
 
 /** Fire-and-forget notificatie-mail bij status-overgang; faalt stil. */
 function notify(id: string, event: 'ingediend' | 'goedgekeurd' | 'afgekeurd') {
-  void fetch('/api/werk-derden/notify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, event }),
-  }).catch(() => {});
+  void (async () => {
+    await fetch('/api/werk-derden/notify', {
+      method: 'POST',
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ id, event }),
+    });
+  })().catch(() => {});
 }
 
 function cacheLoad(): WerkDerdenRecord[] {
@@ -180,7 +183,7 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     async (id: string, verkoop_bedrag: number): Promise<{ ok: boolean; error?: string }> => {
       const res = await fetch('/api/werk-derden/factureren', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ id, verkoop_bedrag }),
       });
       const json = await res.json() as { ok?: boolean; error?: string };

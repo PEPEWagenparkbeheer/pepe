@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // LET OP: bewust uit ./workflows (SDK-vrij) — @skyvern/client trekt playwright
 // mee en dat crasht in een Vercel serverless functie.
 import { getSkyvernRunResult } from '@/lib/agents/skyvern/workflows';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -19,6 +20,9 @@ const supabaseAdmin = createClient(
  * de runs zelf duren 10-40 min, langer dan een serverless functie mag draaien.
  */
 export async function GET(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const tenderId = req.nextUrl.searchParams.get('tender_id');
   if (!tenderId) {
     return NextResponse.json({ error: 'tender_id required' }, { status: 400 });

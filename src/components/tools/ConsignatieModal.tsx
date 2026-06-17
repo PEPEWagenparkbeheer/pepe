@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
+import { authHeaders } from '@/lib/clientAuth';
 import styles from './ConsignatieModal.module.css';
 
 interface Props {
@@ -1060,7 +1061,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     const pdfBase64 = await createInkoopPdfBase64({ ...data, nummer });
     const res = await fetch('/api/consignatie/docusign', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         pdfBase64,
         auto: naam,

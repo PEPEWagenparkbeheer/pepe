@@ -1,12 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const { id } = await ctx.params;
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

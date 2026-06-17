@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { verstuurMail } from '@/lib/mail/send';
 import { getPartnerMail } from '@/lib/werk-derden/partner-mail';
+import { requireUser } from '@/lib/apiAuth';
 import type { WerkDerdenRecord } from '@/types';
 
 type NotifyEvent = 'ingediend' | 'goedgekeurd' | 'afgekeurd';
@@ -24,6 +25,9 @@ function autoLabel(rec: WerkDerdenRecord): string {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await requireUser(req);
+  if (!gate.ok) return gate.response;
+
   let body: { id?: string; event?: string };
   try {
     body = await req.json() as { id?: string; event?: string };

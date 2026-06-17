@@ -7,10 +7,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { readAzureConfig, getAccessToken } from '@/lib/graph';
 import { OFFICIELE_HANDTEKENING } from '@/lib/brein/handtekening';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 
-const BREIN_SYNC_SECRET = process.env.BREIN_SYNC_SECRET ?? '';
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 
 /** Platte concepttekst → veilige HTML (escape + regelafbrekingen). */
@@ -23,10 +23,8 @@ function conceptNaarHtml(tekst: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get('secret');
-  if (!BREIN_SYNC_SECRET || secret !== BREIN_SYNC_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
 
   let id: string | undefined;
   let door = '?';

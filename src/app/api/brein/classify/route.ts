@@ -7,17 +7,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { classifyBericht } from '@/lib/brein/classifier';
 import { searchContactByEmail, searchDealByKenteken } from '@/lib/hubspot';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 
-const BREIN_SYNC_SECRET = process.env.BREIN_SYNC_SECRET ?? '';
 const MAX_PER_RUN = 20; // Haiku is snel, maar limieten voorkomen timeouts
 
 export async function POST(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get('secret');
-  if (!BREIN_SYNC_SECRET || secret !== BREIN_SYNC_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
 
   // Haal onverwerkte berichten op (categorie IS NULL)
   const { data: berichten, error: fetchError } = await supabaseAdmin

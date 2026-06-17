@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import type { Tender, TenderResult, LeasePortaal } from '@/lib/types/tender';
 import { PORTALEN } from '@/lib/types/tender';
+import { authHeaders } from '@/lib/clientAuth';
 import styles from './TenderResultaat.module.css';
 
 export default function TenderResultaat({ tenderId }: { tenderId: string }) {
@@ -47,7 +48,9 @@ export default function TenderResultaat({ tenderId }: { tenderId: string }) {
   useEffect(() => {
     if (tenderStatus !== 'running') return;
     const poll = () => {
-      fetch(`/api/tender/poll?tender_id=${tenderId}`).catch(() => {});
+      void (async () => {
+        await fetch(`/api/tender/poll?tender_id=${tenderId}`, { headers: await authHeaders() });
+      })().catch(() => {});
     };
     poll();
     const id = setInterval(poll, 30_000);

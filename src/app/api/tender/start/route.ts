@@ -4,6 +4,7 @@ import type { TenderInput, LeasePortaal } from '@/lib/types/tender';
 // LET OP: bewust uit ./workflows (SDK-vrij) — @skyvern/client trekt playwright
 // mee en dat crasht in een Vercel serverless functie.
 import { getSkyvernWorkflowId, startSkyvernWorkflowRun } from '@/lib/agents/skyvern/workflows';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 // Alleen het stárten van de runs gebeurt hier (fire-and-forget); de runs zelf
@@ -24,6 +25,9 @@ interface Body {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const body = (await req.json().catch(() => ({}))) as Body;
   const portalen: LeasePortaal[] = body.portalen ?? ['hiltermann'];
 

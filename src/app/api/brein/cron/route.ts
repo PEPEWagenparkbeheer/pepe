@@ -10,14 +10,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const CRON_SECRET = process.env.CRON_SECRET ?? '';
-const BREIN_SYNC_SECRET = process.env.BREIN_SYNC_SECRET ?? '';
 
 function geautoriseerd(req: NextRequest): boolean {
   const auth = req.headers.get('authorization');
-  if (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`) return true;
-  const secret = req.nextUrl.searchParams.get('secret');
-  if (BREIN_SYNC_SECRET && secret === BREIN_SYNC_SECRET) return true;
-  return false;
+  return !!CRON_SECRET && auth === `Bearer ${CRON_SECRET}`;
 }
 
 export async function GET(req: NextRequest) {

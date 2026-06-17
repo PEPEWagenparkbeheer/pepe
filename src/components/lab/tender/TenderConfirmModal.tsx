@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TenderInput, LeasenormConfig, OptieItem, LeasePortaal } from '@/lib/types/tender';
 import { PORTALEN } from '@/lib/types/tender';
+import { authHeaders } from '@/lib/clientAuth';
 import styles from './TenderConfirmModal.module.css';
 
 // Portalen met een werkende agent. Rest is nog niet geïmplementeerd (uitgegrijsd).
@@ -52,7 +53,7 @@ export default function TenderConfirmModal({ input, rawEmail, onSluiten, onReset
     try {
       const res = await fetch('/api/tender/start', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           tender: form,
           raw_email: rawEmail,

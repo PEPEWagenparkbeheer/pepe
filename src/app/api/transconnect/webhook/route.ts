@@ -6,10 +6,25 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+// Shared secret tussen TransConnect (in de geregistreerde callback-URL) en deze route.
+// Zodra TRANSCONNECT_WEBHOOK_SECRET is gezet, wordt het afgedwongen; daarvoor blijft de
+// route open (huidig gedrag) zodat aanlevering niet onverwacht stopt. Activeren:
+// 1) env-var zetten, 2) POST /api/transconnect/register-webhook opnieuw aanroepen
+// (de nieuwe callback-URL bevat dan ?secret=…).
+const WEBHOOK_SECRET = process.env.TRANSCONNECT_WEBHOOK_SECRET ?? '';
+
 // TransConnect stuurt status-updates via POST naar:
 // https://<domein>/api/transconnect/webhook
 // Registreren via POST /api/transconnect/register-webhook
 export async function POST(req: NextRequest) {
+  if (WEBHOOK_SECRET) {
+    const provided =
+      req.nextUrl.searchParams.get('secret') ?? req.headers.get('x-webhook-secret');
+    if (provided !== WEBHOOK_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Geen geldig JSON' }, { status: 400 });
 

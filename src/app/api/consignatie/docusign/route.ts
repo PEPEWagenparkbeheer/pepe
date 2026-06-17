@@ -6,6 +6,7 @@ import {
   DOCUSIGN_OAUTH,
   BOEKHOUDER_EMAIL,
 } from '@/lib/consignatie-docusign';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -29,6 +30,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   try {
     const body = (await req.json()) as Record<string, unknown>;
     const {

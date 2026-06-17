@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/clientAuth';
 import type { Factuur, FactuurStatus } from '@/types';
 
 function deserialize(r: Record<string, unknown>): Factuur {
@@ -65,7 +66,7 @@ export function useFacturen() {
   }, []);
 
   const akkoord = useCallback(async (id: string): Promise<{ ok: boolean; error?: string }> => {
-    const res = await fetch(`/api/facturen/${id}/approve`, { method: 'POST' });
+    const res = await fetch(`/api/facturen/${id}/approve`, { method: 'POST', headers: await authHeaders() });
     const json = await res.json();
     if (!res.ok) return { ok: false, error: json.error ?? 'Onbekende fout' };
     update(ref.current.map((r) =>
@@ -78,11 +79,11 @@ export function useFacturen() {
     update(ref.current.map((r) =>
       r.id === id ? { ...r, status: 'genegeerd', gearchiveerd: true } : r,
     ));
-    await fetch(`/api/facturen/${id}/ignore`, { method: 'POST' });
+    await fetch(`/api/facturen/${id}/ignore`, { method: 'POST', headers: await authHeaders() });
   }, []);
 
   const reExtract = useCallback(async (id: string): Promise<Factuur | null> => {
-    const res = await fetch(`/api/facturen/${id}/re-extract`, { method: 'POST' });
+    const res = await fetch(`/api/facturen/${id}/re-extract`, { method: 'POST', headers: await authHeaders() });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Onbekende fout' }));
       console.error('re-extract:', err.error);

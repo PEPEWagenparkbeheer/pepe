@@ -8,14 +8,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractText, getDocumentProxy } from 'unpdf';
 import { parseFactuurTekst } from '@/lib/factuur-parser';
 import { rdwOpzoeken } from '@/lib/rdw';
+import { requirePepe } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
   const { id } = await ctx.params;
 
   const admin = createClient(

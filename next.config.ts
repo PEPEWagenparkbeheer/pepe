@@ -12,6 +12,32 @@ const nextConfig: NextConfig = {
     'pino',
     'pino-pretty',
   ],
+
+  // Security headers (security review #5). Bewust conservatief: de CSP beperkt
+  // alleen framing/object/base (clickjacking) zodat de app niet breekt. Het verder
+  // aanscherpen van script-src/default-src tegen XSS is een aparte follow-up (P2),
+  // omdat dat zorgvuldig getest moet worden met Next.js' inline scripts/styles.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

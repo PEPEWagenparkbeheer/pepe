@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import WerkDerdenModal from '@/components/partner/WerkDerdenModal';
 import type { WerkDerdenRecord, WerkRegel } from '@/types';
 import { medewerkerNaam } from '@/lib/naam';
+import { authHeaders } from '@/lib/clientAuth';
 import styles from './WerkDerdenOverzicht.module.css';
 
 type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgerond' | 'afgekeurd';
@@ -411,7 +412,7 @@ export default function WerkDerdenOverzicht() {
     try {
       const res = await fetch('/api/werk-derden/factureren', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ id: rec.id, marge_type: margeType, marge_waarde: margeWaarde, btw_pct: btwPct }),
       });
       if (!res.ok) {
