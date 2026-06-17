@@ -9,7 +9,7 @@ import styles from './InstellingenPage.module.css';
 
 // ── Wie maakt klaar (centraal in Supabase) ────────────────────────────────────
 function WieMaaktKlaarBeheer() {
-  const { partners, namen, laden, voegToe, hernoem, verwijder } = usePartnerLijst();
+  const { partners, namen, laden, voegToe, hernoem, verwijder, zetEmail } = usePartnerLijst();
   const [nieuw, setNieuw] = useState('');
   const [bewerkenId, setBewerkenId] = useState<string | null>(null);
   const [bewerkenWaarde, setBewerkenWaarde] = useState('');
@@ -78,7 +78,20 @@ function WieMaaktKlaarBeheer() {
                 </>
               ) : (
                 <>
-                  <span className={styles.naam}>{p.naam}</span>
+                  <span className={styles.naam} style={{ minWidth: 140 }}>{p.naam}</span>
+                  <input
+                    className={styles.input}
+                    type="email"
+                    style={{ flex: 1, margin: 0 }}
+                    placeholder="E-mail voor notificaties..."
+                    defaultValue={p.email ?? ''}
+                    onBlur={async (e) => {
+                      if ((e.target.value.trim() || null) === (p.email ?? null)) return;
+                      const { error } = await zetEmail(p.id, e.target.value);
+                      if (error) { alert(error); return; }
+                      flash();
+                    }}
+                  />
                   <div className={styles.acties}>
                     <button
                       className={styles.bewerkKnop}

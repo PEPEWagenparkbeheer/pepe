@@ -53,6 +53,18 @@ export async function POST(req: NextRequest) {
   const label = autoLabel(wdRec);
   const partner = wdRec.partner ?? 'Partner';
 
+  // Partner-e-mail: eerst uit partner_lijst (beheerd in Instellingen), anders hardcoded fallback.
+  async function partnerEmail(naam: string): Promise<string | null> {
+    const { data } = await supabaseAdmin
+      .from('partner_lijst')
+      .select('email')
+      .ilike('naam', naam)
+      .limit(1)
+      .maybeSingle();
+    const uitDb = (data as { email?: string | null } | null)?.email?.trim();
+    return uitDb || getPartnerMail(naam);
+  }
+
   try {
     if ((event as NotifyEvent) === 'ingediend') {
       await verstuurMail({
@@ -65,7 +77,7 @@ export async function POST(req: NextRequest) {
                <p>Controleer de <a href="https://flow.pepewagenparkbeheer.nl">Flow app</a> voor details en bijlage.</p>`,
       });
     } else if ((event as NotifyEvent) === 'goedgekeurd') {
-      const partnerMail = getPartnerMail(partner);
+      const partnerMail = await partnerEmail(partner);
       if (!partnerMail) {
         console.warn(`[notify] Geen e-mailadres bekend voor partner: ${partner}`);
         return NextResponse.json({ ok: true, skipped: 'partner e-mail onbekend' });
@@ -85,7 +97,7 @@ export async function POST(req: NextRequest) {
                <p>Met vriendelijke groet,<br>PEPE Wagenparkbeheer</p>`,
       });
     } else if ((event as NotifyEvent) === 'afgekeurd') {
-      const partnerMail = getPartnerMail(partner);
+      const partnerMail = await partnerEmail(partner);
       if (!partnerMail) {
         console.warn(`[notify] Geen e-mailadres bekend voor partner: ${partner}`);
         return NextResponse.json({ ok: true, skipped: 'partner e-mail onbekend' });

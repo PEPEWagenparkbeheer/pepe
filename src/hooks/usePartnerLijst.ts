@@ -7,6 +7,7 @@ import { WIE_DEFAULT } from '@/lib/constants';
 export interface PartnerLijstItem {
   id: string;
   naam: string;
+  email?: string | null;
   gearchiveerd: boolean;
   created_at?: string;
 }
@@ -71,5 +72,14 @@ export function usePartnerLijst() {
     return error ? { error: error.message } : {};
   }
 
-  return { partners, namen, laden, voegToe, hernoem, verwijder };
+  async function zetEmail(id: string, email: string): Promise<{ error?: string }> {
+    const trimmed = email.trim();
+    const { error } = await supabase
+      .from('partner_lijst')
+      .update({ email: trimmed || null })
+      .eq('id', id);
+    return error ? { error: error.message } : {};
+  }
+
+  return { partners, namen, laden, voegToe, hernoem, verwijder, zetEmail };
 }
