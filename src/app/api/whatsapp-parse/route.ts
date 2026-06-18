@@ -35,17 +35,7 @@ export async function POST(req: NextRequest) {
     const tekst = body?.tekst;
     if (!tekst?.trim()) return NextResponse.json({ error: 'Geen tekst' }, { status: 400 });
 
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) return NextResponse.json({ error: 'GROQ_API_KEY niet ingesteld' }, { status: 500 });
-
-    const client = new Groq({ apiKey });
-
-    const prompt = `Je bent een assistent voor een autohandelaar. Analyseer dit WhatsApp bericht van een klant en extraheer de zoekopdracht.
-
-BERICHT:
-${tekst}
-
-Extraheer de volgende velden. Antwoord ALLEEN met geldige JSON, geen extra tekst.
+    const system = `Je bent een assistent voor een autohandelaar. Analyseer een WhatsApp bericht van een klant en extraheer de zoekopdracht. Antwoord ALLEEN met geldige JSON, geen extra tekst.
 
 Velden:
 - klant: naam van de klant (string, of "" als onbekend)
@@ -64,17 +54,9 @@ Velden:
 Voorbeeld output:
 {"klant":"Burhan","merk":"Volkswagen","model":"Sharan of Tiguan","km":"130000","jaar":"","budget":"20000-25000","btw":"","kleuren":["Zwart","Antraciet"],"brandstof":["benzine"],"opties":{"automaat":true},"details":"Luxe uitvoering, geen R line"}`;
 
-    const completion = await client.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
-      max_tokens: 512,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const parsed = await extractJson(system, `BERICHT:\n${tekst}`, { maxTokens: 512 });
+    if (!parsed) return NextResponse.json({ error: 'AI gaf geen geldig antwoord' }, { status: 422 });
 
-    const raw = completion.choices[0]?.message?.content?.trim() ?? '';
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return NextResponse.json({ error: 'AI gaf geen geldig antwoord' }, { status: 422 });
-
-    const parsed = JSON.parse(jsonMatch[0]);
     return NextResponse.json(parsed);
 
   } catch (err: unknown) {
