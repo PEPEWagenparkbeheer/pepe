@@ -556,6 +556,7 @@ export default function WerkDerdenOverzicht() {
                 const voertuig = rec.kenteken ?? rec.meldcode ?? '—';
                 const merk = [rec.merk, rec.model].filter(Boolean).join(' ') || null;
                 const isBusy = bezig === rec.id;
+                const bedragAangepast = !!rec.voorwaarden && rec.voorwaarden.startsWith('Bedrag aangepast');
 
                 return (
                   <tr key={rec.id} className={styles.rij}>
@@ -565,6 +566,7 @@ export default function WerkDerdenOverzicht() {
                       {merk && <span className={styles.klant}>{merk}</span>}
                       {rec.klant && <span className={styles.klant}>{rec.klant}</span>}
                       {rec.bestemming === 'voertuigprijs' && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', background: 'rgba(82,196,126,0.15)', color: '#32a868', borderRadius: 4, padding: '2px 6px', marginLeft: 6 }}>VP</span>}
+                      {bedragAangepast && <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', background: 'rgba(234,88,12,0.15)', color: '#9a3412', borderRadius: 4, padding: '2px 6px', marginTop: 4 }}>⚠ Bedrag aangepast</span>}
                     </td>
                     <td>
                       {rec.partner}
@@ -580,6 +582,11 @@ export default function WerkDerdenOverzicht() {
                           </div>
                         ))}
                         {rec.notitie && <div className={styles.notitie}>{rec.notitie}</div>}
+                        {rec.voorwaarden && (
+                          <div className={styles.notitie} style={bedragAangepast ? { color: '#9a3412', fontWeight: 600, whiteSpace: 'pre-wrap' } : { whiteSpace: 'pre-wrap' }}>
+                            📝 {rec.voorwaarden}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className={styles.bedragKolom}>

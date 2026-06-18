@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { WerkDerdenRecord, WerkDerdenStatus } from '@/types';
+import type { WerkDerdenRecord, WerkDerdenStatus, WerkRegel } from '@/types';
 import KentekenPlaat from '@/components/aftersales/KentekenPlaat';
 import { medewerkerNaam } from '@/lib/naam';
+import { isPepeOpdracht } from '@/lib/werk-derden/richting';
 import styles from './PartnerModal.module.css';
 
 interface Props {
@@ -12,6 +13,15 @@ interface Props {
   bijlageUrl: (path: string) => Promise<string | null>;
   onSluiten: () => void;
   onKlaarMelden: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Aanwezig in het partnerportaal: partner accepteert een PEPE-opdracht. */
+  onAccepteren?: (
+    id: string,
+    opties?: { regels?: WerkRegel[]; voorwaarden?: string },
+  ) => Promise<{ ok: boolean; error?: string }>;
+}
+
+function euro(n: number): string {
+  return n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' });
 }
 
 const STATUS_LABEL: Record<WerkDerdenStatus, string> = {
@@ -34,9 +44,28 @@ function statusKleur(status: WerkDerdenStatus): React.CSSProperties {
   }
 }
 
-export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, onKlaarMelden }: Props) {
+export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, onKlaarMelden, onAccepteren }: Props) {
   const [bijlageSignedUrl, setBijlageSignedUrl] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
+  const [aanpasModus, setAanpasModus] = useState(false);
+  const [aangepasteRegels, setAangepasteRegels] = useState<WerkRegel[]>(() =>
+    (record.regels?.length ? record.regels : [{ omschrijving: '', bedrag: 0 }]).map((r) => ({ ...r })),
+  );
+  const [voorwaardenInput, setVoorwaardenInput] = useState('');
+
+  // Te accepteren = een door PEPE klaargezette opdracht die nog open staat.
+  const teAccepteren = !!onAccepteren && record.status === 'open' && isPepeOpdracht(record);
+  const origineelBedrag = record.inkoop_bedrag ?? (record.regels ?? []).reduce((s, r) => s + (r.bedrag ?? 0), 0);
+  const nieuwBedrag = aangepasteRegels.reduce((s, r) => s + (Number(r.bedrag) || 0), 0);
+  const verschil = nieuwBedrag - origineelBedrag;
+
+  async function accepteer(opties?: { regels?: WerkRegel[]; voorwaarden?: string }) {
+    if (!onAccepteren) return;
+    setBezig(true);
+    await onAccepteren(record.id, opties);
+    setBezig(false);
+    onSluiten();
+  }
 
   useEffect(() => {
     let actief = true;
@@ -148,7 +177,86 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
           )}
         </div>
 
-        {/* Footer — alleen klaar melden bij goedgekeurd */}
+        {/* Footer — accepteren bij open PEPE-opdracht */}
+        {teAccepteren && !aanpasModus && (
+          <div className={styles.modalFooter} style={{ gap: 10 }}>
+            <button
+              className={styles.klaarKnop}
+              disabled={bezig}
+              style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              onClick={() => setAanpasModus(true)}
+            >
+              ✎ Bedrag aanpassen
+            </button>
+            <button
+              className={styles.klaarKnop}
+              disabled={bezig}
+              onClick={() => accepteer()}
+            >
+              {bezig ? 'Bezig…' : '✓ Accepteren'}
+            </button>
+          </div>
+        )}
+
+        {teAccepteren && aanpasModus && (
+          <div className={styles.modalFooter} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {aangepasteRegels.map((r, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ flex: 1, fontSize: 13 }}>{r.omschrijving || 'Regel'}</span>
+                  <span style={{ fontSize: 13 }}>€</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={r.bedrag || ''}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value) || 0;
+                      setAangepasteRegels((prev) => prev.map((x, i) => (i === idx ? { ...x, bedrag: v } : x)));
+                    }}
+                    style={{ width: 100, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', textAlign: 'right' }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{
+              fontSize: 13, fontWeight: 600,
+              padding: '8px 12px', borderRadius: 8,
+              background: Math.abs(verschil) > 0.005 ? 'rgba(234,88,12,0.10)' : 'var(--bg)',
+              border: Math.abs(verschil) > 0.005 ? '1px solid #fdba74' : '1px solid var(--border)',
+              color: Math.abs(verschil) > 0.005 ? '#9a3412' : 'var(--text)',
+            }}>
+              PEPE: {euro(origineelBedrag)} → Nu: {euro(nieuwBedrag)}
+              {Math.abs(verschil) > 0.005 && ` (${verschil > 0 ? '+' : '−'}${euro(Math.abs(verschil))})`}
+            </div>
+            <textarea
+              rows={2}
+              value={voorwaardenInput}
+              onChange={(e) => setVoorwaardenInput(e.target.value)}
+              placeholder="Toelichting / voorwaarde (optioneel)…"
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', resize: 'vertical', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                className={styles.klaarKnop}
+                disabled={bezig}
+                style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                onClick={() => setAanpasModus(false)}
+              >
+                Annuleren
+              </button>
+              <button
+                className={styles.klaarKnop}
+                disabled={bezig}
+                onClick={() => accepteer({ regels: aangepasteRegels, voorwaarden: voorwaardenInput })}
+              >
+                {bezig ? 'Bezig…' : '✓ Accepteren met aangepast bedrag'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Footer — klaar melden bij goedgekeurd */}
         {record.status === 'goedgekeurd' && (
           <div className={styles.modalFooter}>
             <button

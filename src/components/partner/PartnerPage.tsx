@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
 import { useAuth } from '@/hooks/useAuth';
+import { isPepeOpdracht } from '@/lib/werk-derden/richting';
 import type { AfterSalesAuto, WerkDerdenRecord } from '@/types';
 import KentekenPlaat from '@/components/aftersales/KentekenPlaat';
 import PartnerModal from './PartnerModal';
@@ -34,7 +35,7 @@ function datumFmt(d?: string) {
 export default function PartnerPage({ wie }: { wie: string }) {
   const { autos, updateAuto } = useAfterSales();
   const { signOut } = useAuth();
-  const { records: wdRecords, addRecord: wdAddRecord, updateRecord: wdUpdateRecord, setKlaarGemeld, bijlageUrl } = useWerkDerden(wie);
+  const { records: wdRecords, addRecord: wdAddRecord, updateRecord: wdUpdateRecord, setKlaarGemeld, setGeaccepteerd, bijlageUrl } = useWerkDerden(wie);
   const [wdModalOpen, setWdModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<WerkDerdenRecord | null>(null);
   const [detailRecord, setDetailRecord] = useState<WerkDerdenRecord | null>(null);
@@ -58,9 +59,12 @@ export default function PartnerPage({ wie }: { wie: string }) {
     setDetailRecord(r);
   }
 
-  // Records die actie van de partner vereisen (goedgekeurd → klaar melden)
-  const wdActieCount = wdRecords.filter(r => r.status === 'goedgekeurd').length;
+  // Records die actie van de partner vereisen:
+  //  - open PEPE-opdracht → moet geaccepteerd worden
+  //  - goedgekeurd        → moet klaar gemeld worden
+  const teAccepterenRecords = wdRecords.filter(r => r.status === 'open' && isPepeOpdracht(r));
   const goedgekeurdeWdRecords = wdRecords.filter(r => r.status === 'goedgekeurd');
+  const wdActieCount = teAccepterenRecords.length + goedgekeurdeWdRecords.length;
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
   const [offerteAuto, setOfferteAuto] = useState<AfterSalesAuto | null>(null);
   const [tab, setTab] = useState<Tab>('actief');
@@ -92,9 +96,10 @@ export default function PartnerPage({ wie }: { wie: string }) {
 
   const mijnAutos = tab === 'actief' ? actieveAutos : tab === 'klaar' ? klareAutos : [];
 
-  // Goedgekeurde werk-derden meldingen tonen we als rijen bovenin de Actief-lijst,
-  // met knipperend bolletje totdat de partner ze één keer heeft geopend.
-  const wdActiefRijen = tab === 'actief' ? goedgekeurdeWdRecords : [];
+  // Openstaande acties tonen we als rijen bovenin de Actief-lijst (de startpagina),
+  // met knipperend bolletje totdat de partner ze één keer heeft geopend — zodat
+  // ze niet vergeten worden zonder naar het tabblad "Openstaand" te klikken.
+  const wdActiefRijen = tab === 'actief' ? [...teAccepterenRecords, ...goedgekeurdeWdRecords] : [];
 
   return (
     <div className={styles.pagina}>
@@ -135,6 +140,16 @@ export default function PartnerPage({ wie }: { wie: string }) {
       {/* Auto-tabel — alleen voor actief/klaar tabs */}
       {tab !== 'werkzaamheden' && (
       <div className={styles.content}>
+        {wdActiefRijen.length > 0 && (
+          <div style={{
+            margin: '0 0 12px', padding: '10px 14px', borderRadius: 10,
+            background: 'rgba(234,179,8,0.10)', border: '1px solid rgba(234,179,8,0.35)',
+            color: '#92400e', fontWeight: 600, fontSize: 14,
+          }}>
+            🔔 {wdActiefRijen.length} openstaande acti{wdActiefRijen.length === 1 ? 'e' : 'es'} — bovenaan in de lijst
+            {teAccepterenRecords.length > 0 && ` (${teAccepterenRecords.length} te accepteren)`}
+          </div>
+        )}
         {mijnAutos.length === 0 && wdActiefRijen.length === 0 ? (
           <div className={styles.leeg}>
             {tab === 'actief'
@@ -160,6 +175,10 @@ export default function PartnerPage({ wie }: { wie: string }) {
                 {/* Goedgekeurde kostenmeldingen — bovenin met knipperend bolletje */}
                 {wdActiefRijen.map((wd) => {
                   const gezien = gezienIds.has(wd.id);
+                  const teAcc = wd.status === 'open';
+                  const kortLabel = teAcc ? '🔔 Te accepteren' : '✓ Goedgekeurd — klaar melden';
+                  const langLabel = teAcc ? '🔔 Te accepteren — klik om te accepteren' : '✓ Goedgekeurd — klik om klaar te melden';
+                  const labelClass = teAcc ? styles.stOpen : styles.stGoedgekeurd;
                   return (
                     <tr key={`wd-${wd.id}`} onClick={() => openDetail(wd)}>
                       <td>
@@ -167,7 +186,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
                           <KentekenPlaat kenteken={wd.kenteken ?? wd.meldcode ?? ''} />
                           <span
                             className={gezien ? styles.notificatieDotGezien : styles.notificatieDotBlink}
-                            title={gezien ? 'Goedgekeurd' : 'Nieuw goedgekeurd — klaar melden'}
+                            title={teAcc ? 'Nieuwe opdracht — accepteren' : (gezien ? 'Goedgekeurd' : 'Nieuw goedgekeurd — klaar melden')}
                           />
                         </div>
                       </td>
@@ -176,12 +195,12 @@ export default function PartnerPage({ wie }: { wie: string }) {
                         <span className={styles.model}>{wd.model}</span>
                         <div className={styles.mobielSub}>
                           {wd.klant && <span>{wd.klant}</span>}
-                          <span className={styles.stGoedgekeurd}>✓ Goedgekeurd — klaar melden</span>
+                          <span className={labelClass}>{kortLabel}</span>
                         </div>
                       </td>
                       <td className={styles.mobielVerbergen}>{wd.klant || '—'}</td>
                       <td className={styles.mobielVerbergen} colSpan={5}>
-                        <span className={styles.stGoedgekeurd}>✓ Goedgekeurd — klik om klaar te melden</span>
+                        <span className={labelClass}>{langLabel}</span>
                       </td>
                     </tr>
                   );
@@ -269,9 +288,12 @@ export default function PartnerPage({ wie }: { wie: string }) {
                 <tbody>
                   {wdRecords.map((r) => {
                     const voertuig = r.kenteken ?? r.meldcode ?? '—';
+                    const isOpdracht = r.status === 'open' && isPepeOpdracht(r);
                     return (
                     <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => {
-                      if (r.status === 'open' || r.status === 'afgekeurd') setEditRecord(r);
+                      // PEPE-opdracht (open) → accepteren via detail; eigen open/afgekeurd → bewerken
+                      if (r.status === 'open' && isPepeOpdracht(r)) openDetail(r);
+                      else if (r.status === 'open' || r.status === 'afgekeurd') setEditRecord(r);
                       else openDetail(r);
                     }}>
                       <td>
@@ -295,6 +317,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
                            r.status === 'afgekeurd' ? '✕ Afgekeurd' :
                            r.status === 'klaar_gemeld' ? '✓ Klaar gemeld' :
                            r.status === 'goedgekeurd' ? '✓ Goedgekeurd' :
+                           isOpdracht ? '🔔 Te accepteren' :
                            '⏳ Openstaand'}
                         </span>
                         {r.status === 'afgekeurd' && r.afkeur_reden && (
@@ -302,7 +325,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
                         )}
                         {(r.status === 'open' || r.status === 'afgekeurd') && (
                           <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>
-                            {r.status === 'afgekeurd' ? 'Klik om aan te passen' : 'Klik om te bewerken'}
+                            {r.status === 'afgekeurd' ? 'Klik om aan te passen' : isOpdracht ? 'Klik om te accepteren' : 'Klik om te bewerken'}
                           </div>
                         )}
                         {r.status === 'goedgekeurd' && (
@@ -373,6 +396,7 @@ export default function PartnerPage({ wie }: { wie: string }) {
           bijlageUrl={bijlageUrl}
           onSluiten={() => setDetailRecord(null)}
           onKlaarMelden={setKlaarGemeld}
+          onAccepteren={(id, opties) => setGeaccepteerd(id, { ...opties, door: wie })}
         />
       )}
     </div>

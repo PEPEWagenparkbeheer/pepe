@@ -1,11 +1,13 @@
 /**
  * POST /api/werk-derden/notify
- * Body: { id: string; event: 'ingediend' | 'goedgekeurd' | 'afgekeurd' }
+ * Body: { id: string; event: 'ingediend' | 'opdracht' | 'goedgekeurd' | 'geaccepteerd' | 'afgekeurd' }
  *
  * Verstuurt e-mailnotificaties voor WerkDerden-statuswijzigingen via Postmark:
- *   ingediend   → info@pepewagenparkbeheer.nl  (PEPE ontvangt, partner wacht)
- *   goedgekeurd → partner e-mail
- *   afgekeurd   → partner e-mail + reden
+ *   ingediend    → info@pepewagenparkbeheer.nl  (partner dient in, PEPE moet goedkeuren)
+ *   opdracht     → partner e-mail               (PEPE zet werk klaar, partner moet accepteren)
+ *   goedgekeurd  → partner e-mail
+ *   geaccepteerd → info@pepewagenparkbeheer.nl  (partner accepteerde PEPE-opdracht, evt. afwijkend bedrag)
+ *   afgekeurd    → partner e-mail + reden
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
@@ -14,7 +16,7 @@ import { getPartnerMail } from '@/lib/werk-derden/partner-mail';
 import { requireUser } from '@/lib/apiAuth';
 import type { WerkDerdenRecord } from '@/types';
 
-type NotifyEvent = 'ingediend' | 'goedgekeurd' | 'afgekeurd';
+type NotifyEvent = 'ingediend' | 'opdracht' | 'goedgekeurd' | 'geaccepteerd' | 'afgekeurd';
 
 const PEPE_MAIL = 'info@pepewagenparkbeheer.nl';
 
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
   if (!id || !event) {
     return NextResponse.json({ error: 'id en event zijn verplicht' }, { status: 400 });
   }
-  if (!['ingediend', 'goedgekeurd', 'afgekeurd'].includes(event)) {
+  if (!['ingediend', 'opdracht', 'goedgekeurd', 'geaccepteerd', 'afgekeurd'].includes(event)) {
     return NextResponse.json({ error: 'Ongeldig event' }, { status: 400 });
   }
 
@@ -79,6 +81,42 @@ export async function POST(req: NextRequest) {
                <p><strong>Klant:</strong> ${wdRec.klant ?? '—'}</p>
                <p><strong>Inkoop:</strong> € ${(wdRec.inkoop_bedrag ?? 0).toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</p>
                <p>Controleer de <a href="https://flow.pepewagenparkbeheer.nl">Flow app</a> voor details en bijlage.</p>`,
+      });
+    } else if ((event as NotifyEvent) === 'opdracht') {
+      // PEPE zet werk klaar voor de partner → partner moet accepteren.
+      const partnerMail = await partnerEmail(partner);
+      if (!partnerMail) {
+        console.warn(`[notify] Geen e-mailadres bekend voor partner: ${partner}`);
+        return NextResponse.json({ ok: true, skipped: 'partner e-mail onbekend' });
+      }
+      await verstuurMail({
+        to: partnerMail,
+        subject: '[Flow] PEPE heeft werk voor u klaargezet — graag accepteren',
+        html: `<p>Beste ${partner},</p>
+               <p>PEPE heeft werkzaamheden voor u klaargezet. Open het portaal om deze te accepteren (eventueel met een aangepast bedrag).</p>
+               <p><strong>Auto:</strong> ${label}</p>
+               <p><strong>Klant:</strong> ${wdRec.klant ?? '—'}</p>
+               <p><strong>Voorgesteld bedrag:</strong> € ${(wdRec.inkoop_bedrag ?? 0).toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</p>
+               <p>Ga naar de <a href="https://flow.pepewagenparkbeheer.nl">Flow app</a> en accepteer de opdracht.</p>
+               <p>Met vriendelijke groet,<br>PEPE Wagenparkbeheer</p>`,
+      });
+    } else if ((event as NotifyEvent) === 'geaccepteerd') {
+      // Partner heeft een PEPE-opdracht geaccepteerd → PEPE op de hoogte brengen.
+      // Een afwijkend/aangepast bedrag staat in voorwaarden en wordt opvallend gemarkeerd.
+      const afwijking = wdRec.voorwaarden
+        ? `<div style="margin:12px 0;padding:10px 14px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;color:#9a3412;">
+             <strong>⚠ Let op — aangepast / met voorwaarde:</strong><br>${wdRec.voorwaarden.replace(/\n/g, '<br>')}
+           </div>`
+        : '';
+      await verstuurMail({
+        to: PEPE_MAIL,
+        subject: `[Flow] ${partner} heeft geaccepteerd${wdRec.voorwaarden ? ' (afwijkend bedrag)' : ''}`,
+        html: `<p><strong>${partner}</strong> heeft de klaargezette werkzaamheden geaccepteerd.</p>
+               <p><strong>Auto:</strong> ${label}</p>
+               <p><strong>Klant:</strong> ${wdRec.klant ?? '—'}</p>
+               <p><strong>Geaccepteerd bedrag (inkoop, excl. BTW):</strong> € ${(wdRec.inkoop_bedrag ?? 0).toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</p>
+               ${afwijking}
+               <p>De melding staat nu op <em>goedgekeurd</em> en kan gefactureerd worden in de <a href="https://flow.pepewagenparkbeheer.nl">Flow app</a>.</p>`,
       });
     } else if ((event as NotifyEvent) === 'goedgekeurd') {
       const partnerMail = await partnerEmail(partner);

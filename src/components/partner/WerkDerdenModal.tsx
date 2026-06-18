@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WerkRegel, WerkDerdenRecord, AfterSalesAuto, WerkDerdenBestemming } from '@/types';
 import { usePartnerLijst } from '@/hooks/usePartnerLijst';
+import { PEPE_TOEGEVOEGD_DOOR } from '@/lib/werk-derden/richting';
 import { authHeaders } from '@/lib/clientAuth';
 import KentekenPlaat from '@/components/aftersales/KentekenPlaat';
 import styles from './WerkDerdenModal.module.css';
@@ -167,7 +168,9 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
         notitie: notitie.trim() || undefined,
         bijlage_storage_path: bijlageStoragePath,
         status: 'open',
-        toegevoegd_door: partnerNaam.trim(),
+        // wie gezet = partner vult zelf in (partner → PEPE); leeg = PEPE zet werk
+        // klaar voor de partner (PEPE → partner, moet geaccepteerd worden).
+        toegevoegd_door: wie ? partnerNaam.trim() : PEPE_TOEGEVOEGD_DOOR,
         ...(afterSalesId ? { after_sales_id: afterSalesId, bestemming: 'voertuigprijs' as WerkDerdenBestemming } : { bestemming: 'doorbelasten' as WerkDerdenBestemming }),
       });
 

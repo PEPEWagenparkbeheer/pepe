@@ -4,8 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { authHeaders } from '@/lib/clientAuth';
 import type { WerkDerdenRecord, WerkDerdenStatus, WerkRegel } from '@/types';
+import { isPepeOpdracht } from '@/lib/werk-derden/richting';
 
 const CACHE_KEY = 'pepe_wd_v1';
+
+function euro(n: number): string {
+  return n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' });
+}
 
 function deserialize(r: Record<string, unknown>): WerkDerdenRecord {
   return {
@@ -17,7 +22,7 @@ function deserialize(r: Record<string, unknown>): WerkDerdenRecord {
 }
 
 /** Fire-and-forget notificatie-mail bij status-overgang; faalt stil. */
-function notify(id: string, event: 'ingediend' | 'goedgekeurd' | 'afgekeurd') {
+function notify(id: string, event: 'ingediend' | 'opdracht' | 'goedgekeurd' | 'geaccepteerd' | 'afgekeurd') {
   void (async () => {
     await fetch('/api/werk-derden/notify', {
       method: 'POST',
@@ -105,7 +110,9 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
       if (error) return { ok: false, error: error.message };
       const inserted = deserialize(data as Record<string, unknown>);
       update([inserted, ...ref.current]);
-      notify(inserted.id, 'ingediend');
+      // PEPE-opdracht → partner moet accepteren (mail naar partner);
+      // partner-indiening → PEPE moet goedkeuren (mail naar info@).
+      notify(inserted.id, isPepeOpdracht(inserted) ? 'opdracht' : 'ingediend');
       return { ok: true };
     },
     [],
@@ -142,6 +149,47 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
       if (opties?.klant) patch.klant = opties.klant;
       const result = await updateRecord(id, patch);
       if (result.ok) notify(id, 'goedgekeurd');
+      return result;
+    },
+    [updateRecord],
+  );
+
+  /**
+   * Partner accepteert een PEPE-opdracht. Gaat direct naar 'goedgekeurd'
+   * (klaar om te factureren). Bij een aangepast bedrag worden regels +
+   * inkoop_bedrag overschreven en wordt de afwijking (€origineel → €nieuw)
+   * als gestructureerde regel in `voorwaarden` vastgelegd, zodat PEPE die
+   * overal terugziet. Mailt PEPE via het 'geaccepteerd'-event.
+   */
+  const setGeaccepteerd = useCallback(
+    async (
+      id: string,
+      opties: { door: string; regels?: WerkRegel[]; voorwaarden?: string },
+    ): Promise<{ ok: boolean; error?: string }> => {
+      const huidig = ref.current.find((r) => r.id === id);
+      const patch: Partial<WerkDerdenRecord> = {
+        status: 'goedgekeurd',
+        goedgekeurd_op: new Date().toISOString(),
+        goedgekeurd_door: opties.door,
+      };
+      if (opties.regels) {
+        const nieuwBedrag = opties.regels.reduce((s, r) => s + (Number(r.bedrag) || 0), 0);
+        const origineel = huidig?.inkoop_bedrag ?? null;
+        patch.regels = opties.regels;
+        patch.inkoop_bedrag = nieuwBedrag;
+        const stukken: string[] = [];
+        if (origineel != null && Math.abs(origineel - nieuwBedrag) > 0.005) {
+          const verschil = nieuwBedrag - origineel;
+          const teken = verschil > 0 ? '+' : '−';
+          stukken.push(`Bedrag aangepast: ${euro(origineel)} → ${euro(nieuwBedrag)} (afwijking ${teken}${euro(Math.abs(verschil))})`);
+        }
+        if (opties.voorwaarden?.trim()) stukken.push(opties.voorwaarden.trim());
+        if (stukken.length) patch.voorwaarden = stukken.join('\n\n');
+      } else if (opties.voorwaarden?.trim()) {
+        patch.voorwaarden = opties.voorwaarden.trim();
+      }
+      const result = await updateRecord(id, patch);
+      if (result.ok) notify(id, 'geaccepteerd');
       return result;
     },
     [updateRecord],
@@ -218,6 +266,7 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     addRecord,
     updateRecord,
     setGoedgekeurd,
+    setGeaccepteerd,
     setAfgerond,
     setAfgekeurd,
     setKlaarGemeld,
