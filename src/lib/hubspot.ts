@@ -554,3 +554,58 @@ export async function associateContactCompany(contactId: string, companyId: stri
     { method: 'PUT' },
   );
 }
+
+// ── Files & Notes (bijlage op een deal/voertuig) ────────────────
+// Vereist de scope 'files' op de Private App (notes-write zit er al in).
+
+/** Upload een bestand naar HubSpot Files en geef het file-id terug. */
+export async function uploadFile(
+  content: ArrayBuffer,
+  filename: string,
+  folderPath = '/facturen',
+): Promise<string> {
+  const form = new FormData();
+  form.append('file', new Blob([content], { type: 'application/pdf' }), filename);
+  form.append('folderPath', folderPath);
+  form.append('options', JSON.stringify({ access: 'PRIVATE', overwrite: false }));
+  // GEEN Content-Type meegeven: fetch zet zelf de multipart-boundary.
+  const res = await fetch(`${HS_BASE}/files/v3/files`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: form,
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`HubSpot files ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { id: string };
+  return data.id;
+}
+
+/**
+ * Maak een notitie (aantekening) op een deal, optioneel met een bijlage-file.
+ * associationTypeId 214 = note → deal (HUBSPOT_DEFINED).
+ */
+export async function createNoteOnDeal(
+  dealId: string,
+  bodyHtml: string,
+  attachmentFileId?: string,
+): Promise<string> {
+  const properties: Record<string, string> = {
+    hs_timestamp: new Date().toISOString(),
+    hs_note_body: bodyHtml,
+  };
+  if (attachmentFileId) properties.hs_attachment_ids = attachmentFileId;
+  const data = await hsFetch<{ id: string }>(
+    `${HS_BASE}/crm/v3/objects/notes`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        properties,
+        associations: [{
+          to: { id: dealId },
+          types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 214 }],
+        }],
+      }),
+    },
+  );
+  return data.id;
+}

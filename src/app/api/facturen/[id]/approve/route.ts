@@ -15,6 +15,7 @@ import {
   searchContactByEmail, searchContactByName, createContact,
   searchDealByKenteken, createDeal,
   associateDealCompany, associateDealContact, associateContactCompany,
+  uploadFile, createNoteOnDeal,
 } from '@/lib/hubspot';
 import { kvkOpzoeken } from '@/lib/kvk';
 import { requirePepe } from '@/lib/apiAuth';
@@ -182,6 +183,32 @@ export async function POST(
       await associateDealContact(dealId, contactId);
       if (companyId) {
         await associateContactCompany(contactId, companyId);
+      }
+    }
+
+    // ── Kopie factuur als aantekening (notitie + bijlage) op de deal ──
+    // Best-effort: lukt dit niet (bv. ontbrekende 'files'-scope), dan blijft de
+    // goedkeuring gewoon slagen. De PDF-bijlage is een extraatje.
+    if (factuur.pdf_storage_path) {
+      try {
+        const { data: blob, error: dlErr } = await admin.storage
+          .from('facturen').download(factuur.pdf_storage_path);
+        if (!dlErr && blob) {
+          const naam = `Factuur ${factuur.factuurnummer ?? id}.pdf`;
+          const fileId = await uploadFile(await blob.arrayBuffer(), naam);
+          const bedrag = factuur.bedrag_incl_btw != null
+            ? `€ ${Number(factuur.bedrag_incl_btw).toLocaleString('nl-NL', { minimumFractionDigits: 2 })}`
+            : '';
+          const regels = [
+            `<strong>Factuur ${factuur.factuurnummer ?? ''}</strong>`,
+            factuur.bedrijfsnaam ? `Leverancier: ${factuur.bedrijfsnaam}` : '',
+            bedrag ? `Bedrag incl. btw: ${bedrag}` : '',
+            `Goedgekeurd in Flow op ${new Date().toLocaleDateString('nl-NL')}.`,
+          ].filter(Boolean).map((r) => `<p>${r}</p>`).join('');
+          await createNoteOnDeal(dealId, regels, fileId);
+        }
+      } catch (e) {
+        console.error('factuur-bijlage naar HubSpot mislukt (niet-blokkerend):', (e as Error).message);
       }
     }
 
