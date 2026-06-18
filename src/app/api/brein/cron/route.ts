@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runBreinSync } from '@/lib/brein/sync';
+import { runLeadsIntake } from '@/lib/leads/intake';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
