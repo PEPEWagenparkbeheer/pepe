@@ -79,7 +79,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     try {
       const rec = await onReExtract(form.id);
       if (rec) setForm(rec);
-      else alert('Re-extract mislukt â€” zie console');
+      else alert('Re-extract mislukt — zie console');
     } finally {
       setExtractBezig(false);
     }
@@ -191,8 +191,8 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
       <div className={styles.modal}>
         <div className={styles.header}>
           <div className={styles.titel}>
-            ðŸ“„ Factuur {form.factuurnummer ? `#${form.factuurnummer}` : ''}
-            {form.afzender && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 13 }}>Â· {form.afzender}</span>}
+            📄 Factuur {form.factuurnummer ? `#${form.factuurnummer}` : ''}
+            {form.afzender && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 13 }}>· {form.afzender}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
@@ -202,9 +202,9 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
               disabled={extractBezig || !form.pdf_storage_path}
               title="Run Groq + RDW opnieuw op de PDF"
             >
-              {extractBezig ? 'â³ Bezig...' : 'ðŸ”„ Opnieuw extraheren'}
+              {extractBezig ? '⏳ Bezig...' : '🔄 Opnieuw extraheren'}
             </button>
-            <button className={styles.sluit} onClick={onSluiten}>Ã—</button>
+            <button className={styles.sluit} onClick={onSluiten}>×</button>
           </div>
         </div>
 
@@ -221,7 +221,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
             {pdfUrl && (
               <div className={styles.pdfDownload}>
                 <span>{form.pdf_bestandsnaam}</span>
-                <a href={pdfUrl} target="_blank" rel="noopener noreferrer">â¤“ Downloaden</a>
+                <a href={pdfUrl} target="_blank" rel="noopener noreferrer">⤓ Downloaden</a>
               </div>
             )}
           </div>
@@ -269,18 +269,18 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
                   onChange={(e) => stel('kenteken', e.target.value.toUpperCase().replace(/[-\s]/g, ''))}
                 />
                 <button className="btn" type="button" onClick={() => rdwOphalen()} disabled={rdwBezig || !form.kenteken}>
-                  {rdwBezig ? 'â³ RDW...' : 'ðŸ” RDW ophalen'}
+                  {rdwBezig ? '⏳ RDW...' : '🔍 RDW ophalen'}
                 </button>
               </div>
             </div>
 
             {rdw && (
               <div className={styles.rdwInfo}>
-                <div><label>Merk</label><div>{rdw.merk ?? 'â€”'}</div></div>
-                <div><label>Model</label><div>{rdw.handelsbenaming ?? 'â€”'}</div></div>
-                <div><label>Brandstof</label><div>{rdw.brandstof ?? 'â€”'}</div></div>
-                <div><label>APK</label><div>{rdw.apkDatum ?? 'â€”'}</div></div>
-                <div><label>Fiscale waarde</label><div>{rdw.catalogusprijs != null ? `â‚¬ ${rdw.catalogusprijs.toLocaleString('nl-NL')}` : 'â€”'}</div></div>
+                <div><label>Merk</label><div>{rdw.merk ?? '—'}</div></div>
+                <div><label>Model</label><div>{rdw.handelsbenaming ?? '—'}</div></div>
+                <div><label>Brandstof</label><div>{rdw.brandstof ?? '—'}</div></div>
+                <div><label>APK</label><div>{rdw.apkDatum ?? '—'}</div></div>
+                <div><label>Fiscale waarde</label><div>{rdw.catalogusprijs != null ? `€ ${rdw.catalogusprijs.toLocaleString('nl-NL')}` : '—'}</div></div>
               </div>
             )}
 
@@ -294,13 +294,13 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
                   className={`btn ${isBedrijf ? 'btn-a' : ''}`}
                   style={{ fontSize: 12, padding: '5px 12px' }}
                   onClick={() => stel('is_bedrijf', true)}
-                >ðŸ¢ Bedrijf</button>
+                >🏢 Bedrijf</button>
                 <button
                   type="button"
                   className={`btn ${!isBedrijf ? 'btn-a' : ''}`}
                   style={{ fontSize: 12, padding: '5px 12px' }}
                   onClick={() => stel('is_bedrijf', false)}
-                >ðŸ‘¤ Particulier</button>
+                >👤 Particulier</button>
               </div>
             </div>
 
@@ -370,11 +370,11 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
 
         <div className={styles.footer}>
           <div className={styles.footerLinks}>
-            {form.hubspot_deal_id && <>âœ… Reeds in HubSpot Â· Deal {form.hubspot_deal_id}</>}
+            {form.hubspot_deal_id && <>✅ Reeds in HubSpot · Deal {form.hubspot_deal_id}</>}
           </div>
           <button className="btn" onClick={onSluiten}>Sluiten</button>
           <button className="btn" onClick={handleOpslaan} disabled={bezig}>
-            {bezig ? '...' : 'ðŸ’¾ Opslaan'}
+            {bezig ? '...' : '💾 Opslaan'}
           </button>
           <button
             className="btn btn-a"
@@ -382,7 +382,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
             disabled={bezig || !klaarVoorAkkoord}
             title={klaarVoorAkkoord ? 'Wegschrijven naar HubSpot' : 'Kenteken en bedrijfsnaam zijn verplicht'}
           >
-            {bezig ? '...' : 'âœ… Goedkeuren â†’ HubSpot'}
+            {bezig ? '...' : '✅ Goedkeuren → HubSpot'}
           </button>
         </div>
       </div>

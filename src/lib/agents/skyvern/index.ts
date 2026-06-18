@@ -11,14 +11,14 @@ import type { AgentContext, AgentResult } from '../types';
  *
  * Skyvern Cloud host de browser zelf (anti-detect + residential proxy), dus er is
  * GEEN eigen runner/Chromium nodig. We gebruiken een Nederlands residential-IP
- * (proxy_location 'RESIDENTIAL_NL') â€” dat omzeilt naar verwachting de bot-detectie
+ * (proxy_location 'RESIDENTIAL_NL') — dat omzeilt naar verwachting de bot-detectie
  * waar Browserbase's datacenter-IP's op faalden (o.a. Hiltermann).
  *
- * âš ï¸ CREDENTIALS â€” FASE 0 vs FASE 1:
- *  - Fase 0 (deze eval): login-gegevens staan in de prompt â†’ ze gaan naar het LLM.
+ * âš ï¸ CREDENTIALS — FASE 0 vs FASE 1:
+ *  - Fase 0 (deze eval): login-gegevens staan in de prompt → ze gaan naar het LLM.
  *    Alleen acceptabel voor een eenmalige eval met je eigen B2B-portaallogin.
  *  - Fase 1 (productie): verplaats naar Skyvern Credentials (vault) + login-block
- *    in een workflow â†’ wachtwoord wordt vervangen door placeholder, nooit naar LLM.
+ *    in een workflow → wachtwoord wordt vervangen door placeholder, nooit naar LLM.
  */
 
 export interface SkyvernPortalConfig {
@@ -64,7 +64,7 @@ export async function runSkyvernPortal(ctx: AgentContext, config: SkyvernPortalC
 
   const skyvern = new Skyvern({ apiKey: process.env.SKYVERN_API_KEY });
 
-  // Login-instructie (Fase 0: creds in prompt â€” zie waarschuwing bovenaan).
+  // Login-instructie (Fase 0: creds in prompt — zie waarschuwing bovenaan).
   const loginInstructie =
     `Open de inlogpagina en log in met gebruikersnaam "${credentials.user}" en wachtwoord "${credentials.pass}". ` +
     `Wacht tot je bent ingelogd voordat je verder gaat.\n\n`;

@@ -1,9 +1,9 @@
-﻿// â”€â”€ Zoekopdrachten (Zoeken) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+﻿// ── Zoekopdrachten (Zoeken) ──────────────────────────────────
 
 export interface Zoekopdracht {
   id: string;
   klant: string;
-  auto: string; // "Merk Model" â€” gecombineerde string
+  auto: string; // "Merk Model" — gecombineerde string
   details?: string;
   km?: string;
   jaar?: string;
@@ -30,7 +30,7 @@ export interface Zoekopdracht {
   uitgesteld?: boolean;
 }
 
-// â”€â”€ After Sales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── After Sales ──────────────────────────────────────────────
 
 export type ASAutoType = 'import' | 'nl' | 'nieuw' | 'voorraad';
 
@@ -134,7 +134,7 @@ export interface ASKlacht {
   updates?: KlachtUpdate[];
 }
 
-// â”€â”€ Lease â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Lease ────────────────────────────────────────────────────
 
 export interface LeaseKlant {
   id: string;
@@ -164,7 +164,7 @@ export interface LeaseAanvraag {
 
   // Lease details
   leasemaatschappij?: string;
-  leasenormbedrag?: number;   // verwacht normbedrag â‚¬/mnd
+  leasenormbedrag?: number;   // verwacht normbedrag €/mnd
   leasetarief?: number;       // scherpste tarief (ingevuld door inkoper)
 
   // Verdiensten
@@ -199,7 +199,7 @@ export interface LeaseAanvraag {
   status?: 'nieuw' | 'offerte' | 'akkoord_klant' | 'verkocht';
 }
 
-// â”€â”€ BTW / Credit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── BTW / Credit ─────────────────────────────────────────────
 
 export type BtwAutoType = 'btw' | 'credit';
 
@@ -238,7 +238,7 @@ export interface BtwRecord {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
-// â”€â”€ Inname formulier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Inname formulier ─────────────────────────────────────────
 
 export interface InnameFormulier {
   id: string;
@@ -266,7 +266,7 @@ export interface InnameFormulier {
   schade_omschrijving?: string;
 }
 
-// â”€â”€ Leads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Leads ────────────────────────────────────────────────────
 
 export type LeadStatus = 'nieuw' | 'opgepakt' | 'gebeld' | 'interesse' | 'verkocht' | 'geen_interesse';
 export type LeadBron = 'autoscout24' | 'autowereld' | 'marktplaats' | 'email' | 'anders';
@@ -292,7 +292,7 @@ export interface Lead {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
-// â”€â”€ Facturen (inbox â†’ HubSpot) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Facturen (inbox → HubSpot) ───────────────────────────────
 
 export type FactuurStatus =
   | 'nieuw'
@@ -353,7 +353,7 @@ export interface Factuur {
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
-// â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Auth ─────────────────────────────────────────────────────
 
 export interface AppUser {
   id: string;
@@ -361,7 +361,7 @@ export interface AppUser {
   naam?: string;
 }
 
-// â”€â”€ Werk Derden (partner-meldingen voor doorbelasting) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Werk Derden (partner-meldingen voor doorbelasting) ──────────────────────
 
 export type WerkDerdenStatus =
   | 'open'
@@ -391,7 +391,7 @@ export interface WerkDerdenRecord {
   klant?: string;
   toegevoegd_door?: string;
 
-  // Werk-regels + financiÃ«n
+  // Werk-regels + financiën
   regels: WerkRegel[];
   btw_pct?: number;
   inkoop_bedrag?: number;

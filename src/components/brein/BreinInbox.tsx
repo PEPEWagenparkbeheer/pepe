@@ -139,7 +139,7 @@ export default function BreinInbox() {
     if (conceptDraft !== (actief.concept_antwoord ?? '')) {
       await saveConcept(actief.id, conceptDraft);
     }
-    if (!confirm(`Dit concept nu versturen naar ${naar}?\n\nDe officiÃ«le handtekening wordt automatisch toegevoegd.`)) {
+    if (!confirm(`Dit concept nu versturen naar ${naar}?\n\nDe officiële handtekening wordt automatisch toegevoegd.`)) {
       return;
     }
     setSending(true);
@@ -157,20 +157,20 @@ export default function BreinInbox() {
       <header className={styles.kop}>
         <div>
           <h1 className={styles.titel}>
-            <span className={styles.brein}>ðŸ§ </span> BREIN Inbox
+            <span className={styles.brein}>🧠</span> BREIN Inbox
           </h1>
           <p className={styles.subkop}>
             {messages[0]?.mailbox ?? 'fues@pepewagenparkbeheer.nl'}
           </p>
         </div>
         <button className={styles.vernieuwKnop} onClick={() => void handleSync()} disabled={syncing}>
-          {syncing ? 'Ophalenâ€¦' : 'ðŸ“¥ Ophalen'}
+          {syncing ? 'Ophalen…' : '📥 Ophalen'}
         </button>
         <button className={styles.vernieuwKnop} onClick={() => void refresh()} disabled={loading}>
-          {loading ? 'Ladenâ€¦' : 'â†» Vernieuwen'}
+          {loading ? 'Laden…' : '↻ Vernieuwen'}
         </button>
         <button className={styles.vernieuwKnop} onClick={() => void handleClassify()} disabled={loading || classifying}>
-          {classifying ? 'Classificerenâ€¦' : 'ðŸ§  Classificeer'}
+          {classifying ? 'Classificeren…' : '🧠 Classificeer'}
         </button>
       </header>
 
@@ -225,7 +225,7 @@ export default function BreinInbox() {
         <div className={styles.detail}>
           {!actief ? (
             <div className={styles.detailLeeg}>
-              <span className={styles.detailLeegIcoon}>ðŸ“¬</span>
+              <span className={styles.detailLeegIcoon}>📬</span>
               Selecteer een bericht om te lezen.
             </div>
           ) : (
@@ -235,10 +235,10 @@ export default function BreinInbox() {
                 <div className={styles.berichtMeta}>
                   <strong>{actief.afzender_naam || actief.afzender_email}</strong>
                   {actief.afzender_naam && actief.afzender_email && (
-                    <span className={styles.muted}> Â· {actief.afzender_email}</span>
+                    <span className={styles.muted}> · {actief.afzender_email}</span>
                   )}
                   <span className={styles.muted}>
-                    {' Â· '}
+                    {' · '}
                     {actief.ontvangen_op
                       ? new Date(actief.ontvangen_op).toLocaleString('nl-NL')
                       : ''}
@@ -256,7 +256,7 @@ export default function BreinInbox() {
                     {STATUS_LABEL[actief.status] ?? actief.status}
                   </span>
                   {actief.behandeld_door && (
-                    <span className={styles.muted}>Â· door {actief.behandeld_door}</span>
+                    <span className={styles.muted}>· door {actief.behandeld_door}</span>
                   )}
                 </div>
               </div>
@@ -277,7 +277,7 @@ export default function BreinInbox() {
                       onClick={() => void handleGenereer()}
                       disabled={generating}
                     >
-                      {generating ? 'Genererenâ€¦' : actief.concept_antwoord ? 'â†» Opnieuw' : 'âœ¨ Genereer concept'}
+                      {generating ? 'Genereren…' : actief.concept_antwoord ? '↻ Opnieuw' : '✨ Genereer concept'}
                     </button>
                     {conceptDraft.trim() !== '' && (
                       <button
@@ -286,7 +286,7 @@ export default function BreinInbox() {
                         disabled={conceptDraft === (actief.concept_antwoord ?? '')}
                         title={conceptDraft === (actief.concept_antwoord ?? '') ? 'Al opgeslagen' : 'Wijziging opslaan'}
                       >
-                        {conceptDraft === (actief.concept_antwoord ?? '') ? 'âœ“ Opgeslagen' : 'Opslaan'}
+                        {conceptDraft === (actief.concept_antwoord ?? '') ? '✓ Opgeslagen' : 'Opslaan'}
                       </button>
                     )}
                     {conceptDraft.trim() !== '' && actief.status !== 'verzonden' && (
@@ -295,12 +295,12 @@ export default function BreinInbox() {
                         onClick={() => void handleVerstuur()}
                         disabled={sending}
                       >
-                        {sending ? 'Versturenâ€¦' : 'ðŸ“¨ Versturen'}
+                        {sending ? 'Versturen…' : '📨 Versturen'}
                       </button>
                     )}
                     {actief.status === 'verzonden' && (
                       <span className={styles.verzondenLabel}>
-                        âœ“ Verzonden{actief.verzonden_op ? ' ' + new Date(actief.verzonden_op).toLocaleString('nl-NL') : ''}
+                        ✓ Verzonden{actief.verzonden_op ? ' ' + new Date(actief.verzonden_op).toLocaleString('nl-NL') : ''}
                       </span>
                     )}
                   </div>
@@ -314,7 +314,7 @@ export default function BreinInbox() {
                   />
                 ) : (
                   <p className={styles.muted}>
-                    Nog geen concept. Klik op â€œGenereer conceptâ€ om Claude een antwoord te laten opstellen in
+                    Nog geen concept. Klik op "Genereer concept" om Claude een antwoord te laten opstellen in
                     de stijl van fues@.
                   </p>
                 )}
@@ -341,8 +341,8 @@ export default function BreinInbox() {
                     {actief.historie.map((h, i) => (
                       <li key={i}>
                         <strong>{STATUS_LABEL[h.status] ?? h.status}</strong>
-                        {' Â· '}door {h.door}
-                        {' Â· '}
+                        {' · '}door {h.door}
+                        {' · '}
                         <span className={styles.muted}>{tijdLang(h.op)}</span>
                       </li>
                     ))}

@@ -154,8 +154,16 @@ export async function findCompany({ name, postcode, plaats }: CompanyMatchInput)
   return null;
 }
 
+// HubSpot-property kvk_nummer is van het type 'number': alleen cijfers toegestaan.
+// Een waarde met spatie/punt/letters geeft anders een 400 ("geen geldig getal" /
+// "There was a problem with the request").
+function kvkDigits(kvk?: string | null): string {
+  return (kvk ?? '').replace(/\D/g, '');
+}
+
 export async function searchCompanyByKvk(kvk: string): Promise<string | null> {
-  if (!kvk?.trim()) return null;
+  const k = kvkDigits(kvk);
+  if (!k) return null;
   const data = await hsFetch<{ results?: { id: string }[] }>(
     `${HS_BASE}/crm/v3/objects/companies/search`,
     {
@@ -164,7 +172,7 @@ export async function searchCompanyByKvk(kvk: string): Promise<string | null> {
         limit: 1,
         properties: ['kvk_nummer'],
         filterGroups: [{
-          filters: [{ propertyName: 'kvk_nummer', operator: 'EQ', value: kvk.trim() }],
+          filters: [{ propertyName: 'kvk_nummer', operator: 'EQ', value: k }],
         }],
       }),
     },
@@ -174,7 +182,7 @@ export async function searchCompanyByKvk(kvk: string): Promise<string | null> {
 
 export async function createCompany(input: CompanyInput): Promise<string> {
   const properties: Record<string, string> = { name: input.name };
-  if (input.kvk) properties.kvk_nummer = input.kvk;
+  if (kvkDigits(input.kvk)) properties.kvk_nummer = kvkDigits(input.kvk);
   if (input.domain) properties.domain = input.domain;
   if (input.phone) properties.phone = input.phone;
   if (input.address) properties.address = input.address;
@@ -191,7 +199,7 @@ export async function createCompany(input: CompanyInput): Promise<string> {
 
 export async function updateCompany(id: string, input: Partial<Omit<CompanyInput, 'name'>>): Promise<void> {
   const properties: Record<string, string> = {};
-  if (input.kvk) properties.kvk_nummer = input.kvk;
+  if (kvkDigits(input.kvk)) properties.kvk_nummer = kvkDigits(input.kvk);
   if (input.domain) properties.domain = input.domain;
   if (input.phone) properties.phone = input.phone;
   if (input.address) properties.address = input.address;

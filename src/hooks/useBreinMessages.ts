@@ -8,7 +8,7 @@ import { authHeaders } from '@/lib/clientAuth';
 export type BreinStatus = 'nieuw' | 'opgepakt' | 'in_behandeling' | 'afgehandeld' | 'overgeslagen' | 'verzonden';
 export type BreinPrioriteit = 'laag' | 'normaal' | 'hoog' | 'urgent';
 
-/** EÃ©n stap in de behandel-historie van een bericht (wie deed wat, wanneer). */
+/** Eén stap in de behandel-historie van een bericht (wie deed wat, wanneer). */
 export interface HistorieStap {
   status: BreinStatus;
   op: string; // ISO-tijd
@@ -121,7 +121,7 @@ export function useBreinMessages() {
     if (error) console.error('brein status update fout:', error.message);
   }, []);
 
-  /** Haalt nieuwe mail uit Outlook (Graph â†’ DB) en herlaadt daarna de lijst. */
+  /** Haalt nieuwe mail uit Outlook (Graph → DB) en herlaadt daarna de lijst. */
   const sync = useCallback(async () => {
     const res = await fetch('/api/brein/sync', { method: 'POST', headers: await authHeaders() });
     if (!res.ok) throw new Error(`sync ${res.status}`);

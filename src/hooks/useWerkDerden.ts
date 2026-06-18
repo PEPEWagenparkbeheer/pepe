@@ -40,7 +40,7 @@ function cacheSave(records: WerkDerdenRecord[]) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(records));
   } catch {
-    // quota exceeded â€” ignore
+    // quota exceeded — ignore
   }
 }
 

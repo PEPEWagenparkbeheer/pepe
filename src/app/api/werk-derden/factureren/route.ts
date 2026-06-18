@@ -4,7 +4,7 @@
 // 1. Haal de melding op uit Supabase
 // 2. Bereken verkoop_bedrag uit inkoop + marge
 // 3. Roep Twinfield aan (stub)
-// 4. Update status â†’ 'gefactureerd' + marge + verkoop + twinfield_invoice_id + gefactureerd_op
+// 4. Update status → 'gefactureerd' + marge + verkoop + twinfield_invoice_id + gefactureerd_op
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
