@@ -72,11 +72,25 @@ export async function POST(req: NextRequest) {
     }
     const draft = (await replyRes.json()) as { id: string };
 
-    // 3. Body vervangen door ons antwoord + handtekening
+    // 2b. Bestaande concept-body ophalen — die bevat de geciteerde originele mail
+    //     (afzender/datum + quote) die createReply automatisch heeft toegevoegd.
+    const draftGet = await fetch(
+      `${userBase}/messages/${encodeURIComponent(draft.id)}?$select=body`,
+      { headers: H },
+    );
+    let origineelHtml = '';
+    if (draftGet.ok) {
+      const dj = (await draftGet.json()) as { body?: { content?: string } };
+      origineelHtml = dj.body?.content ?? '';
+    }
+
+    // 3. Ons antwoord + handtekening BOVENAAN, geciteerde originele mail eronder.
+    //    (Alleen htmlBody zou de quote weggooien → oogt als losse nieuwe mail.)
+    const samengesteldeBody = htmlBody + origineelHtml;
     const patchRes = await fetch(`${userBase}/messages/${encodeURIComponent(draft.id)}`, {
       method: 'PATCH',
       headers: H,
-      body: JSON.stringify({ body: { contentType: 'HTML', content: htmlBody } }),
+      body: JSON.stringify({ body: { contentType: 'HTML', content: samengesteldeBody } }),
     });
     if (!patchRes.ok) {
       const e = await patchRes.json().catch(() => ({}));
