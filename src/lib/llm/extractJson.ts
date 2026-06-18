@@ -50,6 +50,16 @@ export async function extractJson<T = Record<string, unknown>>(
   try {
     return JSON.parse(cleaned) as T;
   } catch {
+    // Val terug op het eerste JSON-object/array in de tekst (voor het geval er
+    // toch tekst omheen staat).
+    const match = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]) as T;
+      } catch {
+        /* doorvallen naar warn */
+      }
+    }
     console.warn('[llm/extractJson] Kon JSON niet parsen:', raw.slice(0, 200));
     return null;
   }

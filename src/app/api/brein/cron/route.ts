@@ -26,7 +26,19 @@ export async function GET(req: NextRequest) {
     const results = await runBreinSync();
     const synced = results.reduce((a, r) => a + r.synced, 0);
     console.log(`[brein/cron] ${synced} nieuwe mail(s) over ${results.length} mailbox(en)`);
-    return NextResponse.json({ ok: true, synced, mailboxes: results });
+
+    // Lead-intake uit info@ — fouten hier mogen de berijder-sync niet breken.
+    let leads;
+    try {
+      leads = await runLeadsIntake();
+      console.log(
+        `[brein/cron] leads-intake: ${leads.leads} lead(s), ${leads.tenders} tender(s), ${leads.skipped} overgeslagen`,
+      );
+    } catch (e) {
+      console.error('[brein/cron] leads-intake fout:', e instanceof Error ? e.message : e);
+    }
+
+    return NextResponse.json({ ok: true, synced, mailboxes: results, leads });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[brein/cron] Fout:', message);

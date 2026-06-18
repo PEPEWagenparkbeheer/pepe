@@ -1,6 +1,8 @@
-// Extraheert factuur-velden uit ruwe PDF-tekst via Groq.
+// Extraheert factuur-velden uit ruwe PDF-tekst via Claude (Anthropic, Haiku 4.5).
 // Server-only. Werkt zonder voorbeeld-PDF op het juiste pakket; bij
 // nieuwe layouts hoeft alleen de prompt te worden bijgesteld.
+
+import { extractJson } from '@/lib/llm/extractJson';
 
 export interface FactuurExtract {
   factuurnummer?: string | null;
@@ -70,41 +72,13 @@ Belangrijk:
 - Bij onduidelijkheid: null. NIET raden.`;
 
 export async function parseFactuurTekst(tekst: string): Promise<FactuurExtract | null> {
-  if (!process.env.GROQ_API_KEY) {
-    console.warn('GROQ_API_KEY ontbreekt — sla factuur op zonder extract');
-    return null;
-  }
-
-  // Limiteer input zodat Groq context-window niet wordt overschreden.
+  // Limiteer input zodat het context-window niet wordt overschreden.
   // Een factuur is doorgaans <8k chars; we kappen op 20k voor zekerheid.
   const input = tekst.slice(0, 20_000);
 
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: input },
-        ],
-        temperature: 0,
-        max_tokens: 800,
-        response_format: { type: 'json_object' },
-      }),
-    });
-    if (!res.ok) {
-      console.error('factuur-parser groq fout:', res.status, await res.text());
-      return null;
-    }
-    const data = await res.json();
-    const raw = data.choices?.[0]?.message?.content;
-    if (!raw) return null;
-    const obj = JSON.parse(raw) as FactuurExtract;
+    const obj = await extractJson<FactuurExtract>(SYSTEM_PROMPT, input, { maxTokens: 800 });
+    if (!obj) return null;
 
     // Veiligheidsfilter: als Groq toch PEPE-data heeft teruggegeven, wegfilteren.
     const kvk = obj.kvk?.replace(/\D/g, '') ?? null;

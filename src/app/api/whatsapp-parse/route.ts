@@ -1,6 +1,6 @@
-import Groq from 'groq-sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePepe } from '@/lib/apiAuth';
+import { extractJson } from '@/lib/llm/extractJson';
 
 const MERKEN = [
   'Alfa Romeo', 'Audi', 'BMW', 'Bentley', 'BYD', 'Citroën', 'Cupra', 'Dacia', 'DS', 'Ferrari',
