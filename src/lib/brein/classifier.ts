@@ -8,7 +8,9 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-const MODEL = 'claude-opus-4-8';
+// Haiku is ruim voldoende voor simpele classificatie (categorie + samenvatting);
+// de concept-generatie draait bewust op Opus voor de beste NL toon (zie concept.ts).
+const MODEL = 'claude-haiku-4-5';
 
 export type BreinCategorie = 'factuur' | 'kenteken' | 'verkoop' | 'vraag' | 'overig';
 export type BreinPrioriteit = 'laag' | 'normaal' | 'hoog' | 'urgent';
