@@ -7,12 +7,63 @@
 
 import {
   searchContactByEmail, searchDealByKenteken, getDealFields, getContactFields,
-  getRijdendeDeals, type RijdendeDeal,
+  getRijdendeDeals, updateDealFields, type RijdendeDeal,
 } from '@/lib/hubspot';
 import { rdwOpzoeken } from '@/lib/rdw';
 
 function normKenteken(k: string): string {
   return k.replace(/[-\s]/g, '').toUpperCase();
+}
+
+/** Normaliseert diverse datumnotaties (epoch-ms, ISO, DD-MM-YYYY) naar ISO yyyy-mm-dd. */
+function naarIso(d: string | null | undefined): string {
+  if (!d) return '';
+  const s = String(d).trim();
+  if (/^\d{10,13}$/.test(s)) {
+    const ms = s.length >= 13 ? Number(s) : Number(s) * 1000;
+    const dt = new Date(ms);
+    return Number.isNaN(dt.getTime()) ? '' : dt.toISOString().slice(0, 10);
+  }
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const nl = s.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (nl) return `${nl[3]}-${nl[2]}-${nl[1]}`;
+  return '';
+}
+
+/**
+ * APK-datum en fiscale waarde zijn in HubSpot niet altijd betrouwbaar.
+ * RDW is leidend: verifieer beide en schrijf afwijkende waarden terug naar HubSpot.
+ * Best-effort — een mislukte update mag de concept-generatie nooit breken.
+ */
+async function syncVoertuigNaarHubspot(
+  dealId: string,
+  rdw: RdwExtra,
+  hubspotApk: string | null,
+  hubspotFiscaal: string | null,
+): Promise<void> {
+  const update: Record<string, string> = {};
+
+  // APK (RDW DD-MM-YYYY → ISO). Alleen schrijven als afwijkend of leeg in HubSpot.
+  if (rdw.apk) {
+    const rdwIso = naarIso(rdw.apk);
+    if (rdwIso && rdwIso !== naarIso(hubspotApk)) update.apk_datum = rdwIso;
+  }
+  // Fiscale waarde = RDW catalogusprijs (number). Alleen schrijven als afwijkend of leeg.
+  if (rdw.catalogusprijs != null) {
+    const huidig = hubspotFiscaal ? Math.round(Number(hubspotFiscaal)) : null;
+    if (huidig !== Math.round(rdw.catalogusprijs)) {
+      update.fiscale_waarde = String(Math.round(rdw.catalogusprijs));
+    }
+  }
+
+  if (!dealId || Object.keys(update).length === 0) return;
+  try {
+    await updateDealFields(dealId, update);
+    console.log(`[brein/context] HubSpot deal ${dealId} bijgewerkt vanuit RDW:`, update);
+  } catch (e) {
+    console.error('[brein/context] HubSpot-update mislukt (genegeerd):', e instanceof Error ? e.message : e);
+  }
 }
 
 /** Directe Google Maps-zoeklink naar merkdealers in de buurt (geen API-key nodig). */
@@ -102,11 +153,13 @@ export async function buildBreinContext(opts: {
   if (chosen) {
     const r = await rdwExtra(chosen.kenteken);
     const merk = r.merk;
-    const apk = chosen.apk_datum || r.apk || null;
     const brandstof = chosen.brandstof || r.brandstof || null;
-    const fiscaal = chosen.fiscale_waarde
-      ? `€${chosen.fiscale_waarde}`
-      : (r.catalogusprijs ? `€${r.catalogusprijs.toLocaleString('nl-NL')}` : null);
+
+    // APK + fiscale waarde: RDW leidend (HubSpot niet altijd betrouwbaar) en terugsyncen.
+    await syncVoertuigNaarHubspot(chosen.id, r, chosen.apk_datum, chosen.fiscale_waarde);
+    const apk = r.apk || chosen.apk_datum || null;
+    const fiscaalNum = r.catalogusprijs ?? (chosen.fiscale_waarde ? Number(chosen.fiscale_waarde) : null);
+    const fiscaal = fiscaalNum != null ? `€${fiscaalNum.toLocaleString('nl-NL')}` : null;
 
     ctx.push(`Voertuig (rijdend): ${chosen.kenteken}${merk ? ` — ${merk}${r.model ? ' ' + r.model : ''}` : ''}`);
     if (chosen.leasemaatschappij) ctx.push(`Leasemaatschappij van de berijder: ${chosen.leasemaatschappij}`);
@@ -121,8 +174,9 @@ export async function buildBreinContext(opts: {
     ctx.push('Berijder heeft meerdere RIJDENDE voertuigen:');
     for (const d of meerdere) {
       const r = await rdwExtra(d.kenteken);
+      await syncVoertuigNaarHubspot(d.id, r, d.apk_datum, d.fiscale_waarde);
       const merk = r.merk ?? '';
-      const apk = d.apk_datum || r.apk || '';
+      const apk = r.apk || d.apk_datum || '';
       const link = merk && woonplaats ? ` — dealer-zoeklink: ${dealerZoeklink(merk, woonplaats)}` : '';
       ctx.push(
         `  • ${d.kenteken}${d.leasemaatschappij ? ' (' + d.leasemaatschappij + ')' : ''}` +

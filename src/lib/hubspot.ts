@@ -383,6 +383,19 @@ export async function getDealFields(
   return data.properties ?? {};
 }
 
+/** PATCH losse velden op een deal (= voertuig/contract). Leeg object = no-op. */
+export async function updateDealFields(
+  dealId: string,
+  properties: Record<string, string>,
+): Promise<void> {
+  const id = String(dealId ?? '').trim();
+  if (!id || Object.keys(properties).length === 0) return;
+  await hsFetch(
+    `${HS_BASE}/crm/v3/objects/deals/${id}`,
+    { method: 'PATCH', body: JSON.stringify({ properties }) },
+  );
+}
+
 /** Haalt specifieke velden van een contact (= berijder) op. */
 export async function getContactFields(
   contactId: string,
