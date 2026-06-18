@@ -3,14 +3,11 @@
 // Tone-of-voice: live meegegeven verzonden mails als stijlvoorbeeld (niet opgeslagen).
 // Server-only — gebruik uitsluitend in API routes of server actions.
 //
-// ⚠️ TODO (later omzetten): dit draait nu op Groq (Llama 3.3) omdat het
-// Anthropic-tegoed op was. Voor de beste Nederlandse toon hoort dit op
-// Claude (Anthropic) te draaien — terugzetten zodra er Anthropic-tegoed is.
-// Zie geheugen: werkend-voor-betaald.
+// Draait op Claude (Anthropic) voor de beste Nederlandse toon.
 
-import Groq from 'groq-sdk';
+import Anthropic from '@anthropic-ai/sdk';
 
-const MODEL = 'llama-3.3-70b-versatile';
+const MODEL = 'claude-opus-4-8';
 
 export interface ConceptInput {
   onderwerp: string | null;
@@ -26,12 +23,12 @@ export interface ConceptInput {
   procedures?: string;
 }
 
-let _client: Groq | null = null;
-function getClient(): Groq {
+let _client: Anthropic | null = null;
+function getClient(): Anthropic {
   if (!_client) {
-    const key = process.env.GROQ_API_KEY;
-    if (!key) throw new Error('GROQ_API_KEY ontbreekt in omgevingsvariabelen');
-    _client = new Groq({ apiKey: key });
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) throw new Error('ANTHROPIC_API_KEY ontbreekt in omgevingsvariabelen');
+    _client = new Anthropic({ apiKey: key });
   }
   return _client;
 }
@@ -70,15 +67,14 @@ ${input.body.slice(0, 4000)}
 Schrijf nu het concept-antwoord.`;
 
   const client = getClient();
-  const completion = await client.chat.completions.create({
+  const completion = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
-    temperature: 0.4,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userContent },
-    ],
+    system: SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: userContent }],
   });
 
-  return completion.choices[0]?.message?.content?.trim() ?? '';
+  return (
+    completion.content.find((b): b is Anthropic.TextBlock => b.type === 'text')?.text?.trim() ?? ''
+  );
 }

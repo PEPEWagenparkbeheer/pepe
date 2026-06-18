@@ -1,12 +1,14 @@
 // src/lib/brein/classifier.ts
-// Classificeert BREIN-mailberichten met Groq (Llama 3):
+// Classificeert BREIN-mailberichten met Claude (Anthropic):
 // - categorie (factuur | kenteken | verkoop | vraag | overig)
 // - samenvatting (max 2 zinnen NL)
 // - prioriteit (laag | normaal | hoog | urgent)
 // - kenteken (geëxtraheerd uit onderwerp/body)
 // Server-only – gebruik uitsluitend in API routes of server actions.
 
-import Groq from 'groq-sdk';
+import Anthropic from '@anthropic-ai/sdk';
+
+const MODEL = 'claude-opus-4-8';
 
 export type BreinCategorie = 'factuur' | 'kenteken' | 'verkoop' | 'vraag' | 'overig';
 export type BreinPrioriteit = 'laag' | 'normaal' | 'hoog' | 'urgent';
@@ -38,12 +40,12 @@ export function extractKentekenRegex(tekst: string): string | null {
   return match[0].toUpperCase();
 }
 
-let _client: Groq | null = null;
-function getClient(): Groq {
+let _client: Anthropic | null = null;
+function getClient(): Anthropic {
   if (!_client) {
-    const key = process.env.GROQ_API_KEY;
-    if (!key) throw new Error('GROQ_API_KEY ontbreekt in omgevingsvariabelen');
-    _client = new Groq({ apiKey: key });
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) throw new Error('ANTHROPIC_API_KEY ontbreekt in omgevingsvariabelen');
+    _client = new Anthropic({ apiKey: key });
   }
   return _client;
 }
@@ -71,7 +73,7 @@ Schrijf de samenvatting in het Nederlands, max 2 zinnen.
 Retourneer ALLEEN JSON, geen uitleg, geen markdown code blocks.`;
 
 /**
- * Classificeert één bericht met Groq (Llama 3.3 70B).
+ * Classificeert één bericht met Claude (Anthropic).
  * Probeert eerst kenteken via regex; als dat niets geeft, vraagt LLM erom.
  */
 export async function classifyBericht(bericht: BerichtInput): Promise<ClassifyResult> {
@@ -87,17 +89,16 @@ Onderwerp: ${bericht.onderwerp ?? '(geen)'}
 Preview: ${(bericht.body_preview ?? '').slice(0, 600)}`;
 
   const client = getClient();
-  const completion = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+  const completion = await client.messages.create({
+    model: MODEL,
     max_tokens: 256,
-    temperature: 0,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: prompt },
-    ],
+    system: SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: prompt }],
   });
 
-  const raw = completion.choices[0]?.message?.content?.trim() ?? '{}';
+  const raw =
+    completion.content.find((b): b is Anthropic.TextBlock => b.type === 'text')?.text?.trim() ??
+    '{}';
 
   // Strip markdown code blocks if present
   const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
