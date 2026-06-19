@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { KlachtUpdate, Lead, LeadBron, LeadStatus } from '@/types';
+import { authHeaders } from '@/lib/clientAuth';
 import styles from './LeadsPage.module.css';
 
 const LEEG: Omit<Lead, 'id' | 'created_at'> = {
@@ -98,7 +99,7 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
     try {
       const res = await fetch('/api/leads/concept', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           klant_naam: form.klant_naam, auto: form.auto, prijs: form.prijs,
           advertentie_url: form.advertentie_url, bericht: form.bericht, bron: form.bron,
@@ -123,7 +124,7 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
     try {
       const res = await fetch('/api/leads/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           to: form.email, subject: `RE: ${form.auto}`, body: concept,
           inruil: conceptInruil, wie: form.wie || gebruiker, auto: form.auto,
