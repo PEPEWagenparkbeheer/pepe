@@ -16,6 +16,7 @@ type KentekenType = 'personenauto' | 'bedrijfswagen';
 
 // ─── Consignatie eindafrekening ────────────────────────────────
 interface Form {
+  kenteken: string;
   auto: string;
   kentekenType: KentekenType;
   verkoopprijs: string;
@@ -29,6 +30,7 @@ interface Form {
 }
 
 const LEEG: Form = {
+  kenteken: '',
   auto: '',
   kentekenType: 'personenauto',
   verkoopprijs: '',
@@ -351,6 +353,9 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
   const [form, setForm] = useState<Form>(LEEG);
   const [stap, setStap] = useState(0);
   const [klaar, setKlaar] = useState(false);
+  const [consignatieVoertuig, setConsignatieVoertuig] = useState<Partial<InkoopForm> | null>(null);
+  const [consignatieRdwLoading, setConsignatieRdwLoading] = useState(false);
+  const [consignatieRdwMelding, setConsignatieRdwMelding] = useState('');
 
   // Inkoopverklaring — losgekoppelde flow vanaf het resultaatscherm
   const [toonInkoop, setToonInkoop] = useState(false);
@@ -393,6 +398,39 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     void refreshPendingStatuses(saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, directInkoop]);
+
+  // Zodra een volledig Nederlands kenteken is ingevuld, vullen we merk en model
+  // automatisch aan. De korte debounce voorkomt een request bij iedere toetsaanslag.
+  useEffect(() => {
+    if (!open || directInkoop || stap !== 0) return;
+    const kenteken = form.kenteken.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    if (kenteken.length !== 6) return;
+
+    let actief = true;
+    const timer = window.setTimeout(async () => {
+      setConsignatieRdwLoading(true);
+      setConsignatieRdwMelding('');
+      const voertuig = await rdwInkoopOphalen(kenteken);
+      if (!actief) return;
+
+      setConsignatieRdwLoading(false);
+      if (!voertuig) {
+        setConsignatieVoertuig(null);
+        setConsignatieRdwMelding('Geen voertuig gevonden bij dit kenteken.');
+        return;
+      }
+
+      setConsignatieVoertuig(voertuig);
+      const naam = [voertuig.merk, voertuig.model].filter(Boolean).join(' ');
+      setForm((huidig) => ({ ...huidig, auto: naam || huidig.auto }));
+      setConsignatieRdwMelding(naam ? `${naam} opgehaald uit RDW.` : 'Voertuig opgehaald uit RDW.');
+    }, 350);
+
+    return () => {
+      actief = false;
+      window.clearTimeout(timer);
+    };
+  }, [form.kenteken, open, directInkoop, stap]);
 
   // Ververst de DocuSign-status van nog niet-afgeronde verklaringen en bewaart het resultaat.
   async function refreshPendingStatuses(records: SavedInkoop[]) {
@@ -449,6 +487,13 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     setForm((f) => ({ ...f, [veld]: w }));
   }
 
+  function stelConsignatieKenteken(kenteken: string) {
+    setForm((f) => ({ ...f, kenteken: kenteken.toUpperCase() }));
+    setConsignatieRdwLoading(false);
+    setConsignatieRdwMelding('');
+    setConsignatieVoertuig(null);
+  }
+
   function stelInkoop<K extends keyof InkoopForm>(veld: K, w: InkoopForm[K]) {
     setInkoop((f) => ({ ...f, [veld]: w }));
   }
@@ -499,7 +544,8 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
 
   function volgende() {
     if (stap === 0) {
-      if (!form.auto.trim()) return alert('Vul een auto-naam of kenteken in.');
+      if (!form.kenteken.trim()) return alert('Vul een kenteken in.');
+      if (!form.auto.trim()) return alert('Vul het merk en model in.');
       if (cijfers.vp <= 0) return alert('Vul een verkoopprijs in.');
     }
     if (stap < STAPPEN.length - 1) {
@@ -521,6 +567,9 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     setInkoop(INKOOP_LEEG);
     setInkoopNummer(null);
     setSendResult(null);
+    setConsignatieVoertuig(null);
+    setConsignatieRdwLoading(false);
+    setConsignatieRdwMelding('');
   }
 
   function handleSluiten() {
@@ -972,8 +1021,12 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
   function openInkoopfactuur() {
     setInkoop((prev) => ({
       ...prev,
-      merk: prev.merk || form.auto,
-      inkoopbedrag: prev.inkoopbedrag || form.verkoopprijs,
+      ...consignatieVoertuig,
+      kenteken: form.kenteken || prev.kenteken,
+      merk: consignatieVoertuig?.merk || prev.merk || form.auto,
+      model: consignatieVoertuig?.model || prev.model,
+      // De netto opbrengst aan de klant is het bedrag waarvoor PEPE de auto inkoopt.
+      inkoopbedrag: cijfers.totaal.toFixed(2),
     }));
     setInkoopNummer(null);
     setSendResult(null);
@@ -1130,7 +1183,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
   // ─── INKOOPVERKLARING-scherm (losgekoppeld) ──────────────────
   if (klaar && toonInkoop) {
     return (
-      <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && handleSluiten()}>
+      <div className={styles.overlay}>
         <div className={styles.modal}>
           <div className={styles.modalHeader}>
             <div>
@@ -1363,7 +1416,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     ] as const;
 
     return (
-      <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && handleSluiten()}>
+      <div className={styles.overlay}>
         <div className={styles.modal}>
           <div className={styles.modalHeader}>
             <div>
@@ -1416,7 +1469,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
 
   // ─── WIZARD-scherm ───────────────────────────────────────────
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && handleSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.modalHeader}>
           <div>
@@ -1465,8 +1518,23 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
                 </p>
               </div>
               <div className={styles.fg}>
-                <label>Auto (merk, model of kenteken)</label>
-                <input className="fi" placeholder="bijv. Tesla Model 3, AB-123-C" value={form.auto} onChange={(e) => stel('auto', e.target.value)} />
+                <label>Kenteken</label>
+                <input
+                  className="fi"
+                  placeholder="bijv. AB-123-C"
+                  value={form.kenteken}
+                  onChange={(e) => stelConsignatieKenteken(e.target.value)}
+                  autoComplete="off"
+                />
+                {(consignatieRdwLoading || consignatieRdwMelding) && (
+                  <p className={styles.uitleg} aria-live="polite">
+                    {consignatieRdwLoading ? 'Voertuig ophalen uit RDW…' : consignatieRdwMelding}
+                  </p>
+                )}
+              </div>
+              <div className={styles.fg}>
+                <label>Merk en model</label>
+                <input className="fi" placeholder="Wordt automatisch via RDW ingevuld" value={form.auto} onChange={(e) => stel('auto', e.target.value)} />
               </div>
               <div className={styles.fg}>
                 <label>
