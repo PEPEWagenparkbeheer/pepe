@@ -140,7 +140,15 @@ function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer,
                 <span className={`${styles.badge} ${BRON_CSS[r.bron]}`}>{BRON_LABEL[r.bron]}</span>
               </td>
               <td>
-                <div style={{ fontWeight: 600 }}>{r.klant_naam}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 600 }}>{r.klant_naam}</span>
+                  {(r.klant_reacties ?? []).some((k) => !k.gelezen) && (
+                    <span title="Klant heeft gereageerd — open lead voor details" style={{
+                      background: '#2196f3', color: '#fff', borderRadius: 10,
+                      fontSize: 10, fontWeight: 700, padding: '1px 6px', whiteSpace: 'nowrap',
+                    }}>📩 Reactie</span>
+                  )}
+                </div>
                 {r.email && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{r.email}</div>}
                 {r.telefoon && <div style={{ fontSize: 11, color: 'var(--muted)' }}>{r.telefoon}</div>}
               </td>

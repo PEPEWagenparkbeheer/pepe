@@ -11,6 +11,7 @@ export interface GraphMessage {
   bodyPreview: string
   bodyHtml: string
   isRead: boolean
+  conversationId?: string
 }
 
 interface GraphApiMessage {
@@ -21,6 +22,7 @@ interface GraphApiMessage {
   bodyPreview: string | null
   body: { content: string; contentType: string } | null
   isRead: boolean
+  conversationId?: string
 }
 
 interface GraphListResponse {
@@ -42,7 +44,7 @@ export async function getRecentMessages(
   mailbox: string,
   top = 20
 ): Promise<GraphMessage[]> {
-  const select = 'id,subject,from,receivedDateTime,bodyPreview,body,isRead'
+  const select = 'id,subject,from,receivedDateTime,bodyPreview,body,isRead,conversationId'
   // Alleen het Postvak IN (inkomende berijdersmails), niet Verzonden/andere mappen.
   const url =
     `${GRAPH_BASE}/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages` +
@@ -68,6 +70,7 @@ export async function getRecentMessages(
     bodyPreview: msg.bodyPreview ?? '',
     bodyHtml: msg.body?.content ?? '',
     isRead: msg.isRead,
+    conversationId: msg.conversationId,
   }))
 }
 
@@ -138,17 +141,31 @@ export async function getMessage(
 }
 
 /**
- * Verstuurt een reply op een bestaand bericht.
+ * Verstuurt een HTML-reply op een bestaand bericht via de Graph thread.
+ * De klant ziet zijn originele bericht automatisch onderaan de reply.
  * Vereist Mail.Send permissie op de app-registratie.
  */
 export async function replyToMessage(
   accessToken: string,
   mailbox: string,
   messageId: string,
-  comment: string
+  bodyHtml: string,
+  bijlagen: MailBijlage[] = [],
 ): Promise<void> {
   const url =
     `${GRAPH_BASE}/users/${encodeURIComponent(mailbox)}/messages/${encodeURIComponent(messageId)}/reply`
+
+  const message: Record<string, unknown> = {
+    body: { contentType: 'HTML', content: bodyHtml },
+  }
+  if (bijlagen.length > 0) {
+    message.attachments = bijlagen.map((b) => ({
+      '@odata.type': '#microsoft.graph.fileAttachment',
+      name: b.naam,
+      contentType: b.contentType,
+      contentBytes: b.base64,
+    }))
+  }
 
   const response = await fetch(url, {
     method: 'POST',
@@ -156,7 +173,7 @@ export async function replyToMessage(
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ comment }),
+    body: JSON.stringify({ message, comment: '' }),
   })
 
   if (!response.ok) {

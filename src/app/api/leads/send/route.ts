@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePepe } from '@/lib/apiAuth';
-import { readAzureConfig, getAccessToken, sendMail, type MailBijlage } from '@/lib/graph';
+import { readAzureConfig, getAccessToken, sendMail, replyToMessage, type MailBijlage } from '@/lib/graph';
 import { leadHandtekening } from '@/lib/leads/handtekening';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     const to: string = (b?.to ?? '').trim();
     const body: string = (b?.body ?? '').trim();
     const subject: string = (b?.subject ?? '').trim() || `Betreft: ${b?.auto ?? 'je aanvraag'}`;
+    const leadId: string = (b?.leadId ?? '').trim();
     if (!to || !/.+@.+\..+/.test(to))
       return NextResponse.json({ error: 'Geen geldig e-mailadres van de klant.' }, { status: 400 });
     if (!body) return NextResponse.json({ error: 'Leeg bericht.' }, { status: 400 });
@@ -81,9 +82,25 @@ export async function POST(req: NextRequest) {
 
     const from = process.env.LEADS_MAILBOX || 'info@pepewagenparkbeheer.nl';
     const { accessToken } = await getAccessToken(readAzureConfig());
-    await sendMail(accessToken, from, to, subject, bodyHtml, bijlagen);
 
-    return NextResponse.json({ ok: true, from, to });
+    // Verstuur als reply op de originele klantmail als we de Graph message-ID hebben.
+    let graphMessageId: string | null = null;
+    if (leadId) {
+      const { data: lead } = await supabaseAdmin
+        .from('leads')
+        .select('graph_message_id')
+        .eq('id', leadId)
+        .maybeSingle();
+      graphMessageId = lead?.graph_message_id ?? null;
+    }
+
+    if (graphMessageId) {
+      await replyToMessage(accessToken, from, graphMessageId, bodyHtml, bijlagen);
+    } else {
+      await sendMail(accessToken, from, to, subject, bodyHtml, bijlagen);
+    }
+
+    return NextResponse.json({ ok: true, from, to, reply: !!graphMessageId });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[leads/send] fout:', message);

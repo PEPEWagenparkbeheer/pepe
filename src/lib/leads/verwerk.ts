@@ -19,6 +19,10 @@ export interface LeadMailInput {
    * (doorgestuurde mail of rechtstreeks uit info@): dan altijd via de LLM-extractie.
    */
   altijdExtraheren: boolean;
+  /** Graph bericht-ID van de originele klantmail — opgeslagen zodat het antwoord als reply gestuurd kan worden. */
+  graphMessageId?: string;
+  /** Graph conversation-ID — voor automatische detectie van klantreacties bij volgende intake-runs. */
+  graphConversationId?: string;
 }
 
 export type LeadMailResultaat =
@@ -248,6 +252,8 @@ export async function verwerkLeadMail(input: LeadMailInput): Promise<LeadMailRes
     advertentie_url,
     status: 'nieuw',
     gearchiveerd: false,
+    graph_message_id: input.graphMessageId ?? null,
+    graph_conversation_id: input.graphConversationId ?? null,
   });
   if (error) throw new Error(`leads insert mislukt: ${error.message}`);
 

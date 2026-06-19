@@ -36,7 +36,7 @@ function htmlNaarTekst(html: string): string {
     .trim();
 }
 
-/** Leest info@ uit, verwerkt nieuwe mails als lead/tender, dedupt via de ledger-tabel. */
+/** Leest info@ uit, verwerkt nieuwe mails als lead/tender/reactie, dedupt via de ledger-tabel. */
 export async function runLeadsIntake(): Promise<LeadsIntakeResult> {
   const mailbox = process.env.LEADS_MAILBOX || 'info@pepewagenparkbeheer.nl';
   const leeg: LeadsIntakeResult = { mailbox, verwerkt: 0, leads: 0, tenders: 0, skipped: 0 };
@@ -60,24 +60,67 @@ export async function runLeadsIntake(): Promise<LeadsIntakeResult> {
     let tenders = 0;
     let skipped = 0;
 
+    // Bouw een map van conversationId => lead voor snelle reply-detectie.
+    const convIds = nieuw.map((m) => m.conversationId).filter(Boolean) as string[];
+    let convLead = new Map<string, { id: string; klant_reacties: unknown[] }>();
+    if (convIds.length > 0) {
+      const { data: bestaande } = await supabaseAdmin
+        .from('leads')
+        .select('id, klant_reacties, graph_conversation_id')
+        .in('graph_conversation_id', convIds);
+      convLead = new Map(
+        (bestaande ?? [])
+          .filter((l) => l.graph_conversation_id)
+          .map((l) => [l.graph_conversation_id as string, l]),
+      );
+    }
+
     for (const m of nieuw) {
-      let resultaat: 'lead' | 'tender' | 'skipped' = 'skipped';
+      let resultaat: 'lead' | 'tender' | 'skipped' | 'reactie' = 'skipped';
       try {
         const tekst = htmlNaarTekst(m.bodyHtml) || m.bodyPreview;
-        const r = await verwerkLeadMail({
-          from: m.afzenderEmail,
-          fromName: m.afzenderNaam,
-          subject: m.subject,
-          textBody: tekst,
-          htmlBody: m.bodyHtml,
-          altijdExtraheren: true,
-        });
-        resultaat = r.routed;
-        if (r.routed === 'lead') leads++;
-        else if (r.routed === 'tender') tenders++;
-        else skipped++;
+
+        // Klantreactie op bestaand gesprek — voeg toe aan lead, maak geen nieuwe lead.
+        const bestaandeLead = m.conversationId ? convLead.get(m.conversationId) : null;
+        if (bestaandeLead) {
+          const reacties = (bestaandeLead.klant_reacties ?? []) as Array<Record<string, unknown>>;
+          reacties.push({
+            tekst: tekst || m.bodyPreview,
+            op: m.ontvangenOp,
+            naam: m.afzenderNaam || m.afzenderEmail,
+            gelezen: false,
+          });
+          await supabaseAdmin
+            .from('leads')
+            .update({ klant_reacties: reacties })
+            .eq('id', bestaandeLead.id);
+          resultaat = 'reactie';
+          leads++;
+        } else {
+          // Skip interne doorstuurmails met "voor brein" in subject of body.
+          const isVoorBrein = /voor\s*brein/i.test(m.subject || '') || /voor\s*brein/i.test(tekst);
+          if (isVoorBrein) {
+            resultaat = 'skipped';
+            skipped++;
+          } else {
+            const r = await verwerkLeadMail({
+              from: m.afzenderEmail,
+              fromName: m.afzenderNaam,
+              subject: m.subject,
+              textBody: tekst,
+              htmlBody: m.bodyHtml,
+              altijdExtraheren: true,
+              graphMessageId: m.id,
+              graphConversationId: m.conversationId,
+            });
+            resultaat = r.routed;
+            if (r.routed === 'lead') leads++;
+            else if (r.routed === 'tender') tenders++;
+            else skipped++;
+          }
+        }
       } catch (e) {
-        // Niet in ledger zetten → volgende run opnieuw proberen.
+        // Niet in ledger zetten => volgende run opnieuw proberen.
         console.error('[leads/intake] verwerken mislukt voor', m.id, e instanceof Error ? e.message : e);
         continue;
       }

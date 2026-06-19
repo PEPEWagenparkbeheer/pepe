@@ -271,6 +271,13 @@ export interface InnameFormulier {
 export type LeadStatus = 'nieuw' | 'opgepakt' | 'gebeld' | 'interesse' | 'verkocht' | 'geen_interesse';
 export type LeadBron = 'autoscout24' | 'autowereld' | 'marktplaats' | 'email' | 'anders';
 
+export interface KlantReactie {
+  tekst: string;
+  op: string;
+  naam: string;
+  gelezen: boolean;
+}
+
 export interface Lead {
   id: string;
   created_at?: string;
@@ -292,6 +299,9 @@ export interface Lead {
   concept_antwoord?: string;
   concept_inruil?: boolean;
   veld_meta?: Record<string, { op: string; door: string }>;
+  graph_message_id?: string;
+  graph_conversation_id?: string;
+  klant_reacties?: KlantReactie[];
 }
 
 // ── Facturen (inbox → HubSpot) ───────────────────────────────

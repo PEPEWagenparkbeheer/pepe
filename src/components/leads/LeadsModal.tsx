@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { KlachtUpdate, Lead, LeadBron, LeadStatus } from '@/types';
+import type { KlachtUpdate, KlantReactie, Lead, LeadBron, LeadStatus } from '@/types';
 import { authHeaders } from '@/lib/clientAuth';
 import styles from './LeadsPage.module.css';
 import BreinFeedback from '@/components/brein/BreinFeedback';
@@ -78,7 +78,17 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
     setNieuwMoment('');
     setConcept(lead?.concept_antwoord ?? '');
     setConceptInruil(lead?.concept_inruil ?? false);
-  }, [open, lead, gebruiker]);
+
+    // Markeer ongelezen klantreacties als gelezen zodra de modal opent.
+    if (lead) {
+      const reacties = lead.klant_reacties ?? [];
+      const heeftOngelezen = reacties.some((r: KlantReactie) => !r.gelezen);
+      if (heeftOngelezen) {
+        const bijgewerkt = reacties.map((r: KlantReactie) => ({ ...r, gelezen: true }));
+        void onOpslaan({ ...lead, klant_reacties: bijgewerkt });
+      }
+    }
+  }, [open, lead, gebruiker]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function stel<K extends keyof typeof form>(veld: K, waarde: (typeof form)[K]) {
     setForm((f) => ({ ...f, [veld]: waarde }));
@@ -138,6 +148,7 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
         body: JSON.stringify({
           to: form.email, subject: `RE: ${form.auto}`, body: concept,
           inruil: conceptInruil, wie: form.wie || gebruiker, auto: form.auto,
+          leadId: lead?.id,
         }),
       });
       const data = await res.json();
@@ -378,6 +389,23 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
             <textarea className="fi" rows={3} placeholder="Interne aantekeningen..."
               value={form.notities ?? ''} onChange={(e) => stel('notities', e.target.value)} />
           </div>
+
+          {/* Klantreacties — inkomende replies van de klant */}
+          {(form.klant_reacties ?? []).length > 0 && (
+            <>
+              <div className={styles.sectieKop}>Reacties van klant</div>
+              <div className={styles.vol}>
+                <div className={styles.updateLijst}>
+                  {(form.klant_reacties as KlantReactie[]).map((r, i) => (
+                    <div key={i} className={styles.updateRij} style={{ background: '#e8f4fd', borderLeft: '3px solid #2196f3' }}>
+                      <div className={styles.updateMeta} style={{ color: '#1565c0' }}>📩 {r.naam} · {momentTijd(r.op)}</div>
+                      <div className={styles.updateTekst} style={{ whiteSpace: 'pre-wrap' }}>{r.tekst}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Contactmomenten */}
           <div className={styles.sectieKop}>Contactmomenten</div>
