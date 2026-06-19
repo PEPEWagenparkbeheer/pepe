@@ -287,6 +287,41 @@
   background: rgba(220, 38, 38, 0.08);
 }
 
+.handtekeningKnop {
+  background: rgba(146, 25, 57, 0.06);
+  border: 1px solid rgba(146, 25, 57, 0.35);
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.handtekeningForm {
+  margin: -2px 0 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface2);
+}
+
+.handtekeningTitel { margin-bottom: 9px; color: var(--text); font-size: 12px; font-weight: 700; }
+.handtekeningGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.handtekeningForm label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.handtekeningForm input { width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 7px; padding: 8px 9px; background: var(--surface); color: var(--text); font: inherit; font-size: 12px; }
+.handtekeningForm input:focus { outline: none; border-color: var(--accent); }
+.handtekeningActies { display: flex; justify-content: flex-end; gap: 7px; }
+.handtekeningActies button { border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; background: var(--surface); color: var(--text); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.handtekeningActies .handtekeningBewaar { border-color: var(--accent); background: var(--accent); color: #fff; }
+.handtekeningActies button:disabled { opacity: .5; cursor: default; }
+
+@media (max-width: 620px) {
+  .handtekeningGrid { grid-template-columns: 1fr; gap: 0; }
+}
+
 .toevoegBlok {
   display: flex;
   flex-direction: column;

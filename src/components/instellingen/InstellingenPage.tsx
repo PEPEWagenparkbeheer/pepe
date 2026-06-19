@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
 import { supabase } from '@/lib/supabase';
 import type { Medewerker } from '@/hooks/useMedewerkers';
@@ -351,12 +351,18 @@ function MedewerkersBeheer() {
   const [nieuwNaam, setNieuwNaam] = useState('');
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState<{ type: 'ok' | 'fout'; tekst: string } | null>(null);
+  const [handtekeningId, setHandtekeningId] = useState<string | null>(null);
+  const [handtekeningForm, setHandtekeningForm] = useState({ volledigeNaam: '', mobiel: '', fotoUrl: '' });
+  const [handtekeningOpslaan, setHandtekeningOpslaan] = useState(false);
 
   useEffect(() => { laadMedewerkers(); }, []);
 
   async function laadMedewerkers() {
     setLaden(true);
-    const { data } = await supabase.from('medewerkers').select('id, naam, email, actief').order('naam');
+    const { data } = await supabase
+      .from('medewerkers')
+      .select('id, naam, email, actief, volledige_naam, mobiel, handtekening_foto_url')
+      .order('naam');
     setMedewerkers(data ?? []);
     setLaden(false);
   }
@@ -401,6 +407,38 @@ function MedewerkersBeheer() {
     setMedewerkers(prev => prev.map(x => x.id === m.id ? { ...x, actief: !x.actief } : x));
   }
 
+  function openHandtekening(m: Medewerker) {
+    setHandtekeningId((huidig) => huidig === m.id ? null : m.id);
+    setHandtekeningForm({
+      volledigeNaam: m.volledige_naam || m.naam,
+      mobiel: m.mobiel || '',
+      fotoUrl: m.handtekening_foto_url || '',
+    });
+  }
+
+  async function slaHandtekeningOp(id: string) {
+    const fotoUrl = handtekeningForm.fotoUrl.trim();
+    if (fotoUrl && !/^https:\/\//i.test(fotoUrl)) {
+      setMelding({ type: 'fout', tekst: 'De portretfoto moet een openbare https-link zijn.' });
+      return;
+    }
+    setHandtekeningOpslaan(true);
+    const wijziging = {
+      volledige_naam: handtekeningForm.volledigeNaam.trim(),
+      mobiel: handtekeningForm.mobiel.trim() || null,
+      handtekening_foto_url: fotoUrl || null,
+    };
+    const { error } = await supabase.from('medewerkers').update(wijziging).eq('id', id);
+    if (error) {
+      setMelding({ type: 'fout', tekst: `Handtekening opslaan mislukt: ${error.message}` });
+    } else {
+      setMedewerkers((prev) => prev.map((m) => m.id === id ? { ...m, ...wijziging } : m));
+      setMelding({ type: 'ok', tekst: 'Persoonlijke handtekening opgeslagen.' });
+      setHandtekeningId(null);
+    }
+    setHandtekeningOpslaan(false);
+  }
+
   const voornaam = nieuwNaam.trim().split(/\s+/)[0].toLowerCase();
   const emailPreview = voornaam ? emailVoorNaam(nieuwNaam) : '';
 
@@ -418,21 +456,52 @@ function MedewerkersBeheer() {
         {laden && <div className={styles.leeg}>Laden...</div>}
         {!laden && medewerkers.length === 0 && <div className={styles.leeg}>Nog geen medewerkers</div>}
         {medewerkers.map((m) => (
-          <div key={m.id} className={`${styles.rij} ${!m.actief ? styles.inactief : ''}`}>
-            <div className={styles.medewerkersInfo}>
-              <span className={styles.naam}>{m.naam}</span>
-              <span className={styles.emailLabel}>{m.email}</span>
+          <Fragment key={m.id}>
+            <div className={`${styles.rij} ${!m.actief ? styles.inactief : ''}`}>
+              <div className={styles.medewerkersInfo}>
+                <span className={styles.naam}>{m.naam}</span>
+                <span className={styles.emailLabel}>{m.email}</span>
+                {m.mobiel && <span className={styles.emailLabel}>{m.mobiel}</span>}
+              </div>
+              <div className={styles.acties} style={{ opacity: 1 }}>
+                <button className={styles.handtekeningKnop} onClick={() => openHandtekening(m)}>
+                  Handtekening
+                </button>
+                <button
+                  className={m.actief ? styles.deactiveerKnop : styles.activeerKnop}
+                  onClick={() => toggleActief(m)}
+                  title={m.actief ? 'Deactiveren' : 'Activeren'}
+                >
+                  {m.actief ? 'Deactiveren' : 'Activeren'}
+                </button>
+              </div>
             </div>
-            <div className={styles.acties} style={{ opacity: 1 }}>
-              <button
-                className={m.actief ? styles.deactiveerKnop : styles.activeerKnop}
-                onClick={() => toggleActief(m)}
-                title={m.actief ? 'Deactiveren' : 'Activeren'}
-              >
-                {m.actief ? 'Deactiveren' : 'Activeren'}
-              </button>
-            </div>
-          </div>
+            {handtekeningId === m.id && (
+              <div className={styles.handtekeningForm}>
+                <div className={styles.handtekeningTitel}>Persoonlijke e-mailhandtekening</div>
+                <div className={styles.handtekeningGrid}>
+                  <label>
+                    Volledige naam
+                    <input value={handtekeningForm.volledigeNaam} onChange={(e) => setHandtekeningForm((f) => ({ ...f, volledigeNaam: e.target.value }))} />
+                  </label>
+                  <label>
+                    Mobiel nummer
+                    <input placeholder="+31 (0)6 ..." value={handtekeningForm.mobiel} onChange={(e) => setHandtekeningForm((f) => ({ ...f, mobiel: e.target.value }))} />
+                  </label>
+                </div>
+                <label>
+                  Openbare https-link naar portretfoto
+                  <input placeholder="https://.../portret.jpg" value={handtekeningForm.fotoUrl} onChange={(e) => setHandtekeningForm((f) => ({ ...f, fotoUrl: e.target.value }))} />
+                </label>
+                <div className={styles.handtekeningActies}>
+                  <button onClick={() => setHandtekeningId(null)}>Annuleren</button>
+                  <button className={styles.handtekeningBewaar} onClick={() => void slaHandtekeningOp(m.id)} disabled={handtekeningOpslaan || !handtekeningForm.volledigeNaam.trim()}>
+                    {handtekeningOpslaan ? 'Opslaan...' : 'Handtekening opslaan'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </Fragment>
         ))}
       </div>
 

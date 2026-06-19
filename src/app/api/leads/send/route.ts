@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePepe } from '@/lib/apiAuth';
 import { readAzureConfig, getAccessToken, sendMail, type MailBijlage } from '@/lib/graph';
 import { leadHandtekening } from '@/lib/leads/handtekening';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 
@@ -29,11 +30,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Geen geldig e-mailadres van de klant.' }, { status: 400 });
     if (!body) return NextResponse.json({ error: 'Leeg bericht.' }, { status: 400 });
 
+    const gekozenWie = typeof b?.wie === 'string' ? b.wie.trim() : '';
+    let medewerker = null;
+    if (gekozenWie) {
+      const { data } = await supabaseAdmin
+        .from('medewerkers')
+        .select('naam, volledige_naam, mobiel, handtekening_foto_url')
+        .ilike('naam', gekozenWie)
+        .eq('actief', true)
+        .maybeSingle();
+      medewerker = data;
+    }
+    if (!medewerker && gate.user.email) {
+      const { data } = await supabaseAdmin
+        .from('medewerkers')
+        .select('naam, volledige_naam, mobiel, handtekening_foto_url')
+        .ilike('email', gate.user.email)
+        .eq('actief', true)
+        .maybeSingle();
+      medewerker = data;
+    }
+
     const bodyHtml =
       `<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222;line-height:1.5">` +
       escapeHtml(body).replace(/\n/g, '<br>') +
       `</div>` +
-      leadHandtekening(b?.wie);
+      leadHandtekening(medewerker ? {
+        naam: medewerker.naam,
+        volledigeNaam: medewerker.volledige_naam,
+        mobiel: medewerker.mobiel,
+        fotoUrl: medewerker.handtekening_foto_url,
+      } : null);
 
     // Bij inruil: de waardebepaling-PDF (uit /public) als bijlage meesturen.
     const bijlagen: MailBijlage[] = [];

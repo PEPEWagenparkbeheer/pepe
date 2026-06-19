@@ -9,6 +9,9 @@ export interface Medewerker {
   naam: string;
   email: string;
   actief: boolean;
+  volledige_naam?: string | null;
+  mobiel?: string | null;
+  handtekening_foto_url?: string | null;
 }
 
 export function useMedewerkers() {
@@ -18,7 +21,7 @@ export function useMedewerkers() {
   useEffect(() => {
     supabase
       .from('medewerkers')
-      .select('id, naam, email, actief')
+      .select('id, naam, email, actief, volledige_naam, mobiel, handtekening_foto_url')
       .eq('actief', true)
       .order('naam')
       .then(({ data }) => {
