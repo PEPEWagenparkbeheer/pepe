@@ -31,6 +31,8 @@ export interface LeadConceptInput {
   beschikbaar?: boolean | null;
   /** Door medewerkers vastgelegde leerpunten uit eerdere leadconcepten. */
   feedbackLessen?: string;
+  /** Door RDW gevalideerd voertuig dat de klant wil inruilen. */
+  inruilVoertuig?: { kenteken: string; merk: string; model: string } | null;
 }
 
 export interface LeadConcept {
@@ -52,6 +54,7 @@ STRUCTUUR:
 - BESCHIKBAARHEID: volg de VOORRAAD-aanwijzing onderaan het bericht. Staat de auto in voorraad → bevestig kort dat hij nog beschikbaar is, bijv. "De [auto] is nog beschikbaar." Is de voorraad onbekend/niet gevonden → claim NIETS over beschikbaarheid, maar zeg dat je het even checkt, bijv. "Ik check even of de [auto] nog beschikbaar is en kom zo snel mogelijk bij je terug." (vertaal naar de taal van de klant).
 - INRUIL: als de klant een inruil/inkoop noemt, óf een eigen (huidige) auto die ingeruild kan worden: bevestig dat inruil mogelijk is en vraag om foto's voor een waardebepaling — verwijs naar het document in de bijlage ("In de bijlage tref je een document waarop staat welke foto's wij precies nodig hebben"). Stel daarbij twee vragen: of de in te ruilen auto privé of zakelijk is (marge of btw), en wanneer de laatste onderhoudsbeurt is geweest. Sluit af met: "Zodra wij de foto's hebben gaan we voor je aan de slag." (vertaald).
 - Bij GEEN inruil: een passende korte afsluiting, geen fotoverzoek.
+- Als RDW-INRUILVOERTUIG is meegegeven, benoem dan ALTIJD merk én model bij het kenteken; noem nooit alleen kenteken en kilometerstand.
 
 BELANGRIJK: voeg GEEN groet-ondertekening of handtekening toe (dus géén "Met vriendelijke groet" of contactgegevens) — die wordt automatisch toegevoegd. Eindig na de laatste inhoudelijke zin.
 
@@ -72,6 +75,9 @@ export async function genereerLeadConcept(input: LeadConceptInput): Promise<Lead
     `Naam klant: ${input.klant_naam || '(onbekend)'}`,
     `Auto (ons aanbod): ${input.auto}${input.prijs ? ` — ${input.prijs}` : ''}`,
     input.bron ? `Bron: ${input.bron}` : '',
+    input.inruilVoertuig
+      ? `RDW-INRUILVOERTUIG (geverifieerd): ${input.inruilVoertuig.merk} ${input.inruilVoertuig.model}, kenteken ${input.inruilVoertuig.kenteken}. Benoem merk en model expliciet in je reactie.`
+      : '',
     `Bericht van de klant:`,
     (input.bericht || '(geen los bericht; alleen interesse in bovenstaande auto)').slice(0, 4000),
     '',

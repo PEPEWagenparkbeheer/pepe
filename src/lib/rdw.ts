@@ -13,6 +13,36 @@ export interface RdwRecall {
   beschrijving_terugroepactie: string;
 }
 
+export interface RdwVoertuigBasis {
+  kenteken: string;
+  merk: string;
+  model: string;
+}
+
+/** Lichte RDW-opzoeking voor conceptverrijking; haalt alleen merk/model op. */
+export async function rdwVoertuigBasisOpzoeken(kenteken: string): Promise<RdwVoertuigBasis | null> {
+  const kt = kenteken.replace(/[-\s]/g, '').toUpperCase();
+  if (!kt) return null;
+  try {
+    const res = await fetch(
+      `https://opendata.rdw.nl/resource/m9d7-ebf2.json?kenteken=${encodeURIComponent(kt)}&$select=kenteken,merk,handelsbenaming&$limit=1`,
+      { signal: AbortSignal.timeout(6000) },
+    );
+    if (!res.ok) return null;
+    const data = await res.json() as { kenteken?: string; merk?: string; handelsbenaming?: string }[];
+    const voertuig = data[0];
+    if (!voertuig?.merk || !voertuig.handelsbenaming) return null;
+    return {
+      kenteken: voertuig.kenteken || kt,
+      merk: voertuig.merk,
+      model: voertuig.handelsbenaming,
+    };
+  } catch (error) {
+    console.warn('[rdw] Merk/model ophalen mislukt:', error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
 export async function rdwOpzoeken(kenteken: string): Promise<RdwVoertuig | null> {
   const kt = kenteken.replace(/-/g, '').toUpperCase();
   try {

@@ -30,16 +30,25 @@ interface BerichtInput {
 }
 
 // ── Kenteken-regex (alle Nederlandse zijcodes) ────────────────────────────
-// Dekt: XX-99-XX, 99-XX-99, XX-XX-99, 99-XX-XX, XX-999-X, X-999-XX,
-//       99-99-XX, XX-99-99, 9-XX-999, 999-XX-9, X-99-XXX, XXX-99-X
-const KENTEKEN_REGEX = /\b([A-Z]{1,3}-[0-9]{1,3}-[A-Z0-9]{1,3}|[0-9]{1,2}-[A-Z]{2,3}-[0-9]{1,3})\b/gi;
+// Alle gangbare Nederlandse zijcodes, zowel met als zonder streepjes/spaties.
+const KENTEKEN_PATRONEN = [
+  /^[A-Z]{2}\d{4}$/, /^\d{4}[A-Z]{2}$/, /^\d{2}[A-Z]{2}\d{2}$/,
+  /^[A-Z]{2}\d{2}[A-Z]{2}$/, /^[A-Z]{4}\d{2}$/, /^\d{2}[A-Z]{4}$/,
+  /^\d{2}[A-Z]{3}\d$/, /^\d[A-Z]{3}\d{2}$/, /^[A-Z]{2}\d{3}[A-Z]$/,
+  /^[A-Z]\d{3}[A-Z]{2}$/, /^[A-Z]{3}\d{2}[A-Z]$/, /^[A-Z]\d{2}[A-Z]{3}$/,
+  /^\d[A-Z]{2}\d{3}$/, /^\d{3}[A-Z]{2}\d$/,
+];
 
 /** Probeert een kenteken uit tekst te extraheren via regex (geen LLM-call). */
 export function extractKentekenRegex(tekst: string): string | null {
-  const normalized = tekst.toUpperCase().replace(/\s+/g, ' ');
-  const match = normalized.match(KENTEKEN_REGEX);
-  if (!match) return null;
-  return match[0].toUpperCase();
+  const kandidaten = tekst
+    .toUpperCase()
+    .match(/\b(?:[A-Z0-9]{1,3}(?:[-\s][A-Z0-9]{1,3}){1,2}|[A-Z0-9]{6})\b/g) ?? [];
+  for (const kandidaat of kandidaten) {
+    const schoon = kandidaat.replace(/[-\s]/g, '');
+    if (KENTEKEN_PATRONEN.some((patroon) => patroon.test(schoon))) return schoon;
+  }
+  return null;
 }
 
 let _client: Anthropic | null = null;

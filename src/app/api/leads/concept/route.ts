@@ -6,6 +6,8 @@ import { requirePepe } from '@/lib/apiAuth';
 import { genereerLeadConcept } from '@/lib/leads/concept';
 import { isAutoBeschikbaar } from '@/lib/leads/voorraad';
 import { laadBreinFeedback } from '@/lib/brein/feedback';
+import { extractKentekenRegex } from '@/lib/brein/classifier';
+import { rdwVoertuigBasisOpzoeken } from '@/lib/rdw';
 
 export const runtime = 'nodejs';
 
@@ -17,9 +19,12 @@ export async function POST(req: NextRequest) {
     const b = await req.json();
     if (!b?.auto) return NextResponse.json({ error: 'auto ontbreekt' }, { status: 400 });
 
-    // Interim voorraadcheck via AutoScout (tot Mobilox). Faalt veilig naar 'onbekend'.
-    const voorraad = await isAutoBeschikbaar(b.auto);
-    const feedbackLessen = await laadBreinFeedback('leads');
+    const kenteken = extractKentekenRegex(b.bericht ?? '');
+    const [voorraad, feedbackLessen, inruilVoertuig] = await Promise.all([
+      isAutoBeschikbaar(b.auto),
+      laadBreinFeedback('leads'),
+      kenteken ? rdwVoertuigBasisOpzoeken(kenteken) : Promise.resolve(null),
+    ]);
 
     const concept = await genereerLeadConcept({
       klant_naam: b.klant_naam ?? '',
@@ -30,8 +35,9 @@ export async function POST(req: NextRequest) {
       bron: b.bron ?? null,
       beschikbaar: voorraad.beschikbaar,
       feedbackLessen,
+      inruilVoertuig,
     });
-    return NextResponse.json({ ok: true, ...concept, beschikbaar: voorraad.beschikbaar });
+    return NextResponse.json({ ok: true, ...concept, beschikbaar: voorraad.beschikbaar, inruilVoertuig });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[leads/concept] fout:', message);
