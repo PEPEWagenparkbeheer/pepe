@@ -406,6 +406,47 @@ export async function getDealFields(
   return data.properties ?? {};
 }
 
+// ── Leasemaatschappij matcher ─────────────────────────────────────────────────
+// Haalt HubSpot-enum opties op voor leasemaatschappij_goed en matcht de
+// geëxtraheerde vrije tekst op de dichtstbijzijnde optie-waarde.
+// Cache leeft per serverless cold start (1-per-minute volstaat).
+
+let _lmOpties: Array<{ value: string; label: string }> | null = null;
+
+async function fetchLmOpties(): Promise<Array<{ value: string; label: string }>> {
+  if (_lmOpties) return _lmOpties;
+  try {
+    const d = await hsFetch<{ options?: Array<{ value: string; label: string }> }>(
+      `${HS_BASE}/crm/v3/properties/deals/leasemaatschappij_goed`,
+    );
+    _lmOpties = d.options ?? [];
+  } catch {
+    _lmOpties = [];
+  }
+  return _lmOpties;
+}
+
+function lmNorm(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+async function matchLeasemaatschappij(naam: string): Promise<string> {
+  const opties = await fetchLmOpties();
+  if (!opties.length) return naam;
+  const zoek = lmNorm(naam);
+  // exacte match
+  const exact = opties.find((o) => lmNorm(o.label) === zoek);
+  if (exact) return exact.value;
+  // bevat-match (label bevat zoekterm of andersom)
+  const bevat = opties.find((o) => {
+    const lbl = lmNorm(o.label);
+    return lbl.includes(zoek) || zoek.includes(lbl);
+  });
+  if (bevat) return bevat.value;
+  console.warn(`matchLeasemaatschappij: geen match voor "${naam}"`);
+  return naam;
+}
+
 /** PATCH losse velden op een deal (= voertuig/contract). Leeg object = no-op. */
 export async function updateDealFields(
   dealId: string,
@@ -413,6 +454,13 @@ export async function updateDealFields(
 ): Promise<void> {
   const id = String(dealId ?? '').trim();
   if (!id || Object.keys(properties).length === 0) return;
+  // Match leasemaatschappij automatisch naar HubSpot enum-waarde
+  if (properties.leasemaatschappij_goed) {
+    properties = {
+      ...properties,
+      leasemaatschappij_goed: await matchLeasemaatschappij(properties.leasemaatschappij_goed),
+    };
+  }
   await hsFetch(
     `${HS_BASE}/crm/v3/objects/deals/${id}`,
     { method: 'PATCH', body: JSON.stringify({ properties }) },
@@ -557,7 +605,7 @@ export async function createDeal(input: DealInput): Promise<string> {
   if (input.kilometerstand_huidig != null) {
     properties.kilometerstand_huidig = String(input.kilometerstand_huidig);
   }
-  if (input.leasemaatschappij) properties.leasemaatschappij_goed = input.leasemaatschappij;
+  if (input.leasemaatschappij) properties.leasemaatschappij_goed = await matchLeasemaatschappij(input.leasemaatschappij);
   if (input.verwachte_einddatum) properties.verwachte_einddatum = input.verwachte_einddatum;
 
   const data = await hsFetch<{ id: string }>(
