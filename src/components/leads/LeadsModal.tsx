@@ -76,8 +76,8 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
     if (!open) return;
     setForm(lead ? { ...LEEG, ...lead } : { ...LEEG, wie: gebruiker });
     setNieuwMoment('');
-    setConcept('');
-    setConceptInruil(false);
+    setConcept(lead?.concept_antwoord ?? '');
+    setConceptInruil(lead?.concept_inruil ?? false);
   }, [open, lead, gebruiker]);
 
   function stel<K extends keyof typeof form>(veld: K, waarde: (typeof form)[K]) {
@@ -108,8 +108,17 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Genereren mislukt');
-      setConcept(data.body || '');
-      setConceptInruil(!!data.inruil);
+      const nieuwConcept = data.body || '';
+      const nieuwInruil = !!data.inruil;
+      setConcept(nieuwConcept);
+      setConceptInruil(nieuwInruil);
+      if (lead) {
+        await onOpslaan({
+          ...lead,
+          concept_antwoord: nieuwConcept,
+          concept_inruil: nieuwInruil,
+        });
+      }
     } catch (e) {
       alert('Genereren mislukt: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -140,6 +149,8 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
       };
       const nieuw = {
         ...form,
+        concept_antwoord: concept,
+        concept_inruil: conceptInruil,
         contactmomenten: [...(form.contactmomenten ?? []), moment],
         status: form.status === 'nieuw' ? ('opgepakt' as LeadStatus) : form.status,
       };
@@ -157,7 +168,8 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
     if (!form.klant_naam.trim()) { alert('Vul de klantnaam in.'); return; }
     if (!form.auto.trim()) { alert('Vul de auto in.'); return; }
     setBezig(true);
-    const opTeSlaan = form.status === 'geen_interesse' ? { ...form, gearchiveerd: true } : form;
+    const metConcept = { ...form, concept_antwoord: concept, concept_inruil: conceptInruil };
+    const opTeSlaan = form.status === 'geen_interesse' ? { ...metConcept, gearchiveerd: true } : metConcept;
     if (lead) {
       await onOpslaan({ ...opTeSlaan, id: lead.id, created_at: lead.created_at });
     } else {
@@ -174,18 +186,34 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
     onSluiten();
   }
 
+  async function handleSluiten() {
+    // Bewaar het concept ook bij annuleren/sluiten; overige formulierwijzigingen
+    // blijven bij Annuleren bewust onopgeslagen.
+    if (lead && (
+      concept !== (lead.concept_antwoord ?? '') ||
+      conceptInruil !== (lead.concept_inruil ?? false)
+    )) {
+      await onOpslaan({
+        ...lead,
+        concept_antwoord: concept,
+        concept_inruil: conceptInruil,
+      });
+    }
+    onSluiten();
+  }
+
   if (!open) return null;
 
   const momenten = form.contactmomenten ?? [];
 
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.modalHeader}>
           <div className={styles.modalTitel}>
             {lead ? `Lead: ${lead.klant_naam}` : '📞 Nieuwe lead'}
           </div>
-          <button className={styles.sluitKnop} onClick={onSluiten}>×</button>
+          <button className={styles.sluitKnop} onClick={() => void handleSluiten()}>×</button>
         </div>
 
         <div className={styles.modalBody}>
@@ -385,7 +413,7 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
           {lead && (
             <button className={styles.verwijderKnop} onClick={handleVerwijder}>🗑 Verwijder</button>
           )}
-          <button className="btn" onClick={onSluiten}>Annuleer</button>
+          <button className="btn" onClick={() => void handleSluiten()}>Annuleer</button>
           <button className="btn btn-a" onClick={handleOpslaan} disabled={bezig}>
             {bezig ? 'Opslaan...' : lead ? 'Opslaan' : '+ Toevoegen'}
           </button>

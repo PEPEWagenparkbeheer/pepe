@@ -289,6 +289,8 @@ export interface Lead {
   vervolgdatum?: string;
   gearchiveerd: boolean;
   contactmomenten?: KlachtUpdate[];
+  concept_antwoord?: string;
+  concept_inruil?: boolean;
   veld_meta?: Record<string, { op: string; door: string }>;
 }
 
@@ -423,4 +425,3 @@ export interface WerkDerdenRecord {
   bestemming?: WerkDerdenBestemming; // default 'doorbelasten'; 'voertuigprijs' = niet factureren
   voorwaarden?: string;              // aanpassingen door PEPE bij goedkeuren
 }
-
