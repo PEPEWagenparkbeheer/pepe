@@ -8,6 +8,7 @@ import {
 } from '@/hooks/useBreinMessages';
 import styles from './BreinInbox.module.css';
 import BreinFeedback from './BreinFeedback';
+import { authHeaders } from '@/lib/clientAuth';
 
 const STATUS_TABS: { key: BreinStatus | 'alle'; label: string }[] = [
   { key: 'nieuw', label: 'Nieuw' },
@@ -79,6 +80,8 @@ export default function BreinInbox() {
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
   const [conceptDraft, setConceptDraft] = useState('');
+  const [koppelBezig, setKoppelBezig] = useState(false);
+  const [koppelResult, setKoppelResult] = useState<{ log: string[]; extract: Record<string, unknown>; hubspot: Record<string, string | null> } | null>(null);
 
   async function handleSync() {
     setSyncing(true);
@@ -119,7 +122,28 @@ export default function BreinInbox() {
   // Houd het bewerkbare concept-veld in sync met het geselecteerde bericht.
   useEffect(() => {
     setConceptDraft(actief?.concept_antwoord ?? '');
+    setKoppelResult(null);
   }, [actief?.id, actief?.concept_antwoord]);
+
+  async function handleKoppel() {
+    if (!actief) return;
+    setKoppelBezig(true);
+    setKoppelResult(null);
+    try {
+      const res = await fetch('/api/brein/koppel', {
+        method: 'POST',
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ berichtId: actief.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Koppelen mislukt');
+      setKoppelResult(data);
+    } catch (e) {
+      alert('Koppelen mislukt: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setKoppelBezig(false);
+    }
+  }
 
   async function handleGenereer() {
     if (!actief) return;
@@ -266,6 +290,54 @@ export default function BreinInbox() {
                 <div className={styles.blok}>
                   <span className={styles.blokLabel}>Samenvatting (BREIN)</span>
                   <p>{actief.samenvatting}</p>
+                </div>
+              )}
+
+              {/* Inzetdocument koppel-paneel */}
+              {actief.categorie === 'inzetdocumenten' && (
+                <div className={styles.blok} style={{ background: '#f0f7ff', border: '1.5px solid #2196f3', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                    <span className={styles.blokLabel} style={{ color: '#1565c0' }}>📋 Inzetdocument — koppel aan HubSpot</span>
+                    {!koppelResult && (
+                      <button
+                        className={styles.miniKnop}
+                        style={{ background: '#1565c0', color: '#fff', borderColor: '#1565c0' }}
+                        onClick={() => void handleKoppel()}
+                        disabled={koppelBezig}
+                      >
+                        {koppelBezig ? 'Verwerken…' : '🔗 Koppel aan HubSpot'}
+                      </button>
+                    )}
+                  </div>
+                  {koppelResult && (
+                    <div style={{ marginTop: 12, fontSize: 13 }}>
+                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {koppelResult.hubspot.kenteken && (
+                          <span><b>Kenteken:</b> {String(koppelResult.extract.kenteken ?? '—')}</span>
+                        )}
+                        {koppelResult.hubspot.contactId && (
+                          <span><b>Berijder:</b> {[koppelResult.extract.berijder_voornaam, koppelResult.extract.berijder_achternaam].filter(Boolean).join(' ') || koppelResult.hubspot.contactId}</span>
+                        )}
+                        {koppelResult.hubspot.companyId && (
+                          <span><b>Bedrijf:</b> {String(koppelResult.extract.bedrijf_naam ?? koppelResult.hubspot.companyId)}</span>
+                        )}
+                        {koppelResult.hubspot.dealId && (
+                          <span><b>Deal:</b> Rijdend ✅</span>
+                        )}
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: 18, color: '#444', lineHeight: 1.6 }}>
+                        {koppelResult.log.map((regel, i) => <li key={i}>{regel}</li>)}
+                      </ul>
+                      <button
+                        className={styles.miniKnop}
+                        style={{ marginTop: 8 }}
+                        onClick={() => void handleKoppel()}
+                        disabled={koppelBezig}
+                      >
+                        {koppelBezig ? 'Bezig…' : '↻ Opnieuw koppelen'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

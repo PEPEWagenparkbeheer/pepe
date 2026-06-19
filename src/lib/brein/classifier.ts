@@ -12,7 +12,7 @@ import Anthropic from '@anthropic-ai/sdk';
 // de concept-generatie draait bewust op Opus voor de beste NL toon (zie concept.ts).
 const MODEL = 'claude-haiku-4-5';
 
-export type BreinCategorie = 'factuur' | 'kenteken' | 'verkoop' | 'vraag' | 'overig';
+export type BreinCategorie = 'factuur' | 'kenteken' | 'verkoop' | 'inzetdocumenten' | 'vraag' | 'overig';
 export type BreinPrioriteit = 'laag' | 'normaal' | 'hoog' | 'urgent';
 
 export interface ClassifyResult {
@@ -68,6 +68,7 @@ Categorieën:
 - "factuur": factuur, nota, rekening, betaling, creditnota, aanmaning
 - "kenteken": vraag/info over een specifiek voertuig of kenteken (APK, schade, kilometerstand, defect)
 - "verkoop": offerte, nieuwe auto, verkoop, aanschaf, aanbod
+- "inzetdocumenten": inzetdocument, inzetformulier, huurovereenkomst, inzetbevestiging, leasecontract berijder, berijdersgegevens, contractdocumenten — mails waarbij een (nieuwe) berijder wordt gekoppeld aan een voertuig
 - "vraag": algemene servicevraag of klantvraag die niet past in bovenstaande
 - "overig": nieuwsbrief, spam, automatisch bericht, out-of-office, niet-relevant
 
@@ -122,7 +123,7 @@ Preview: ${(bericht.body_preview ?? '').slice(0, 600)}`;
     parsed = {};
   }
 
-  const GELDIGE_CATEGORIEEN: BreinCategorie[] = ['factuur', 'kenteken', 'verkoop', 'vraag', 'overig'];
+  const GELDIGE_CATEGORIEEN: BreinCategorie[] = ['factuur', 'kenteken', 'verkoop', 'inzetdocumenten', 'vraag', 'overig'];
   const GELDIGE_PRIORITEITEN: BreinPrioriteit[] = ['laag', 'normaal', 'hoog', 'urgent'];
 
   return {
