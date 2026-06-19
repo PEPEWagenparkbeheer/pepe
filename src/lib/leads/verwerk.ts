@@ -71,6 +71,61 @@ async function leadExtract(subject: string, body: string): Promise<LeadExtract |
   return extractJson<LeadExtract>(LEAD_SYSTEM_PROMPT, `Onderwerp: ${subject}\n\n${body}`);
 }
 
+const normEmail = (e: string | null) => (e ? e.trim().toLowerCase() : '');
+const normAuto = (a: string | null) => (a ? a.trim().toLowerCase().replace(/\s+/g, ' ') : '');
+/** Laatste 9 cijfers van een telefoonnummer (negeert +31/0031/spaties/streepjes). */
+const normTel = (t: string | null) => {
+  const d = (t ?? '').replace(/\D/g, '');
+  return d.length >= 6 ? d.slice(-9) : '';
+};
+
+/**
+ * True als er al een niet-gearchiveerde lead bestaat met dezelfde contactidentiteit
+ * (e-mail of telefoon) én dezelfde auto of advertentie-URL, binnen de laatste 21 dagen.
+ * Zonder contactidentiteit ontdubbelen we NIET (liever een dubbele dan een gemiste lead).
+ */
+async function isDuplicaatLead(
+  email: string | null,
+  telefoon: string | null,
+  auto: string,
+  advertentieUrl: string | null,
+): Promise<boolean> {
+  const eMail = normEmail(email);
+  const tel = normTel(telefoon);
+  if (!eMail && !tel) return false;
+
+  const cutoff = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from('leads')
+    .select('email, telefoon, auto, advertentie_url')
+    .eq('gearchiveerd', false)
+    .gte('created_at', cutoff);
+  if (error || !data) return false;
+
+  const autoN = normAuto(auto);
+  return data.some((c) => {
+    const contactMatch =
+      (eMail && normEmail(c.email) === eMail) || (tel && normTel(c.telefoon) === tel);
+    if (!contactMatch) return false;
+    const onderwerpMatch =
+      (advertentieUrl && c.advertentie_url && c.advertentie_url === advertentieUrl) ||
+      zelfdeAuto(autoN, normAuto(c.auto));
+    return Boolean(onderwerpMatch);
+  });
+}
+
+/**
+ * Twee auto-omschrijvingen tellen als dezelfde auto als de kortere een prefix van de
+ * langere is. Vangt "Volkswagen Golf R-Line" vs "Volkswagen Golf R-Line |IQ.LIGHT|..."
+ * (oude vs nieuwe extractie) zonder verschillende modellen samen te voegen.
+ */
+function zelfdeAuto(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const [kort, lang] = a.length <= b.length ? [a, b] : [b, a];
+  return kort.length >= 5 && lang.startsWith(kort);
+}
+
 /** Verwerkt één mail: tender → tenders, lead → leads, anders skipped. */
 export async function verwerkLeadMail(input: LeadMailInput): Promise<LeadMailResultaat> {
   const { from, subject, textBody, htmlBody, altijdExtraheren } = input;
@@ -166,6 +221,11 @@ export async function verwerkLeadMail(input: LeadMailInput): Promise<LeadMailRes
           : 'email';
     bericht = textBody;
     advertentie_url = extractAdUrl(htmlBody, textBody);
+  }
+
+  // Ontdubbelen: zelfde berijder + zelfde auto/advertentie binnen 21 dagen → niet nogmaals aanmaken.
+  if (await isDuplicaatLead(email, telefoon, auto, advertentie_url)) {
+    return { routed: 'skipped', reden: 'duplicaat' };
   }
 
   const { error } = await supabaseAdmin.from('leads').insert({

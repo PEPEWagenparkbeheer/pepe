@@ -43,7 +43,8 @@ export async function runLeadsIntake(): Promise<LeadsIntakeResult> {
 
   try {
     const { accessToken } = await getAccessToken(readAzureConfig());
-    const messages = await getRecentMessages(accessToken, mailbox, 50);
+    // Ruime marge zodat ook bij een piek geen mail buiten beeld valt; de ledger dedupt.
+    const messages = await getRecentMessages(accessToken, mailbox, 100);
     if (messages.length === 0) return leeg;
 
     const ids = messages.map((m) => m.id);

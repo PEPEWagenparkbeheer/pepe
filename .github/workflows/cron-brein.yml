@@ -6,7 +6,7 @@ name: BREIN + leads sync (cron)
 
 on:
   schedule:
-    - cron: '7,37 * * * *'   # elke 30 min, net naast het hele/halve uur
+    - cron: '*/5 * * * *'    # elke 5 min (GitHub-scheduler is best-effort; kan iets uitlopen)
   workflow_dispatch: {}        # handmatig te starten via de Actions-tab
 
 jobs:
