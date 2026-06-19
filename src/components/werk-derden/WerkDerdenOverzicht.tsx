@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import WerkDerdenModal from '@/components/partner/WerkDerdenModal';
 import type { WerkDerdenRecord, WerkRegel } from '@/types';
 import { medewerkerNaam } from '@/lib/naam';
+import { isPepeOpdracht } from '@/lib/werk-derden/richting';
 import { authHeaders } from '@/lib/clientAuth';
 import styles from './WerkDerdenOverzicht.module.css';
 
@@ -612,7 +613,13 @@ export default function WerkDerdenOverzicht() {
                     </td>
                     <td>
                       <div className={styles.actieKnoppen}>
-                        {tab === 'open' && (
+                        {/* PEPE-opdracht wacht op de partner; PEPE keurt die niet zelf goed. */}
+                        {tab === 'open' && isPepeOpdracht(rec) && (
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#b45309', background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.35)', borderRadius: 6, padding: '4px 8px' }}>
+                            ⏳ Wacht op acceptatie {rec.partner}
+                          </span>
+                        )}
+                        {tab === 'open' && !isPepeOpdracht(rec) && (
                           <>
                             <button
                               className={styles.facturerenKnop}
