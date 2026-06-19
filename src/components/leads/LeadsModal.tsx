@@ -64,10 +64,18 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
   const [bezig, setBezig] = useState(false);
   const [nieuwMoment, setNieuwMoment] = useState('');
 
+  // Voorgestelde reactie (BREIN-concept op de lead)
+  const [concept, setConcept] = useState('');
+  const [conceptInruil, setConceptInruil] = useState(false);
+  const [genereren, setGenereren] = useState(false);
+  const [versturen, setVersturen] = useState(false);
+
   useEffect(() => {
     if (!open) return;
     setForm(lead ? { ...LEEG, ...lead } : { ...LEEG, wie: gebruiker });
     setNieuwMoment('');
+    setConcept('');
+    setConceptInruil(false);
   }, [open, lead, gebruiker]);
 
   function stel<K extends keyof typeof form>(veld: K, waarde: (typeof form)[K]) {
@@ -83,6 +91,64 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
     };
     stel('contactmomenten', [...(form.contactmomenten ?? []), moment]);
     setNieuwMoment('');
+  }
+
+  async function genereerReactie() {
+    setGenereren(true);
+    try {
+      const res = await fetch('/api/leads/concept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          klant_naam: form.klant_naam, auto: form.auto, prijs: form.prijs,
+          advertentie_url: form.advertentie_url, bericht: form.bericht, bron: form.bron,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Genereren mislukt');
+      setConcept(data.body || '');
+      setConceptInruil(!!data.inruil);
+    } catch (e) {
+      alert('Genereren mislukt: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setGenereren(false);
+    }
+  }
+
+  async function verstuurReactie() {
+    if (!form.email) { alert('Geen e-mailadres bij deze lead.'); return; }
+    if (!concept.trim()) { alert('Genereer of schrijf eerst een reactie.'); return; }
+    if (!confirm(`Reactie versturen naar ${form.email}?`)) return;
+    setVersturen(true);
+    try {
+      const res = await fetch('/api/leads/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: form.email, subject: `RE: ${form.auto}`, body: concept,
+          inruil: conceptInruil, wie: form.wie || gebruiker, auto: form.auto,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Versturen mislukt');
+      const moment: KlachtUpdate = {
+        tekst: `Reactie verstuurd naar ${form.email}${conceptInruil ? ' (incl. waardebepaling-PDF)' : ''}`,
+        op: new Date().toISOString(),
+        door: gebruiker || '?',
+      };
+      const nieuw = {
+        ...form,
+        contactmomenten: [...(form.contactmomenten ?? []), moment],
+        status: form.status === 'nieuw' ? ('opgepakt' as LeadStatus) : form.status,
+      };
+      setForm(nieuw);
+      if (lead) await onOpslaan({ ...nieuw, id: lead.id, created_at: lead.created_at });
+      alert('Reactie verstuurd ✅');
+    } catch (e) {
+      alert('Versturen mislukt: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setVersturen(false);
+    }
   }
 
   async function handleOpslaan() {
@@ -235,6 +301,34 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
               <div className={styles.sectieKop}>Origineel bericht</div>
               <div className={styles.vol}>
                 <div className={styles.berichtBox}>{form.bericht}</div>
+              </div>
+            </>
+          )}
+
+          {/* Voorgestelde reactie (alleen bij bestaande lead) */}
+          {lead && (
+            <>
+              <div className={styles.sectieKop}>Voorgestelde reactie</div>
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button className="btn" type="button" onClick={genereerReactie} disabled={genereren || !form.auto}>
+                    {genereren ? 'Genereren…' : '✨ Genereer reactie'}
+                  </button>
+                  {conceptInruil && (
+                    <span style={{ fontSize: 12, color: 'green' }}>📎 Inruil — waardebepaling-PDF wordt meegestuurd</span>
+                  )}
+                </div>
+                <textarea className="fi" rows={9}
+                  placeholder="Klik op 'Genereer reactie', of typ zelf een antwoord…"
+                  value={concept} onChange={(e) => setConcept(e.target.value)} />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button className="btn btn-a" type="button" onClick={verstuurReactie}
+                    disabled={versturen || !concept.trim() || !form.email}>
+                    {versturen ? 'Versturen…' : '📨 Verstuur naar klant'}
+                  </button>
+                  {!form.email && <span style={{ fontSize: 12, color: '#b00' }}>Geen e-mailadres bij deze lead</span>}
+                  {form.email && <span style={{ fontSize: 12, color: '#777' }}>Vanaf info@ naar {form.email}</span>}
+                </div>
               </div>
             </>
           )}

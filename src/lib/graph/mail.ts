@@ -170,28 +170,42 @@ export async function replyToMessage(
  * Verstuurt een nieuw e-mailbericht vanuit een mailbox via Graph API.
  * Vereist Mail.Send permissie op de app-registratie.
  */
+export interface MailBijlage {
+  naam: string;
+  contentType: string;
+  /** Bestandsinhoud als base64-string. */
+  base64: string;
+}
+
 export async function sendMail(
   accessToken: string,
   from: string,
   to: string,
   subject: string,
   bodyHtml: string,
+  bijlagen: MailBijlage[] = [],
 ): Promise<void> {
   const url = `${GRAPH_BASE}/users/${encodeURIComponent(from)}/sendMail`;
+  const message: Record<string, unknown> = {
+    subject,
+    body: { contentType: 'HTML', content: bodyHtml },
+    toRecipients: [{ emailAddress: { address: to } }],
+  };
+  if (bijlagen.length > 0) {
+    message.attachments = bijlagen.map((b) => ({
+      '@odata.type': '#microsoft.graph.fileAttachment',
+      name: b.naam,
+      contentType: b.contentType,
+      contentBytes: b.base64,
+    }));
+  }
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      message: {
-        subject,
-        body: { contentType: 'HTML', content: bodyHtml },
-        toRecipients: [{ emailAddress: { address: to } }],
-      },
-      saveToSentItems: true,
-    }),
+    body: JSON.stringify({ message, saveToSentItems: true }),
   });
   if (!response.ok) {
     const data = (await response.json()) as { error?: { message: string } };
