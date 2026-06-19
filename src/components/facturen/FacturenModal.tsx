@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import type { Factuur, Documenttype } from '@/types';
@@ -31,21 +31,177 @@ interface Props {
   onReExtract: (id: string) => Promise<Factuur | null>;
 }
 
-export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onAkkoord, onPdfUrl, onReExtract }: Props) {
+// ── Type-specifieke formulier-secties ────────────────────────
+type StelFn = <K extends keyof Factuur>(veld: K, waarde: Factuur[K]) => void;
+
+function SectieContract({ form, stel }: { form: Factuur; stel: StelFn }) {
+  return (
+    <>
+      <div className={styles.sectieKop}>Contract</div>
+      <div className={`${styles.fg} ${styles.vol}`}>
+        <label>Contractnummer *</label>
+        <input className="fi" placeholder="1860533" value={form.contractnummer ?? ''}
+          onChange={(e) => stel('contractnummer', e.target.value)} />
+      </div>
+      <div className={styles.fg}>
+        <label>Merk / Model</label>
+        <input className="fi" placeholder="Tesla Model 3" value={form.merk_model ?? ''}
+          onChange={(e) => stel('merk_model', e.target.value)} />
+      </div>
+      <div className={styles.fg}>
+        <label>Looptijd (mnd)</label>
+        <input className="fi" type="number" placeholder="60" value={form.looptijd_maanden ?? ''}
+          onChange={(e) => stel('looptijd_maanden', e.target.value === '' ? null : Number(e.target.value))} />
+      </div>
+      <div className={styles.fg}>
+        <label>Jaarkilometrage</label>
+        <input className="fi" type="number" placeholder="30000" value={form.jaarkilometrage ?? ''}
+          onChange={(e) => stel('jaarkilometrage', e.target.value === '' ? null : Number(e.target.value))} />
+      </div>
+      <div className={styles.fg}>
+        <label>Type aanschaf</label>
+        <select className="fi" value={form.type_aanschaf ?? ''}
+          onChange={(e) => stel('type_aanschaf', e.target.value || null)}>
+          <option value="">— kies —</option>
+          <option value="Operational Lease">Operational Lease</option>
+          <option value="Finance Lease">Finance Lease</option>
+          <option value="Eigendom">Eigendom</option>
+        </select>
+      </div>
+      <div className={styles.fg}>
+        <label>Banden</label>
+        <select className="fi" value={form.banden ?? ''}
+          onChange={(e) => stel('banden', e.target.value || null)}>
+          <option value="">— kies —</option>
+          <option value="Zomer">Zomerbanden</option>
+          <option value="Winter">Winter- &amp; zomerbanden</option>
+          <option value="All season">4-seizoenen</option>
+        </select>
+      </div>
+      <div className={`${styles.fg} ${styles.vol}`}>
+        <label>Leasemaatschappij</label>
+        <input className="fi" placeholder="Hiltermann Lease" value={form.leasemaatschappij ?? ''}
+          onChange={(e) => stel('leasemaatschappij', e.target.value)} />
+      </div>
+    </>
+  );
+}
+
+function SectieKenteken({
+  form, stel, rdwOphalen, rdwBezig,
+}: { form: Factuur; stel: StelFn; rdwOphalen: (stil?: boolean) => void; rdwBezig: boolean }) {
+  const rdw = form.rdw_data;
+  return (
+    <>
+      <div className={`${styles.fg} ${styles.vol}`}>
+        <label>Kenteken *</label>
+        <div className={styles.rdwRij}>
+          <input
+            className="fi"
+            placeholder="AB123C"
+            value={form.kenteken ?? ''}
+            onChange={(e) => stel('kenteken', e.target.value.toUpperCase().replace(/[-\s]/g, ''))}
+          />
+          <button className="btn" type="button" onClick={() => rdwOphalen()} disabled={rdwBezig || !form.kenteken}>
+            {rdwBezig ? '⏳ RDW...' : '🔍 RDW ophalen'}
+          </button>
+        </div>
+      </div>
+      {rdw && (
+        <div className={styles.rdwInfo}>
+          <div><label>Merk</label><div>{rdw.merk ?? '—'}</div></div>
+          <div><label>Model</label><div>{rdw.handelsbenaming ?? '—'}</div></div>
+          <div><label>Brandstof</label><div>{rdw.brandstof ?? '—'}</div></div>
+          <div><label>APK</label><div>{rdw.apkDatum ?? '—'}</div></div>
+          <div><label>Fiscale waarde</label><div>{rdw.catalogusprijs != null ? `€ ${rdw.catalogusprijs.toLocaleString('nl-NL')}` : '—'}</div></div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SectieKlant({
+  form, stel, isBedrijf, kvkOphalen, kvkBezig,
+}: { form: Factuur; stel: StelFn; isBedrijf: boolean; kvkOphalen: (stil?: boolean) => void; kvkBezig: boolean }) {
+  return (
+    <>
+      <div className={styles.sectieKop}>Klant</div>
+      <div className={`${styles.fg} ${styles.vol}`}>
+        <label>Type klant</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button type="button" className={`btn ${isBedrijf ? 'btn-a' : ''}`}
+            style={{ fontSize: 12, padding: '5px 12px' }}
+            onClick={() => stel('is_bedrijf', true)}>🏢 Bedrijf</button>
+          <button type="button" className={`btn ${!isBedrijf ? 'btn-a' : ''}`}
+            style={{ fontSize: 12, padding: '5px 12px' }}
+            onClick={() => stel('is_bedrijf', false)}>👤 Particulier</button>
+        </div>
+      </div>
+      {isBedrijf && (
+        <>
+          <div className={`${styles.fg} ${styles.vol}`}>
+            <label>Bedrijfsnaam *</label>
+            <input className="fi" value={form.bedrijfsnaam ?? ''}
+              onChange={(e) => stel('bedrijfsnaam', e.target.value)} />
+          </div>
+          <div className={`${styles.fg} ${styles.vol}`}>
+            <label>KvK-nummer</label>
+            <div className={styles.rdwRij}>
+              <input className="fi" placeholder="12345678"
+                value={form.kvk ?? ''}
+                onChange={(e) => stel('kvk', e.target.value.replace(/\D/g, ''))} />
+              <button className="btn" type="button" onClick={() => kvkOphalen()} disabled={kvkBezig || !form.kvk}>
+                {kvkBezig ? '⏳ KVK...' : '🔍 KVK ophalen'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+      <div className={`${styles.fg} ${styles.vol}`}>
+        <label>Straat + huisnummer</label>
+        <input className="fi" placeholder="Torenbaan 123" value={form.straat ?? ''}
+          onChange={(e) => stel('straat', e.target.value)} />
+      </div>
+      <div className={styles.fg}>
+        <label>Postcode</label>
+        <input className="fi" placeholder="1234 AB" value={form.postcode ?? ''}
+          onChange={(e) => stel('postcode', e.target.value.toUpperCase())} />
+      </div>
+      <div className={styles.fg}>
+        <label>Plaats</label>
+        <input className="fi" value={form.plaats ?? ''}
+          onChange={(e) => stel('plaats', e.target.value)} />
+      </div>
+      <div className={styles.fg}>
+        <label>Berijder</label>
+        <input className="fi" placeholder="Voornaam Achternaam" value={form.berijder_naam ?? ''}
+          onChange={(e) => stel('berijder_naam', e.target.value)} />
+      </div>
+      <div className={styles.fg}>
+        <label>Berijder e-mail</label>
+        <input className="fi" type="email" value={form.berijder_email ?? ''}
+          onChange={(e) => stel('berijder_email', e.target.value)} />
+      </div>
+    </>
+  );
+}
+
+// ── Hoofd-component ──────────────────────────────────────────
+export default function FacturenModal({
+  factuur, open, onSluiten, onOpslaan, onAkkoord, onPdfUrl, onReExtract,
+}: Props) {
   const [form, setForm] = useState<Factuur | null>(factuur);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
   const [rdwBezig, setRdwBezig] = useState(false);
   const [kvkBezig, setKvkBezig] = useState(false);
-  const laatsteKvkNummer = useRef<string>('');
   const [extractBezig, setExtractBezig] = useState(false);
   const laatsteRdwKenteken = useRef<string>('');
+  const laatsteKvkNummer = useRef<string>('');
 
   useEffect(() => {
     if (!open || !factuur) { setForm(null); setPdfUrl(null); return; }
     setForm(factuur);
-    // Beschouw bestaande rdw_data van factuur als 'laatste lookup' zodat
-    // we niet onnodig opnieuw fetchen bij openen.
     laatsteRdwKenteken.current = factuur.rdw_data?.merk
       ? (factuur.kenteken ?? '').replace(/[-\s]/g, '').toUpperCase()
       : '';
@@ -56,9 +212,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     }
   }, [open, factuur, onPdfUrl]);
 
-  // Auto-RDW zodra er een compleet kenteken (6 tekens) in het veld staat
-  // dat verschilt van wat we de vorige keer hebben opgehaald. Debounce 600ms
-  // zodat we niet bij elke keystroke vuren.
+  // Auto-RDW bij 6-teken kenteken
   const kenteken = form?.kenteken ?? '';
   useEffect(() => {
     const norm = kenteken.replace(/[-\s]/g, '').toUpperCase();
@@ -68,7 +222,8 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kenteken]);
-  // Auto-KVK zodra er een 8-cijferig KVK-nummer staat dat verschilt van de vorige lookup.
+
+  // Auto-KVK bij 8-cijferig KVK
   const kvkWaarde = form?.kvk ?? '';
   useEffect(() => {
     const norm = kvkWaarde.replace(/\D/g, '');
@@ -79,11 +234,38 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kvkWaarde]);
 
-
   if (!open || !form) return null;
+
+  const dt = form.documenttype ?? 'factuur';
+  const isBedrijf = form.is_bedrijf !== false;
 
   function stel<K extends keyof Factuur>(veld: K, waarde: Factuur[K]) {
     setForm((f) => f ? { ...f, [veld]: waarde } : f);
+  }
+
+  // Klaar-validatie per type
+  function klaarVoorAkkoord(): boolean {
+    if (dt === 'factuur') {
+      return !!form?.kenteken?.trim() && (isBedrijf ? !!form?.bedrijfsnaam?.trim() : !!form?.berijder_naam?.trim());
+    }
+    if (dt === 'bestelbevestiging') {
+      return !!form?.contractnummer?.trim() && (isBedrijf ? !!form?.bedrijfsnaam?.trim() : !!form?.berijder_naam?.trim());
+    }
+    if (dt === 'inzetbevestiging') {
+      return !!form?.kenteken?.trim() && !!form?.contractnummer?.trim();
+    }
+    if (dt === 'autokosten') {
+      return !!form?.kenteken?.trim();
+    }
+    return false;
+  }
+
+  function klaarHint(): string {
+    if (dt === 'factuur') return 'Kenteken en bedrijfsnaam zijn verplicht';
+    if (dt === 'bestelbevestiging') return 'Contractnummer en bedrijfsnaam zijn verplicht';
+    if (dt === 'inzetbevestiging') return 'Kenteken en contractnummer zijn verplicht';
+    if (dt === 'autokosten') return 'Kenteken is verplicht';
+    return '';
   }
 
   async function opnieuwExtraheren() {
@@ -109,21 +291,45 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     setRdwBezig(true);
     try {
       const rdw = await rdwOpzoeken(form.kenteken);
-      if (!rdw) {
-        if (!stil) alert('Geen RDW-data voor dit kenteken');
-        return;
-      }
+      if (!rdw) { if (!stil) alert('Geen RDW-data voor dit kenteken'); return; }
       const v = rdw.voertuig;
       stel('rdw_data', {
-        merk: v.merk,
-        handelsbenaming: v.handelsbenaming,
-        brandstof: rdw.brandstof,
-        catalogusprijs: rdw.catalogusprijs,
-        apkDatum: rdw.apkDatum,
-        recalls: rdw.recalls.length,
+        merk: v.merk, handelsbenaming: v.handelsbenaming,
+        brandstof: rdw.brandstof, catalogusprijs: rdw.catalogusprijs,
+        apkDatum: rdw.apkDatum, recalls: rdw.recalls.length,
       });
     } finally {
       setRdwBezig(false);
+    }
+  }
+
+  async function kvkOphalen(stil = false) {
+    if (!form?.kvk?.trim()) { if (!stil) alert('Vul eerst een KVK-nummer in'); return; }
+    const norm = form.kvk.replace(/\D/g, '');
+    if (norm.length !== 8) { if (!stil) alert('KVK-nummer moet 8 cijfers zijn'); return; }
+    laatsteKvkNummer.current = norm;
+    setKvkBezig(true);
+    try {
+      const res = await fetch(`/api/kvk/lookup?kvk=${norm}`, { headers: await authHeaders() });
+      if (!res.ok) { if (!stil) alert('Geen KVK-gegevens gevonden'); return; }
+      const d = await res.json() as {
+        gevonden: boolean; naam?: string; straat?: string;
+        postcode?: string; plaats?: string; land?: string;
+      };
+      if (!d.gevonden) { if (!stil) alert('KVK-nummer niet gevonden'); return; }
+      setForm((f) => {
+        if (!f) return f;
+        return {
+          ...f,
+          bedrijfsnaam: f.bedrijfsnaam?.trim() ? f.bedrijfsnaam : (d.naam ?? f.bedrijfsnaam),
+          straat:       f.straat?.trim()       ? f.straat       : (d.straat ?? f.straat),
+          postcode:     f.postcode?.trim()      ? f.postcode     : (d.postcode ?? f.postcode),
+          plaats:       f.plaats?.trim()        ? f.plaats       : (d.plaats ?? f.plaats),
+          land:         f.land?.trim()          ? f.land         : (d.land ?? f.land),
+        };
+      });
+    } finally {
+      setKvkBezig(false);
     }
   }
 
@@ -137,86 +343,42 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
 
   async function handleAkkoord() {
     if (!form) return;
-    if (!form.kenteken?.trim()) { alert('Kenteken is verplicht'); return; }
-    if (form.is_bedrijf !== false && !form.bedrijfsnaam?.trim()) {
-      alert('Bedrijfsnaam is verplicht (zakelijk)'); return;
+    if (dt === 'factuur' || dt === 'autokosten' || dt === 'inzetbevestiging') {
+      if (!form.kenteken?.trim()) { alert('Kenteken is verplicht'); return; }
     }
-    if (form.is_bedrijf === false && !form.berijder_naam?.trim()) {
-      alert('Berijder-naam is verplicht (particulier)'); return;
+    if (dt === 'bestelbevestiging' || dt === 'inzetbevestiging') {
+      if (!form.contractnummer?.trim()) { alert('Contractnummer is verplicht'); return; }
+    }
+    if (dt === 'factuur' || dt === 'bestelbevestiging') {
+      if (isBedrijf && !form.bedrijfsnaam?.trim()) { alert('Bedrijfsnaam is verplicht (zakelijk)'); return; }
+      if (!isBedrijf && !form.berijder_naam?.trim()) { alert('Berijder-naam is verplicht (particulier)'); return; }
     }
     setBezig(true);
-    // Eerst opslaan zodat backend met de laatste edits werkt
     await onOpslaan(form);
     await onAkkoord(form);
     setBezig(false);
   }
-  async function kvkOphalen(stil = false) {
-    if (!form?.kvk?.trim()) {
-      if (!stil) alert('Vul eerst een KVK-nummer in');
-      return;
-    }
-    const norm = form.kvk.replace(/\D/g, '');
-    if (norm.length !== 8) {
-      if (!stil) alert('KVK-nummer moet 8 cijfers zijn');
-      return;
-    }
-    laatsteKvkNummer.current = norm;
-    setKvkBezig(true);
-    try {
-      const res = await fetch(`/api/kvk/lookup?kvk=${norm}`, { headers: await authHeaders() });
-      if (!res.ok) {
-        if (!stil) alert('Geen KVK-gegevens gevonden voor dit nummer');
-        return;
-      }
-      const d = await res.json() as {
-        gevonden: boolean; naam?: string; straat?: string;
-        postcode?: string; plaats?: string; land?: string;
-      };
-      if (!d.gevonden) {
-        if (!stil) alert('KVK-nummer niet gevonden in het Handelsregister');
-        return;
-      }
-      // Alleen invullen als het veld nog leeg is (auto-fill, niet overschrijven)
-      setForm((f) => {
-        if (!f) return f;
-        return {
-          ...f,
-          bedrijfsnaam: f.bedrijfsnaam?.trim() ? f.bedrijfsnaam : (d.naam ?? f.bedrijfsnaam),
-          straat:       f.straat?.trim()       ? f.straat       : (d.straat ?? f.straat),
-          postcode:     f.postcode?.trim()     ? f.postcode     : (d.postcode ?? f.postcode),
-          plaats:       f.plaats?.trim()       ? f.plaats       : (d.plaats ?? f.plaats),
-          land:         f.land?.trim()         ? f.land         : (d.land ?? f.land),
-        };
-      });
-    } finally {
-      setKvkBezig(false);
-    }
-  }
 
-
-  const isBedrijf = form.is_bedrijf !== false;
-  const klaarVoorAkkoord = !!form.kenteken?.trim() && (
-    isBedrijf ? !!form.bedrijfsnaam?.trim() : !!form.berijder_naam?.trim()
-  );
-  const rdw = form.rdw_data;
+  const isKlaar = klaarVoorAkkoord();
 
   return (
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
       <div className={styles.modal}>
         <div className={styles.header}>
           <div className={styles.titel}>
-            {DOCUMENTTYPE_ICOON[form.documenttype ?? 'factuur']} {DOCUMENTTYPE_LABEL[form.documenttype ?? 'factuur']}
+            {DOCUMENTTYPE_ICOON[dt]} {DOCUMENTTYPE_LABEL[dt]}
             {form.factuurnummer ? ` #${form.factuurnummer}` : form.contractnummer ? ` ${form.contractnummer}` : ''}
-            {form.afzender && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 13 }}>· {form.afzender}</span>}
+            {form.afzender && (
+              <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 13 }}>
+                · {form.afzender}
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              className="btn"
-              style={{ fontSize: 12, padding: '6px 12px' }}
+            <button className="btn" style={{ fontSize: 12, padding: '6px 12px' }}
               onClick={opnieuwExtraheren}
               disabled={extractBezig || !form.pdf_storage_path}
-              title="Run Groq + RDW opnieuw op de PDF"
-            >
+              title="Opnieuw extraheren uit PDF">
               {extractBezig ? '⏳ Bezig...' : '🔄 Opnieuw extraheren'}
             </button>
             <button className={styles.sluit} onClick={onSluiten}>×</button>
@@ -227,7 +389,7 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
           {/* PDF preview links */}
           <div className={styles.pdfBox}>
             {pdfUrl ? (
-              <iframe className={styles.pdfFrame} src={pdfUrl} title="Factuur PDF" />
+              <iframe className={styles.pdfFrame} src={pdfUrl} title="Document PDF" />
             ) : (
               <div className={styles.pdfLeeg}>
                 {form.pdf_storage_path ? 'PDF laden...' : 'Geen PDF aanwezig'}
@@ -249,9 +411,10 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
               </div>
             )}
 
+            {/* Documenttype — altijd */}
             <div className={styles.fg}>
               <label>Documenttype</label>
-              <select className="fi" value={form.documenttype ?? 'factuur'}
+              <select className="fi" value={dt}
                 onChange={(e) => stel('documenttype', e.target.value as Documenttype)}>
                 <option value="factuur">📄 Factuur</option>
                 <option value="bestelbevestiging">🛒 Bestelbevestiging</option>
@@ -260,132 +423,113 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
               </select>
             </div>
 
-            <div className={styles.sectieKop}>Factuur</div>
-
-            <div className={styles.fg}>
-              <label>Factuurnummer</label>
-              <input className="fi" value={form.factuurnummer ?? ''}
-                onChange={(e) => stel('factuurnummer', e.target.value)} />
-            </div>
-            <div className={styles.fg}>
-              <label>Factuurdatum (inzetdatum)</label>
-              <input className="fi" type="date" value={form.factuurdatum ?? ''}
-                onChange={(e) => stel('factuurdatum', e.target.value)} />
-            </div>
-            <div className={styles.fg}>
-              <label>Bedrag excl. BTW</label>
-              <input className="fi" type="number" step="0.01" value={form.bedrag_excl_btw ?? ''}
-                onChange={(e) => stel('bedrag_excl_btw', e.target.value === '' ? null : Number(e.target.value))} />
-            </div>
-            <div className={styles.fg}>
-              <label>Bedrag incl. BTW</label>
-              <input className="fi" type="number" step="0.01" value={form.bedrag_incl_btw ?? ''}
-                onChange={(e) => stel('bedrag_incl_btw', e.target.value === '' ? null : Number(e.target.value))} />
-            </div>
-
-            <div className={styles.sectieKop}>Auto</div>
-
-            <div className={`${styles.fg} ${styles.vol}`}>
-              <label>Kenteken *</label>
-              <div className={styles.rdwRij}>
-                <input
-                  className="fi"
-                  placeholder="AB123C"
-                  value={form.kenteken ?? ''}
-                  onChange={(e) => stel('kenteken', e.target.value.toUpperCase().replace(/[-\s]/g, ''))}
-                />
-                <button className="btn" type="button" onClick={() => rdwOphalen()} disabled={rdwBezig || !form.kenteken}>
-                  {rdwBezig ? '⏳ RDW...' : '🔍 RDW ophalen'}
-                </button>
-              </div>
-            </div>
-
-            {rdw && (
-              <div className={styles.rdwInfo}>
-                <div><label>Merk</label><div>{rdw.merk ?? '—'}</div></div>
-                <div><label>Model</label><div>{rdw.handelsbenaming ?? '—'}</div></div>
-                <div><label>Brandstof</label><div>{rdw.brandstof ?? '—'}</div></div>
-                <div><label>APK</label><div>{rdw.apkDatum ?? '—'}</div></div>
-                <div><label>Fiscale waarde</label><div>{rdw.catalogusprijs != null ? `€ ${rdw.catalogusprijs.toLocaleString('nl-NL')}` : '—'}</div></div>
-              </div>
+            {/* ── FACTUUR ── */}
+            {dt === 'factuur' && (
+              <>
+                <div className={styles.sectieKop}>Factuur</div>
+                <div className={styles.fg}>
+                  <label>Factuurnummer</label>
+                  <input className="fi" value={form.factuurnummer ?? ''}
+                    onChange={(e) => stel('factuurnummer', e.target.value)} />
+                </div>
+                <div className={styles.fg}>
+                  <label>Factuurdatum</label>
+                  <input className="fi" type="date" value={form.factuurdatum ?? ''}
+                    onChange={(e) => stel('factuurdatum', e.target.value)} />
+                </div>
+                <div className={styles.fg}>
+                  <label>Bedrag excl. BTW</label>
+                  <input className="fi" type="number" step="0.01" value={form.bedrag_excl_btw ?? ''}
+                    onChange={(e) => stel('bedrag_excl_btw', e.target.value === '' ? null : Number(e.target.value))} />
+                </div>
+                <div className={styles.fg}>
+                  <label>Bedrag incl. BTW</label>
+                  <input className="fi" type="number" step="0.01" value={form.bedrag_incl_btw ?? ''}
+                    onChange={(e) => stel('bedrag_incl_btw', e.target.value === '' ? null : Number(e.target.value))} />
+                </div>
+                <div className={styles.sectieKop}>Auto</div>
+                <SectieKenteken form={form} stel={stel} rdwOphalen={rdwOphalen} rdwBezig={rdwBezig} />
+                <SectieKlant form={form} stel={stel} isBedrijf={isBedrijf} kvkOphalen={kvkOphalen} kvkBezig={kvkBezig} />
+              </>
             )}
 
-            <div className={styles.sectieKop}>Klant</div>
-
-            <div className={`${styles.fg} ${styles.vol}`}>
-              <label>Type klant</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  type="button"
-                  className={`btn ${isBedrijf ? 'btn-a' : ''}`}
-                  style={{ fontSize: 12, padding: '5px 12px' }}
-                  onClick={() => stel('is_bedrijf', true)}
-                >🏢 Bedrijf</button>
-                <button
-                  type="button"
-                  className={`btn ${!isBedrijf ? 'btn-a' : ''}`}
-                  style={{ fontSize: 12, padding: '5px 12px' }}
-                  onClick={() => stel('is_bedrijf', false)}
-                >👤 Particulier</button>
-              </div>
-            </div>
-
-            {isBedrijf && (
+            {/* ── BESTELBEVESTIGING ── */}
+            {dt === 'bestelbevestiging' && (
               <>
+                <SectieContract form={form} stel={stel} />
+                <SectieKlant form={form} stel={stel} isBedrijf={isBedrijf} kvkOphalen={kvkOphalen} kvkBezig={kvkBezig} />
+              </>
+            )}
+
+            {/* ── INZETBEVESTIGING ── */}
+            {dt === 'inzetbevestiging' && (
+              <>
+                <div className={styles.sectieKop}>Inzet</div>
+                <SectieKenteken form={form} stel={stel} rdwOphalen={rdwOphalen} rdwBezig={rdwBezig} />
                 <div className={`${styles.fg} ${styles.vol}`}>
-                  <label>Bedrijfsnaam *</label>
+                  <label>Contractnummer *</label>
+                  <input className="fi" placeholder="1860533" value={form.contractnummer ?? ''}
+                    onChange={(e) => stel('contractnummer', e.target.value)} />
+                </div>
+                <div className={styles.fg}>
+                  <label>Inzetdatum</label>
+                  <input className="fi" type="date" value={form.inzetdatum ?? ''}
+                    onChange={(e) => stel('inzetdatum', e.target.value)} />
+                </div>
+                <div className={styles.fg}>
+                  <label>Merk / Model</label>
+                  <input className="fi" placeholder="Tesla Model 3" value={form.merk_model ?? ''}
+                    onChange={(e) => stel('merk_model', e.target.value)} />
+                </div>
+                <div className={styles.fg}>
+                  <label>Looptijd (mnd)</label>
+                  <input className="fi" type="number" value={form.looptijd_maanden ?? ''}
+                    onChange={(e) => stel('looptijd_maanden', e.target.value === '' ? null : Number(e.target.value))} />
+                </div>
+                <div className={styles.fg}>
+                  <label>Jaarkilometrage</label>
+                  <input className="fi" type="number" value={form.jaarkilometrage ?? ''}
+                    onChange={(e) => stel('jaarkilometrage', e.target.value === '' ? null : Number(e.target.value))} />
+                </div>
+                <div className={`${styles.fg} ${styles.vol}`}>
+                  <label>Leasemaatschappij</label>
+                  <input className="fi" value={form.leasemaatschappij ?? ''}
+                    onChange={(e) => stel('leasemaatschappij', e.target.value)} />
+                </div>
+                <SectieKlant form={form} stel={stel} isBedrijf={isBedrijf} kvkOphalen={kvkOphalen} kvkBezig={kvkBezig} />
+              </>
+            )}
+
+            {/* ── AUTOKOSTEN ── */}
+            {dt === 'autokosten' && (
+              <>
+                <div className={styles.sectieKop}>Auto</div>
+                <SectieKenteken form={form} stel={stel} rdwOphalen={rdwOphalen} rdwBezig={rdwBezig} />
+                <div className={styles.sectieKop}>Werkplaatsfactuur</div>
+                <div className={`${styles.fg} ${styles.vol}`}>
+                  <label>Garage / Leverancier</label>
                   <input className="fi" value={form.bedrijfsnaam ?? ''}
                     onChange={(e) => stel('bedrijfsnaam', e.target.value)} />
                 </div>
-                <div className={`${styles.fg} ${styles.vol}`}>
-                  <label>KvK-nummer</label>
-                  <div className={styles.rdwRij}>
-                    <input
-                      className="fi"
-                      placeholder="12345678"
-                      value={form.kvk ?? ""}
-                      onChange={(e) => stel("kvk", e.target.value.replace(/\D/g, ""))}
-                    />
-                    <button className="btn" type="button" onClick={() => kvkOphalen()} disabled={kvkBezig || !form.kvk}>
-                      {kvkBezig ? "⏳ KVK..." : "🔍 KVK ophalen"}
-                    </button>
-                  </div>
+                <div className={styles.fg}>
+                  <label>Factuurdatum</label>
+                  <input className="fi" type="date" value={form.factuurdatum ?? ''}
+                    onChange={(e) => stel('factuurdatum', e.target.value)} />
+                </div>
+                <div className={styles.fg}>
+                  <label>Bedrag excl. BTW</label>
+                  <input className="fi" type="number" step="0.01" value={form.bedrag_excl_btw ?? ''}
+                    onChange={(e) => stel('bedrag_excl_btw', e.target.value === '' ? null : Number(e.target.value))} />
+                </div>
+                <div className={styles.fg}>
+                  <label>Bedrag incl. BTW</label>
+                  <input className="fi" type="number" step="0.01" value={form.bedrag_incl_btw ?? ''}
+                    onChange={(e) => stel('bedrag_incl_btw', e.target.value === '' ? null : Number(e.target.value))} />
                 </div>
               </>
             )}
 
-            <div className={`${styles.fg} ${styles.vol}`}>
-              <label>Straat + huisnummer</label>
-              <input className="fi" placeholder="Torenbaan 123" value={form.straat ?? ''}
-                onChange={(e) => stel('straat', e.target.value)} />
-            </div>
-            <div className={styles.fg}>
-              <label>Postcode</label>
-              <input className="fi" placeholder="1234 AB" value={form.postcode ?? ''}
-                onChange={(e) => stel('postcode', e.target.value.toUpperCase())} />
-            </div>
-            <div className={styles.fg}>
-              <label>Plaats</label>
-              <input className="fi" value={form.plaats ?? ''}
-                onChange={(e) => stel('plaats', e.target.value)} />
-            </div>
-            <div className={`${styles.fg} ${styles.vol}`}>
-              <label>Land</label>
-              <input className="fi" placeholder="Nederland" value={form.land ?? ''}
-                onChange={(e) => stel('land', e.target.value)} />
-            </div>
-
-            <div className={styles.fg}>
-              <label>Berijder</label>
-              <input className="fi" placeholder="Voornaam Achternaam" value={form.berijder_naam ?? ''}
-                onChange={(e) => stel('berijder_naam', e.target.value)} />
-            </div>
-            <div className={styles.fg}>
-              <label>Berijder e-mail</label>
-              <input className="fi" type="email" value={form.berijder_email ?? ''}
-                onChange={(e) => stel('berijder_email', e.target.value)} />
-            </div>
-
+            {/* Notitie — altijd */}
             <div className={`${styles.fg} ${styles.vol}`}>
               <label>Notitie</label>
               <textarea className="fi" rows={2} value={form.notitie ?? ''}
@@ -405,8 +549,8 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
           <button
             className="btn btn-a"
             onClick={handleAkkoord}
-            disabled={bezig || !klaarVoorAkkoord}
-            title={klaarVoorAkkoord ? 'Wegschrijven naar HubSpot' : 'Kenteken en bedrijfsnaam zijn verplicht'}
+            disabled={bezig || !isKlaar}
+            title={isKlaar ? 'Wegschrijven naar HubSpot' : klaarHint()}
           >
             {bezig ? '...' : '✅ Goedkeuren → HubSpot'}
           </button>
@@ -415,4 +559,3 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
     </div>
   );
 }
-
