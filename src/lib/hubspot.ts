@@ -1,4 +1,4 @@
-// HubSpot client voor PEPE Flow.
+﻿// HubSpot client voor PEPE Flow.
 // Server-only. Gebaseerd op tsd-dashboard/src/lib/hubspot.ts, uitgebreid
 // met search+create voor Company, Contact en Deal zodat de facturen-inbox
 // klanten en auto's kan aanmaken die nog niet in HubSpot staan.
@@ -31,6 +31,7 @@ async function hsFetch<T = unknown>(url: string, init: RequestInit = {}): Promis
 // Dealstage "Rijdend / Klant" — overgenomen uit tsd-dashboard.
 // Bevestiging vereist: zie open punt 3 in plan.
 export const DEALSTAGE_VERKOCHT = '104593342';
+export const DEALSTAGE_IN_BESTELLING = '167690431';
 
 // ── Company ─────────────────────────────────────────────────────
 
@@ -299,6 +300,9 @@ export interface DealInput {
   kilometerstand_huidig?: number;
   dealstage?: string;
   pipeline?: string;
+  dealname?: string;             // overschrijft kenteken-gebaseerde dealname
+  leasemaatschappij?: string;    // naam leasemaatschappij -> leasemaatschappij_goed
+  verwachte_einddatum?: string;  // ISO yyyy-mm-dd
 }
 
 /** Exacte dealname-match zonder normalisatie — voor "InBestelling [contractnummer]" lookups. */
@@ -537,7 +541,7 @@ export async function getInkoopNawByKenteken(kenteken: string): Promise<InkoopNa
 
 export async function createDeal(input: DealInput): Promise<string> {
   const properties: Record<string, string> = {
-    dealname: input.kenteken.replace(/\s+/g, '').toUpperCase(),
+    dealname: input.dealname ?? input.kenteken.replace(/\s+/g, '').toUpperCase(),
     dealstage: input.dealstage ?? DEALSTAGE_VERKOCHT,
   };
   if (input.pipeline) properties.pipeline = input.pipeline;
@@ -553,6 +557,8 @@ export async function createDeal(input: DealInput): Promise<string> {
   if (input.kilometerstand_huidig != null) {
     properties.kilometerstand_huidig = String(input.kilometerstand_huidig);
   }
+  if (input.leasemaatschappij) properties.leasemaatschappij_goed = input.leasemaatschappij;
+  if (input.verwachte_einddatum) properties.verwachte_einddatum = input.verwachte_einddatum;
 
   const data = await hsFetch<{ id: string }>(
     `${HS_BASE}/crm/v3/objects/deals`,
@@ -641,3 +647,4 @@ export async function createNoteOnDeal(
   );
   return data.id;
 }
+

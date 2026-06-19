@@ -17,6 +17,8 @@ export interface InzetdocumentExtract {
   jaarkilometrage: number | null;
   type_aanschaf: string | null;       // "Operational Lease" | "Finance Lease" | "Eigendom"
 
+  banden: string | null;              // "Zomer" | "Winter" | "All season"
+
   // Berijder
   berijder_voornaam: string | null;
   berijder_achternaam: string | null;
@@ -60,6 +62,7 @@ JSON-structuur:
   "looptijd_maanden": number|null,
   "jaarkilometrage": number|null,
   "type_aanschaf": "Operational Lease"|"Finance Lease"|"Eigendom"|null,
+  "banden": "Zomer"|"Winter"|"All season"|null,
   "berijder_voornaam": string|null,
   "berijder_achternaam": string|null,
   "berijder_email": string|null,
@@ -88,7 +91,7 @@ export async function extraheertInzetdocument(
   return result ?? {
     kenteken: null, merk_model: null, brandstof: null, fiscale_waarde: null,
     contractnummer: null, inzetdatum: null, looptijd_maanden: null, jaarkilometrage: null,
-    type_aanschaf: null,
+    type_aanschaf: null, banden: null,
     berijder_voornaam: null, berijder_achternaam: null, berijder_email: null,
     berijder_telefoon: null, berijder_adres: null, berijder_postcode: null, berijder_stad: null,
     bedrijf_naam: null, bedrijf_adres: null, bedrijf_postcode: null, bedrijf_stad: null, bedrijf_kvk: null,

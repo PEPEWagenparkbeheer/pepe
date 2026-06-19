@@ -14,6 +14,7 @@ import { extractText, getDocumentProxy } from 'unpdf';
 import { parseFactuurTekst } from '@/lib/factuur-parser';
 import { rdwOpzoeken } from '@/lib/rdw';
 import { classifyDocument } from '@/lib/documentenstroom/classifyDocument';
+import { extraheertInzetdocument } from '@/lib/brein/inzetdocument';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -99,36 +100,6 @@ export async function POST(req: NextRequest) {
 
   const classificatie = await classifyDocument(body.Subject ?? '', combinedTekst);
 
-  const extract = combinedTekst.trim()
-    ? await parseFactuurTekst(combinedTekst)
-    : null;
-
-  // RDW-verrijking bij gevonden kenteken
-  let rdwData: unknown = null;
-  let apkDatum: string | null = null;
-  if (extract?.kenteken) {
-    try {
-      const rdw = await rdwOpzoeken(extract.kenteken);
-      if (rdw) {
-        rdwData = {
-          merk: rdw.voertuig.merk,
-          handelsbenaming: rdw.voertuig.handelsbenaming,
-          brandstof: rdw.brandstof,
-          catalogusprijs: rdw.catalogusprijs,
-          apkDatum: rdw.apkDatum,
-          recalls: rdw.recalls.length,
-        };
-        if (rdw.apkDatum) {
-          // RDW geeft "dd-mm-yyyy" → ISO yyyy-mm-dd voor DB
-          const [d, m, y] = rdw.apkDatum.split('-');
-          apkDatum = `${y}-${m}-${d}`;
-        }
-      }
-    } catch (e) {
-      console.error('facturen-inbound rdw fout:', e);
-    }
-  }
-
   const rawEmail = [
     `Van: ${body.From ?? ''}`,
     `Onderwerp: ${body.Subject ?? ''}`,
@@ -137,7 +108,7 @@ export async function POST(req: NextRequest) {
     body.TextBody || body.StrippedTextReply || body.HtmlBody || '',
   ].join('\n');
 
-  const insertPayload = {
+  const basePayload = {
     ontvangen_op: body.Date ?? new Date().toISOString(),
     postmark_message_id: body.MessageID ?? null,
     afzender: body.From ?? null,
@@ -145,31 +116,112 @@ export async function POST(req: NextRequest) {
     raw_email: rawEmail,
     pdf_storage_path: pdfStoragePath,
     pdf_bestandsnaam: pdfBestandsnaam,
-    factuurnummer: extract?.factuurnummer ?? null,
-    factuurdatum: extract?.factuurdatum ?? null,
-    kenteken: extract?.kenteken ?? null,
-    bedrijfsnaam: extract?.bedrijfsnaam ?? null,
-    kvk: extract?.kvk ?? null,
-    is_bedrijf: extract?.is_bedrijf ?? true,
-    berijder_naam: extract?.berijder_naam ?? null,
-    berijder_email: extract?.berijder_email ?? null,
-    bedrag_excl_btw: extract?.bedrag_excl_btw ?? null,
-    bedrag_incl_btw: extract?.bedrag_incl_btw ?? null,
-    straat: extract?.straat ?? null,
-    postcode: extract?.postcode ?? null,
-    plaats: extract?.plaats ?? null,
-    land: extract?.land ?? null,
-    extracted_data: extract ?? null,
-    rdw_data: rdwData,
     documenttype: classificatie.documenttype,
-    // Als RDW een APK heeft maar Groq geen factuurdatum, vullen we het
-    // factuur-record niet met APK; we slaan de APK alleen op in rdw_data
-    // zodat de modal het kan tonen. (apkDatum hieronder enkel als veld
-    // beschikbaar — niet als kolom; logging only.)
     status: 'nieuw',
     gearchiveerd: false,
   };
-  void apkDatum;
+
+  let insertPayload: Record<string, unknown>;
+
+  if (
+    classificatie.documenttype === 'bestelbevestiging' ||
+    classificatie.documenttype === 'inzetbevestiging'
+  ) {
+    // Bestel- en inzetbevestigingen: extraheer via inzetdocument-extractor
+    const inzetExtract = combinedTekst.trim()
+      ? await extraheertInzetdocument(body.Subject ?? '', combinedTekst)
+      : null;
+
+    // RDW alleen bij inzetbevestiging (heeft kenteken)
+    let rdwData: unknown = null;
+    if (inzetExtract?.kenteken) {
+      try {
+        const rdw = await rdwOpzoeken(inzetExtract.kenteken);
+        if (rdw) {
+          rdwData = {
+            merk: rdw.voertuig.merk,
+            handelsbenaming: rdw.voertuig.handelsbenaming,
+            brandstof: rdw.brandstof,
+            catalogusprijs: rdw.catalogusprijs,
+            apkDatum: rdw.apkDatum,
+            recalls: rdw.recalls.length,
+          };
+        }
+      } catch (e) {
+        console.error('facturen-inbound rdw fout:', e);
+      }
+    }
+
+    const berijderNaam = [inzetExtract?.berijder_voornaam, inzetExtract?.berijder_achternaam]
+      .filter(Boolean).join(' ') || null;
+
+    insertPayload = {
+      ...basePayload,
+      contractnummer: inzetExtract?.contractnummer ?? null,
+      merk_model: inzetExtract?.merk_model ?? null,
+      brandstof: inzetExtract?.brandstof ?? null,
+      looptijd_maanden: inzetExtract?.looptijd_maanden ?? null,
+      jaarkilometrage: inzetExtract?.jaarkilometrage ?? null,
+      type_aanschaf: inzetExtract?.type_aanschaf ?? null,
+      banden: inzetExtract?.banden ?? null,
+      inzetdatum: inzetExtract?.inzetdatum ?? null,
+      leasemaatschappij: inzetExtract?.leasemaatschappij_naam ?? null,
+      kenteken: inzetExtract?.kenteken ?? null,
+      berijder_naam: berijderNaam,
+      berijder_email: inzetExtract?.berijder_email ?? null,
+      bedrijfsnaam: inzetExtract?.bedrijf_naam ?? null,
+      kvk: inzetExtract?.bedrijf_kvk ?? null,
+      straat: inzetExtract?.bedrijf_adres ?? null,
+      postcode: inzetExtract?.bedrijf_postcode ?? null,
+      plaats: inzetExtract?.bedrijf_stad ?? null,
+      extracted_data: inzetExtract ?? null,
+      rdw_data: rdwData,
+    };
+  } else {
+    // Facturen en autokosten: gebruik bestaande factuur-parser
+    const extract = combinedTekst.trim()
+      ? await parseFactuurTekst(combinedTekst)
+      : null;
+
+    let rdwData: unknown = null;
+    if (extract?.kenteken) {
+      try {
+        const rdw = await rdwOpzoeken(extract.kenteken);
+        if (rdw) {
+          rdwData = {
+            merk: rdw.voertuig.merk,
+            handelsbenaming: rdw.voertuig.handelsbenaming,
+            brandstof: rdw.brandstof,
+            catalogusprijs: rdw.catalogusprijs,
+            apkDatum: rdw.apkDatum,
+            recalls: rdw.recalls.length,
+          };
+        }
+      } catch (e) {
+        console.error('facturen-inbound rdw fout:', e);
+      }
+    }
+
+    insertPayload = {
+      ...basePayload,
+      factuurnummer: extract?.factuurnummer ?? null,
+      factuurdatum: extract?.factuurdatum ?? null,
+      kenteken: extract?.kenteken ?? null,
+      bedrijfsnaam: extract?.bedrijfsnaam ?? null,
+      kvk: extract?.kvk ?? null,
+      is_bedrijf: extract?.is_bedrijf ?? true,
+      berijder_naam: extract?.berijder_naam ?? null,
+      berijder_email: extract?.berijder_email ?? null,
+      bedrag_excl_btw: extract?.bedrag_excl_btw ?? null,
+      bedrag_incl_btw: extract?.bedrag_incl_btw ?? null,
+      straat: extract?.straat ?? null,
+      postcode: extract?.postcode ?? null,
+      plaats: extract?.plaats ?? null,
+      land: extract?.land ?? null,
+      extracted_data: extract ?? null,
+      rdw_data: rdwData,
+    };
+  }
 
   const { data, error } = await admin
     .from('facturen')
