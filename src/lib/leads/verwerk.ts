@@ -78,26 +78,33 @@ const normTel = (t: string | null) => {
   const d = (t ?? '').replace(/\D/g, '');
   return d.length >= 6 ? d.slice(-9) : '';
 };
+/** Naam als zwakke identiteit (alleen als betekenisvol), voor leads zonder e-mail/telefoon. */
+const naamKey = (n: string | null) => {
+  const x = (n ?? '').trim().toLowerCase();
+  return x && x !== 'onbekend' && x.length >= 4 ? x : '';
+};
 
 /**
- * True als er al een niet-gearchiveerde lead bestaat met dezelfde contactidentiteit
- * (e-mail of telefoon) én dezelfde auto of advertentie-URL, binnen de laatste 21 dagen.
- * Zonder contactidentiteit ontdubbelen we NIET (liever een dubbele dan een gemiste lead).
+ * True als er al een niet-gearchiveerde lead bestaat met dezelfde identiteit (e-mail,
+ * telefoon, of — bij gebrek daaraan — naam) én dezelfde auto of advertentie-URL, binnen
+ * de laatste 21 dagen. Geen enkele identiteit → NIET ontdubbelen (liever dubbel dan gemist).
  */
 async function isDuplicaatLead(
   email: string | null,
   telefoon: string | null,
+  klantNaam: string | null,
   auto: string,
   advertentieUrl: string | null,
 ): Promise<boolean> {
   const eMail = normEmail(email);
   const tel = normTel(telefoon);
-  if (!eMail && !tel) return false;
+  const naam = naamKey(klantNaam);
+  if (!eMail && !tel && !naam) return false;
 
   const cutoff = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabaseAdmin
     .from('leads')
-    .select('email, telefoon, auto, advertentie_url')
+    .select('email, telefoon, klant_naam, auto, advertentie_url')
     .eq('gearchiveerd', false)
     .gte('created_at', cutoff);
   if (error || !data) return false;
@@ -105,7 +112,9 @@ async function isDuplicaatLead(
   const autoN = normAuto(auto);
   return data.some((c) => {
     const contactMatch =
-      (eMail && normEmail(c.email) === eMail) || (tel && normTel(c.telefoon) === tel);
+      (eMail && normEmail(c.email) === eMail) ||
+      (tel && normTel(c.telefoon) === tel) ||
+      (naam && naamKey(c.klant_naam) === naam);
     if (!contactMatch) return false;
     const onderwerpMatch =
       (advertentieUrl && c.advertentie_url && c.advertentie_url === advertentieUrl) ||
@@ -224,7 +233,7 @@ export async function verwerkLeadMail(input: LeadMailInput): Promise<LeadMailRes
   }
 
   // Ontdubbelen: zelfde berijder + zelfde auto/advertentie binnen 21 dagen → niet nogmaals aanmaken.
-  if (await isDuplicaatLead(email, telefoon, auto, advertentie_url)) {
+  if (await isDuplicaatLead(email, telefoon, klant_naam, auto, advertentie_url)) {
     return { routed: 'skipped', reden: 'duplicaat' };
   }
 

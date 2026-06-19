@@ -4,10 +4,11 @@ name: BREIN + leads sync (cron)
 # dat de BREIN-mailboxen synct én nieuwe leads uit info@ ophaalt.
 # Vervangt de Vercel-native cron (die op het gratis plan maar 1x/dag mag).
 
+# Planning staat UIT: GitHub Actions knijpt geplande jobs af (draaide elke 2-3 uur i.p.v.
+# 5 min). De 5-min-cron loopt nu via Supabase pg_cron (betrouwbaar, in eigen infra).
+# Deze workflow blijft als handmatige back-up (Actions-tab → Run workflow).
 on:
-  schedule:
-    - cron: '*/5 * * * *'    # elke 5 min (GitHub-scheduler is best-effort; kan iets uitlopen)
-  workflow_dispatch: {}        # handmatig te starten via de Actions-tab
+  workflow_dispatch: {}
 
 jobs:
   sync:

@@ -29,7 +29,11 @@ const normTel = (t) => {
   const d = String(t ?? '').replace(/\D/g, '');
   return d.length >= 6 ? d.slice(-9) : '';
 };
-const ident = (l) => normEmail(l.email) || normTel(l.telefoon);
+const naamKey = (n) => {
+  const x = String(n ?? '').trim().toLowerCase();
+  return x && x !== 'onbekend' && x.length >= 4 ? x : '';
+};
+const ident = (l) => normEmail(l.email) || normTel(l.telefoon) || naamKey(l.klant_naam);
 const zelfdeAuto = (a, b) => {
   if (!a || !b) return false;
   if (a === b) return true;
