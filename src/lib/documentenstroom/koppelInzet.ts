@@ -130,7 +130,7 @@ export async function koppelInzet(
     if (ext.inzetdatum) dealProperties.inzetdatum = ext.inzetdatum;
     if (einddatum) dealProperties.verwachte_einddatum = einddatum;
     if (ext.leasemaatschappij_naam) dealProperties.leasemaatschappij_goed = ext.leasemaatschappij_naam;
-    if (ext.jaarkilometrage != null) dealProperties.kilometerstand_huidig = String(ext.jaarkilometrage);
+    if (ext.jaarkilometrage != null) dealProperties.jaarkilometrage = String(ext.jaarkilometrage);
 
     if (dealId) {
       await updateDealFields(dealId, dealProperties);

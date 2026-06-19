@@ -19,6 +19,11 @@ export interface InzetdocumentExtract {
 
   banden: string | null;              // "Zomer" | "Winter" | "All season"
 
+  // Dealer & financieel
+  leverende_dealer: string | null;      // bijv. "Tesla Motors Nederland B.V."
+  leasebedrag_per_maand: number | null; // excl. BTW
+  verwachte_leverdatum: string | null;  // ISO yyyy-mm-dd (bestelbevestiging)
+
   // Berijder
   berijder_voornaam: string | null;
   berijder_achternaam: string | null;
@@ -63,6 +68,9 @@ JSON-structuur:
   "jaarkilometrage": number|null,
   "type_aanschaf": "Full operational"|"shortlease"|null,
   "banden": "Zomer"|"Winter"|"All season"|null,
+  "leverende_dealer": string|null,
+  "leasebedrag_per_maand": number|null,
+  "verwachte_leverdatum": "yyyy-mm-dd"|null,
   "berijder_voornaam": string|null,
   "berijder_achternaam": string|null,
   "berijder_email": string|null,
@@ -92,6 +100,7 @@ export async function extraheertInzetdocument(
     kenteken: null, merk_model: null, brandstof: null, fiscale_waarde: null,
     contractnummer: null, inzetdatum: null, looptijd_maanden: null, jaarkilometrage: null,
     type_aanschaf: null, banden: null,
+    leverende_dealer: null, leasebedrag_per_maand: null, verwachte_leverdatum: null,
     berijder_voornaam: null, berijder_achternaam: null, berijder_email: null,
     berijder_telefoon: null, berijder_adres: null, berijder_postcode: null, berijder_stad: null,
     bedrijf_naam: null, bedrijf_adres: null, bedrijf_postcode: null, bedrijf_stad: null, bedrijf_kvk: null,

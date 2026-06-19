@@ -132,11 +132,9 @@ export async function findCompany({ name, postcode, plaats }: CompanyMatchInput)
     }
   }
 
-  // 2. Naam similar (ook zonder postcode-match) — acceptabel als adres ontbreekt
-  if (!postcode) {
-    for (const c of kandidaten) {
-      if (namesSimilar(c.properties?.name ?? '', name)) return c.id;
-    }
+  // 2. Naam similar — altijd als fallback, ook als postcode aanwezig maar niet matcht
+  for (const c of kandidaten) {
+    if (namesSimilar(c.properties?.name ?? '', name)) return c.id;
   }
 
   // 3. Exacte postcode + plaats match (zelfde adres = zelfde klant)

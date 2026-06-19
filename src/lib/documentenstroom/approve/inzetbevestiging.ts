@@ -43,6 +43,9 @@ export async function approveInzetbevestiging(
     leasemaatschappij_contactpersoon: (raw.leasemaatschappij_contactpersoon ?? null) as string | null,
     leasemaatschappij_email: (raw.leasemaatschappij_email ?? null) as string | null,
     leasemaatschappij_telefoon: (raw.leasemaatschappij_telefoon ?? null) as string | null,
+    leverende_dealer: (raw.leverende_dealer ?? null) as string | null,
+    leasebedrag_per_maand: (raw.leasebedrag_per_maand ?? null) as number | null,
+    verwachte_leverdatum: (raw.verwachte_leverdatum ?? null) as string | null,
   };
 
   // Download PDF voor bijlage op de deal (best-effort)

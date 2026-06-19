@@ -83,6 +83,13 @@ export async function approveBestelbevestiging(
     });
   }
 
+  // Extra velden uit extracted_data JSON
+  const ext = factuur.extracted_data as Record<string, unknown> | null;
+  const leverendeDealerUitDoc = ext?.leverende_dealer ? String(ext.leverende_dealer) : undefined;
+  const leasebedragUitDoc = ext?.leasebedrag_per_maand != null ? Number(ext.leasebedrag_per_maand) : null;
+  const verwachteLeverdatumUitDoc = ext?.verwachte_leverdatum ? String(ext.verwachte_leverdatum) : undefined;
+  const fiscaleWaarde = ext?.fiscale_waarde;
+
   // ── Deal: InBestelling [contractnummer] ──────────
   const dealNaam = `InBestelling ${contractnummer}`;
   let dealId = await searchDealByName(dealNaam);
@@ -91,7 +98,7 @@ export async function approveBestelbevestiging(
       kenteken: contractnummer,
       dealname: dealNaam,
       dealstage: DEALSTAGE_IN_BESTELLING,
-      leverancier: 'PEPE Wagenparkbeheer',
+      leverancier: leverendeDealerUitDoc,
       land_kenteken: 'NL',
     });
   }
@@ -102,14 +109,15 @@ export async function approveBestelbevestiging(
   if (factuur.brandstof) dealProps.brandstof = String(factuur.brandstof);
   if (factuur.type_aanschaf) dealProps.type_aanschaf = String(factuur.type_aanschaf);
   if (factuur.looptijd_maanden != null) dealProps.looptijd = String(factuur.looptijd_maanden);
-  if (factuur.jaarkilometrage != null) dealProps.kilometerstand_huidig = String(factuur.jaarkilometrage);
+  if (factuur.jaarkilometrage != null) dealProps.jaarkilometrage = String(factuur.jaarkilometrage);
   if (factuur.leasemaatschappij) dealProps.leasemaatschappij_goed = String(factuur.leasemaatschappij);
   const bandenMapped = mapBanden(factuur.banden ? String(factuur.banden) : null);
   if (bandenMapped) dealProps.winterbanden_in_contract = bandenMapped;
-  // fiscale_waarde zit in extracted_data (geen eigen kolom), lees het daar uit
-  const ext = factuur.extracted_data as Record<string, unknown> | null;
-  const fiscaleWaarde = ext?.fiscale_waarde;
   if (fiscaleWaarde != null) dealProps.fiscale_waarde = String(fiscaleWaarde);
+  dealProps.contractnummer_lease = contractnummer;
+  if (leverendeDealerUitDoc) dealProps.leverancier = leverendeDealerUitDoc;
+  if (leasebedragUitDoc != null) dealProps.leasebedrag_per_maand_excl_btw = String(leasebedragUitDoc);
+  if (verwachteLeverdatumUitDoc) dealProps.verwachte_leverdatum = verwachteLeverdatumUitDoc;
 
   if (Object.keys(dealProps).length) {
     await updateDealFields(dealId, dealProps);
