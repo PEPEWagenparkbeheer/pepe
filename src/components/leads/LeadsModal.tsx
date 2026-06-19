@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { KlachtUpdate, Lead, LeadBron, LeadStatus } from '@/types';
 import { authHeaders } from '@/lib/clientAuth';
 import styles from './LeadsPage.module.css';
+import BreinFeedback from '@/components/brein/BreinFeedback';
 
 const LEEG: Omit<Lead, 'id' | 'created_at'> = {
   bron: 'anders',
@@ -322,6 +323,15 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
                 <textarea className="fi" rows={9}
                   placeholder="Klik op 'Genereer reactie', of typ zelf een antwoord…"
                   value={concept} onChange={(e) => setConcept(e.target.value)} />
+                {concept.trim() && (
+                  <BreinFeedback
+                    key={lead.id}
+                    scope="leads"
+                    sourceId={lead.id}
+                    originalContext={[form.auto, form.bericht].filter(Boolean).join('\n\n')}
+                    conceptResponse={concept}
+                  />
+                )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <button className="btn btn-a" type="button" onClick={verstuurReactie}
                     disabled={versturen || !concept.trim() || !form.email}>

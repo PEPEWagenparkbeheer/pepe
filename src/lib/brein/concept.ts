@@ -21,6 +21,8 @@ export interface ConceptInput {
   context?: string;
   /** PEPE-procedures/beslislogica die het antwoord inhoudelijk sturen. */
   procedures?: string;
+  /** Door medewerkers vastgelegde leerpunten uit eerdere concepten. */
+  feedbackLessen?: string;
 }
 
 let _client: Anthropic | null = null;
@@ -53,7 +55,7 @@ export async function genereerConcept(input: ConceptInput): Promise<string> {
     .map((v, i) => `Voorbeeld ${i + 1} — onderwerp: ${v.subject}\n${v.bodyPreview}`)
     .join('\n\n---\n\n');
 
-  const userContent = `${input.procedures ? `PEPE-PROCEDURES (volg deze EXACT voor de inhoud van je antwoord):\n${input.procedures}\n\n` : ''}STIJLVOORBEELDEN (eerder verzonden door fues@, neem alleen deze TOON/STIJL over, niet de inhoud):
+  const userContent = `${input.procedures ? `PEPE-PROCEDURES (volg deze EXACT voor de inhoud van je antwoord):\n${input.procedures}\n\n` : ''}${input.feedbackLessen ? `MEDEWERKERSFEEDBACK (pas deze leerpunten toe; procedures en feitelijke context gaan altijd voor bij strijdigheid):\n${input.feedbackLessen}\n\n` : ''}STIJLVOORBEELDEN (eerder verzonden door fues@, neem alleen deze TOON/STIJL over, niet de inhoud):
 ${voorbeelden || '(geen voorbeelden beschikbaar — gebruik een nette, zakelijke maar vriendelijke toon)'}
 
 ${input.context ? `CONTEXT (uit HubSpot/RDW):\n${input.context}\n` : ''}

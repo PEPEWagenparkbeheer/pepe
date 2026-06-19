@@ -10,6 +10,7 @@ import { PEPE_PROCEDURES } from '@/lib/brein/kennis';
 import { buildBreinContext } from '@/lib/brein/context';
 import { readAzureConfig, getAccessToken, getSentMessages } from '@/lib/graph';
 import { requirePepe } from '@/lib/apiAuth';
+import { laadBreinFeedback } from '@/lib/brein/feedback';
 
 export const runtime = 'nodejs';
 
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
     afzenderEmail: bericht.afzender_email,
     kenteken: bericht.kenteken,
   });
+  const feedbackLessen = await laadBreinFeedback('brein');
 
   const body = bericht.body_html
     ? htmlNaarTekst(bericht.body_html)
@@ -84,6 +86,7 @@ export async function POST(req: NextRequest) {
       stijlvoorbeelden,
       context: contextDelen.join('\n') || undefined,
       procedures: PEPE_PROCEDURES,
+      feedbackLessen,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

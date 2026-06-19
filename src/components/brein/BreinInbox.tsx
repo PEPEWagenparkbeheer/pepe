@@ -7,6 +7,7 @@ import {
   type BreinStatus,
 } from '@/hooks/useBreinMessages';
 import styles from './BreinInbox.module.css';
+import BreinFeedback from './BreinFeedback';
 
 const STATUS_TABS: { key: BreinStatus | 'alle'; label: string }[] = [
   { key: 'nieuw', label: 'Nieuw' },
@@ -306,12 +307,21 @@ export default function BreinInbox() {
                   </div>
                 </div>
                 {actief.concept_antwoord || conceptDraft ? (
-                  <textarea
-                    className={styles.conceptVeld}
-                    value={conceptDraft}
-                    onChange={(e) => setConceptDraft(e.target.value)}
-                    rows={10}
-                  />
+                  <>
+                    <textarea
+                      className={styles.conceptVeld}
+                      value={conceptDraft}
+                      onChange={(e) => setConceptDraft(e.target.value)}
+                      rows={10}
+                    />
+                    <BreinFeedback
+                      key={actief.id}
+                      scope="brein"
+                      sourceId={actief.id}
+                      originalContext={[actief.onderwerp, actief.body_preview].filter(Boolean).join('\n\n')}
+                      conceptResponse={conceptDraft}
+                    />
+                  </>
                 ) : (
                   <p className={styles.muted}>
                     Nog geen concept. Klik op "Genereer concept" om Claude een antwoord te laten opstellen in
@@ -376,4 +386,3 @@ export default function BreinInbox() {
     </div>
   );
 }
-

@@ -29,6 +29,8 @@ export interface LeadConceptInput {
   bron?: string | null;
   /** Staat de auto nog in onze voorraad? true = bevestigen, anders niet claimen. */
   beschikbaar?: boolean | null;
+  /** Door medewerkers vastgelegde leerpunten uit eerdere leadconcepten. */
+  feedbackLessen?: string;
 }
 
 export interface LeadConcept {
@@ -64,6 +66,9 @@ export async function genereerLeadConcept(input: LeadConceptInput): Promise<Lead
       : 'VOORRAAD: Onbekend / niet in de voorraad gevonden — bevestig de beschikbaarheid NIET; zeg dat je het even checkt.';
 
   const user = [
+    input.feedbackLessen
+      ? `MEDEWERKERSFEEDBACK (pas deze leerpunten toe; de vaste regels en feitelijke leadgegevens gaan voor bij strijdigheid):\n${input.feedbackLessen}`
+      : '',
     `Naam klant: ${input.klant_naam || '(onbekend)'}`,
     `Auto (ons aanbod): ${input.auto}${input.prijs ? ` — ${input.prijs}` : ''}`,
     input.bron ? `Bron: ${input.bron}` : '',

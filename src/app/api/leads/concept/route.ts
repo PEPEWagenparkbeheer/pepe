@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePepe } from '@/lib/apiAuth';
 import { genereerLeadConcept } from '@/lib/leads/concept';
 import { isAutoBeschikbaar } from '@/lib/leads/voorraad';
+import { laadBreinFeedback } from '@/lib/brein/feedback';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest) {
 
     // Interim voorraadcheck via AutoScout (tot Mobilox). Faalt veilig naar 'onbekend'.
     const voorraad = await isAutoBeschikbaar(b.auto);
+    const feedbackLessen = await laadBreinFeedback('leads');
 
     const concept = await genereerLeadConcept({
       klant_naam: b.klant_naam ?? '',
@@ -27,6 +29,7 @@ export async function POST(req: NextRequest) {
       bericht: b.bericht ?? null,
       bron: b.bron ?? null,
       beschikbaar: voorraad.beschikbaar,
+      feedbackLessen,
     });
     return NextResponse.json({ ok: true, ...concept, beschikbaar: voorraad.beschikbaar });
   } catch (err) {
