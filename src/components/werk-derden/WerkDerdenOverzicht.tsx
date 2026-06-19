@@ -571,6 +571,9 @@ export default function WerkDerdenOverzicht() {
                     </td>
                     <td>
                       {rec.partner}
+                      {isPepeOpdracht(rec) && rec.toegevoegd_door && rec.toegevoegd_door.toUpperCase() !== 'PEPE' && (
+                        <span className={styles.klant}>↗ ingediend door {medewerkerNaam(rec.toegevoegd_door)}</span>
+                      )}
                       {rec.goedgekeurd_door && <span className={styles.klant}>✓ {medewerkerNaam(rec.goedgekeurd_door)}</span>}
                       {rec.afgekeurd_door && <span className={styles.klant}>✕ {medewerkerNaam(rec.afgekeurd_door)}</span>}
                     </td>
@@ -713,6 +716,7 @@ export default function WerkDerdenOverzicht() {
       {nieuwOpen && (
         <WerkDerdenModal
           addRecord={addRecord}
+          pepeNaam={stamper}
           onSluiten={() => setNieuwOpen(false)}
           onIngediend={() => toonMelding('Kosten ingediend ✓', true)}
         />

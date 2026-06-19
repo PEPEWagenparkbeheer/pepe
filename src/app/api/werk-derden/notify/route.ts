@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
                <p>PEPE heeft werkzaamheden voor u klaargezet. Open het portaal om deze te accepteren (eventueel met een aangepast bedrag).</p>
                <p><strong>Auto:</strong> ${label}</p>
                <p><strong>Klant:</strong> ${wdRec.klant ?? '—'}</p>
+               ${wdRec.toegevoegd_door && wdRec.toegevoegd_door.toUpperCase() !== 'PEPE' ? `<p><strong>Ingediend door:</strong> ${wdRec.toegevoegd_door}</p>` : ''}
                <p><strong>Voorgesteld bedrag:</strong> € ${(wdRec.inkoop_bedrag ?? 0).toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</p>
                <p>Ga naar de <a href="https://flow.pepewagenparkbeheer.nl">Flow app</a> en accepteer de opdracht.</p>
                <p>Met vriendelijke groet,<br>PEPE Wagenparkbeheer</p>`,

@@ -103,6 +103,11 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
               <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, fontSize: 13, fontWeight: 600, ...statusKleur(record.status) }}>
                 {STATUS_LABEL[record.status] ?? record.status}
               </span>
+              {isPepeOpdracht(record) && (
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+                  Klaargezet door PEPE{record.toegevoegd_door && record.toegevoegd_door.toUpperCase() !== 'PEPE' ? ` — ${medewerkerNaam(record.toegevoegd_door)}` : ''}
+                </div>
+              )}
               {record.status === 'afgekeurd' && record.afkeur_reden && (
                 <div style={{ fontSize: 12, color: '#ef4444', marginTop: 6 }}>{record.afkeur_reden}</div>
               )}

@@ -21,9 +21,11 @@ interface Props {
   afterSalesAutos?: AfterSalesAuto[];
   /** Vaste auto uit After Sales — toont compacte "Offerte versturen"-modus, vast gekoppeld */
   vastAuto?: AfterSalesAuto;
+  /** Naam van de PEPE-medewerker die de opdracht aanmaakt (alleen PEPE-zijde, als wie leeg is). */
+  pepeNaam?: string;
 }
 
-export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, addRecord, updateRecord, afterSalesAutos = [], vastAuto }: Props) {
+export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, addRecord, updateRecord, afterSalesAutos = [], vastAuto, pepeNaam }: Props) {
   const isBewerken = !!record;
   const isNieuwVoorstel = record?.status === 'afgekeurd';
   // Compacte offerte-modus: vaste auto uit After Sales, alleen kostenregels/bijlage/toelichting
@@ -169,8 +171,9 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
         bijlage_storage_path: bijlageStoragePath,
         status: 'open',
         // wie gezet = partner vult zelf in (partner → PEPE); leeg = PEPE zet werk
-        // klaar voor de partner (PEPE → partner, moet geaccepteerd worden).
-        toegevoegd_door: wie ? partnerNaam.trim() : PEPE_TOEGEVOEGD_DOOR,
+        // klaar voor de partner (PEPE → partner). Bij PEPE-opdracht leggen we de
+        // medewerkernaam vast (val terug op sentinel 'PEPE' als die onbekend is).
+        toegevoegd_door: wie ? partnerNaam.trim() : (pepeNaam?.trim() || PEPE_TOEGEVOEGD_DOOR),
         ...(afterSalesId ? { after_sales_id: afterSalesId, bestemming: 'voertuigprijs' as WerkDerdenBestemming } : { bestemming: 'doorbelasten' as WerkDerdenBestemming }),
       });
 
