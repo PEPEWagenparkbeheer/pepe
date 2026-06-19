@@ -27,6 +27,8 @@ export interface LeadConceptInput {
   advertentie_url?: string | null;
   bericht?: string | null;
   bron?: string | null;
+  /** Staat de auto nog in onze voorraad? true = bevestigen, anders niet claimen. */
+  beschikbaar?: boolean | null;
 }
 
 export interface LeadConcept {
@@ -45,7 +47,7 @@ TOON: Informeel (je/jij of het informele equivalent in de taal), kort, vriendeli
 STRUCTUUR:
 - Aanhef met de voornaam van de klant: "Beste [voornaam]," (of passend in de taal). Gebruik alleen de voornaam; als er geen echte naam is, laat de naam weg.
 - Bedank en verwijs naar de auto: bijv. "Dank voor je aanvraag." / "Dank voor je reactie op de [auto] die wij te koop aanbieden." / "Dank voor je bericht."
-- BESCHIKBAARHEID: de voorraad is (nog) niet automatisch gekoppeld. Claim NIET hard dat de auto beschikbaar is. Zeg in plaats daarvan dat je het even checkt, bijv. "Ik check even of de [auto] nog beschikbaar is en kom zo snel mogelijk bij je terug." (vertaal dit naar de taal van de klant).
+- BESCHIKBAARHEID: volg de VOORRAAD-aanwijzing onderaan het bericht. Staat de auto in voorraad → bevestig kort dat hij nog beschikbaar is, bijv. "De [auto] is nog beschikbaar." Is de voorraad onbekend/niet gevonden → claim NIETS over beschikbaarheid, maar zeg dat je het even checkt, bijv. "Ik check even of de [auto] nog beschikbaar is en kom zo snel mogelijk bij je terug." (vertaal naar de taal van de klant).
 - INRUIL: als de klant een inruil/inkoop noemt, óf een eigen (huidige) auto die ingeruild kan worden: bevestig dat inruil mogelijk is en vraag om foto's voor een waardebepaling — verwijs naar het document in de bijlage ("In de bijlage tref je een document waarop staat welke foto's wij precies nodig hebben"). Stel daarbij twee vragen: of de in te ruilen auto privé of zakelijk is (marge of btw), en wanneer de laatste onderhoudsbeurt is geweest. Sluit af met: "Zodra wij de foto's hebben gaan we voor je aan de slag." (vertaald).
 - Bij GEEN inruil: een passende korte afsluiting, geen fotoverzoek.
 
@@ -56,12 +58,19 @@ Retourneer UITSLUITEND geldige JSON, geen markdown:
 inruil = true als je het inruil-/fotoverzoek hebt opgenomen, anders false.`;
 
 export async function genereerLeadConcept(input: LeadConceptInput): Promise<LeadConcept> {
+  const voorraadLijn =
+    input.beschikbaar === true
+      ? 'VOORRAAD: De auto staat nog in onze voorraad — bevestig dat hij nog beschikbaar is.'
+      : 'VOORRAAD: Onbekend / niet in de voorraad gevonden — bevestig de beschikbaarheid NIET; zeg dat je het even checkt.';
+
   const user = [
     `Naam klant: ${input.klant_naam || '(onbekend)'}`,
     `Auto (ons aanbod): ${input.auto}${input.prijs ? ` — ${input.prijs}` : ''}`,
     input.bron ? `Bron: ${input.bron}` : '',
     `Bericht van de klant:`,
     (input.bericht || '(geen los bericht; alleen interesse in bovenstaande auto)').slice(0, 4000),
+    '',
+    voorraadLijn,
   ]
     .filter(Boolean)
     .join('\n');

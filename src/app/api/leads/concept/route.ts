@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePepe } from '@/lib/apiAuth';
 import { genereerLeadConcept } from '@/lib/leads/concept';
+import { isAutoBeschikbaar } from '@/lib/leads/voorraad';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,10 @@ export async function POST(req: NextRequest) {
   try {
     const b = await req.json();
     if (!b?.auto) return NextResponse.json({ error: 'auto ontbreekt' }, { status: 400 });
+
+    // Interim voorraadcheck via AutoScout (tot Mobilox). Faalt veilig naar 'onbekend'.
+    const voorraad = await isAutoBeschikbaar(b.auto);
+
     const concept = await genereerLeadConcept({
       klant_naam: b.klant_naam ?? '',
       auto: b.auto,
@@ -21,8 +26,9 @@ export async function POST(req: NextRequest) {
       advertentie_url: b.advertentie_url ?? null,
       bericht: b.bericht ?? null,
       bron: b.bron ?? null,
+      beschikbaar: voorraad.beschikbaar,
     });
-    return NextResponse.json({ ok: true, ...concept });
+    return NextResponse.json({ ok: true, ...concept, beschikbaar: voorraad.beschikbaar });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[leads/concept] fout:', message);
