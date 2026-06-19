@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import { authHeaders } from '@/lib/clientAuth';
+import { useMedewerkers } from '@/hooks/useMedewerkers';
 import styles from './ConsignatieModal.module.css';
 
 interface Props {
@@ -108,6 +109,12 @@ const STORAGE_KEY = 'pepe_inkoopfacturen';
 const SEQ_KEY = 'pepe_inkoop_volgnr';
 
 const BTW = 0.21;
+
+const INKOPER_FALLBACK = [
+  { naam: 'Joep', email: 'joep@pepewagenparkbeheer.nl' },
+  { naam: 'Kevin', email: 'kevin@pepewagenparkbeheer.nl' },
+  { naam: 'Perke', email: 'perke@pepewagenparkbeheer.nl' },
+];
 
 // Inkoopverklaringen starten per jaar op nummer 2001, zodat ze nooit botsen met
 // de facturen-nummering (die op 0001 begint). Teller loopt op en nooit terug
@@ -350,6 +357,7 @@ function drawPepeFooter(doc: jsPDF): void {
 }
 
 export default function ConsignatieModal({ open, onSluiten, directInkoop = false }: Props) {
+  const { medewerkers, laden: medewerkersLaden } = useMedewerkers();
   const [form, setForm] = useState<Form>(LEEG);
   const [stap, setStap] = useState(0);
   const [klaar, setKlaar] = useState(false);
@@ -541,6 +549,13 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
       factor, isIncl,
     };
   }, [form]);
+
+  const inkoperOpties = useMemo(
+    () => medewerkers.length > 0
+      ? medewerkers.map(({ naam, email }) => ({ naam, email }))
+      : INKOPER_FALLBACK,
+    [medewerkers],
+  );
 
   function volgende() {
     if (stap === 0) {
@@ -1018,7 +1033,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     return idx >= 0 ? dataUri.slice(idx + marker.length) : dataUri;
   }
 
-  function openInkoopfactuur() {
+  async function openInkoopfactuur() {
     setInkoop((prev) => ({
       ...prev,
       ...consignatieVoertuig,
@@ -1031,6 +1046,33 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     setInkoopNummer(null);
     setSendResult(null);
     setToonInkoop(true);
+
+    // RDW is in de eerste stap al opgehaald. Vul hier automatisch alleen de
+    // bijbehorende verkopersgegevens vanuit HubSpot aan.
+    if (!form.kenteken.trim()) return;
+    setRdwLoading(true);
+    try {
+      const res = await fetch(
+        `/api/consignatie/hubspot?kenteken=${encodeURIComponent(form.kenteken)}`,
+        { headers: await authHeaders() },
+      );
+      const hs = (await res.json()) as HubSpotNaw;
+      if (!res.ok || !hs.gevonden) return;
+
+      setInkoop((prev) => ({
+        ...prev,
+        verkoperNaam: hs.naam || prev.verkoperNaam,
+        verkoperStraat: hs.straat || prev.verkoperStraat,
+        verkoperPostcode: hs.postcode || prev.verkoperPostcode,
+        verkoperPlaats: hs.plaats || prev.verkoperPlaats,
+        verkoperTelefoon: hs.telefoon || prev.verkoperTelefoon,
+        verkoperEmail: hs.email || prev.verkoperEmail,
+      }));
+    } catch {
+      // De verklaring blijft bruikbaar; ontbrekende NAW-gegevens kunnen handmatig.
+    } finally {
+      setRdwLoading(false);
+    }
   }
 
   async function haalRdwInkoop() {
@@ -1377,7 +1419,22 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
               </div>
               <div className={styles.fg}>
                 <label>E-mail inkoper</label>
-                <input className="fi" type="email" placeholder="inkoper@example.com" value={inkoop.inkoperEmail} onChange={(e) => stelInkoop('inkoperEmail', e.target.value)} />
+                <select
+                  className="fi"
+                  value={inkoop.inkoperEmail}
+                  onChange={(e) => stelInkoop('inkoperEmail', e.target.value)}
+                  disabled={medewerkersLaden}
+                >
+                  <option value="">{medewerkersLaden ? 'Medewerkers laden…' : 'Kies een medewerker…'}</option>
+                  {inkoop.inkoperEmail && !inkoperOpties.some((m) => m.email === inkoop.inkoperEmail) && (
+                    <option value={inkoop.inkoperEmail}>{inkoop.inkoperEmail}</option>
+                  )}
+                  {inkoperOpties.map((medewerker) => (
+                    <option key={medewerker.email} value={medewerker.email}>
+                      {medewerker.naam} — {medewerker.email}
+                    </option>
+                  ))}
+                </select>
               </div>
               {sendResult && (
                 <div className={styles.feeLive} style={{ marginTop: 8 }}>
