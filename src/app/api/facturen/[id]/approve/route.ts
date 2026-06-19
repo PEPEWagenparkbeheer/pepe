@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePepe } from '@/lib/apiAuth';
 import { approveFactuur } from '@/lib/documentenstroom/approve/factuur';
 import { approveBestelbevestiging } from '@/lib/documentenstroom/approve/bestelbevestiging';
+import { approveInzetbevestiging } from '@/lib/documentenstroom/approve/inzetbevestiging';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -40,10 +41,7 @@ export async function POST(
     if (documenttype === 'bestelbevestiging') {
       result = await approveBestelbevestiging(factuur, admin);
     } else if (documenttype === 'inzetbevestiging') {
-      return NextResponse.json(
-        { error: 'Inzetbevestiging: beschikbaar na Fase 3' },
-        { status: 501 },
-      );
+      result = await approveInzetbevestiging(factuur, admin);
     } else if (documenttype === 'autokosten') {
       return NextResponse.json(
         { error: 'Autokosten: beschikbaar na Fase 4' },
