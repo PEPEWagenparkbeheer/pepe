@@ -15,6 +15,7 @@ import { parseFactuurTekst } from '@/lib/factuur-parser';
 import { rdwOpzoeken } from '@/lib/rdw';
 import { classifyDocument } from '@/lib/documentenstroom/classifyDocument';
 import { extraheertInzetdocument } from '@/lib/brein/inzetdocument';
+import { extraheertAutokosten } from '@/lib/documentenstroom/autokosten';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -177,8 +178,44 @@ export async function POST(req: NextRequest) {
       extracted_data: inzetExtract ?? null,
       rdw_data: rdwData,
     };
+  } else if (classificatie.documenttype === 'autokosten') {
+    // Werkplaatsfacturen: extraheer regels voor kosten-analyse
+    const autokostenExtract = combinedTekst.trim()
+      ? await extraheertAutokosten(body.Subject ?? '', combinedTekst)
+      : null;
+
+    let rdwData: unknown = null;
+    if (autokostenExtract?.kenteken) {
+      try {
+        const rdw = await rdwOpzoeken(autokostenExtract.kenteken);
+        if (rdw) {
+          rdwData = {
+            merk: rdw.voertuig.merk,
+            handelsbenaming: rdw.voertuig.handelsbenaming,
+            brandstof: rdw.brandstof,
+            catalogusprijs: rdw.catalogusprijs,
+            apkDatum: rdw.apkDatum,
+            recalls: rdw.recalls.length,
+          };
+        }
+      } catch (e) {
+        console.error('facturen-inbound rdw fout:', e);
+      }
+    }
+
+    insertPayload = {
+      ...basePayload,
+      kenteken: autokostenExtract?.kenteken ?? null,
+      bedrijfsnaam: autokostenExtract?.garage_naam ?? null,
+      factuurnummer: autokostenExtract?.factuurnummer ?? null,
+      factuurdatum: autokostenExtract?.factuurdatum ?? null,
+      bedrag_excl_btw: autokostenExtract?.bedrag_excl_btw ?? null,
+      bedrag_incl_btw: autokostenExtract?.bedrag_incl_btw ?? null,
+      extracted_data: autokostenExtract ?? null,
+      rdw_data: rdwData,
+    };
   } else {
-    // Facturen en autokosten: gebruik bestaande factuur-parser
+    // Reguliere facturen: gebruik bestaande factuur-parser
     const extract = combinedTekst.trim()
       ? await parseFactuurTekst(combinedTekst)
       : null;

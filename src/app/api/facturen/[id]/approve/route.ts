@@ -7,6 +7,7 @@ import { requirePepe } from '@/lib/apiAuth';
 import { approveFactuur } from '@/lib/documentenstroom/approve/factuur';
 import { approveBestelbevestiging } from '@/lib/documentenstroom/approve/bestelbevestiging';
 import { approveInzetbevestiging } from '@/lib/documentenstroom/approve/inzetbevestiging';
+import { approveAutokosten } from '@/lib/documentenstroom/approve/autokosten';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -43,10 +44,7 @@ export async function POST(
     } else if (documenttype === 'inzetbevestiging') {
       result = await approveInzetbevestiging(factuur, admin);
     } else if (documenttype === 'autokosten') {
-      return NextResponse.json(
-        { error: 'Autokosten: beschikbaar na Fase 4' },
-        { status: 501 },
-      );
+      result = await approveAutokosten(factuur, admin);
     } else {
       result = await approveFactuur(factuur, admin);
     }
