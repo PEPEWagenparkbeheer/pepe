@@ -15,6 +15,7 @@ import {
   searchCompanyByKvk,
   createCompany,
   updateCompany,
+  searchDealByName,
   searchDealByKenteken,
   createDeal,
   updateDealFields,
@@ -138,10 +139,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── DEAL (Auto op kenteken) ──────────────────────────────────
+    // ── DEAL (Auto) ──────────────────────────────────────────────
+    // Zoek eerst op "InBestelling [contractnummer]" — auto is nog in bestelling.
+    // Als gevonden: hernoem naar kenteken en vul inzetdatum in.
+    // Fallback: zoek op kenteken zelf, dan nieuw aanmaken.
     let dealId: string | null = null;
-    if (ext.kenteken) {
+    let dealViaContractnummer = false;
+    if (ext.contractnummer) {
+      dealId = await searchDealByName(`InBestelling ${ext.contractnummer}`);
+      if (dealId) {
+        dealViaContractnummer = true;
+        log.push(`Deal gevonden via contractnummer: InBestelling ${ext.contractnummer}`);
+      }
+    }
+    if (!dealId && ext.kenteken) {
       dealId = await searchDealByKenteken(ext.kenteken);
+    }
+    if (ext.kenteken) {
 
       // Bereken verwachte einddatum
       const einddatum =
@@ -152,6 +166,11 @@ export async function POST(req: NextRequest) {
       const dealProperties: Record<string, string> = {
         dealstage: DEALSTAGE_RIJDEND,
       };
+      // Hernoem de deal van "InBestelling [nr]" naar het kenteken bij inzet.
+      if (dealViaContractnummer) {
+        dealProperties.dealname = ext.kenteken.replace(/\s+/g, '').toUpperCase();
+        log.push(`Deal hernoemd naar kenteken: ${dealProperties.dealname}`);
+      }
       if (ext.merk_model) dealProperties.merk___type = ext.merk_model;
       if (ext.brandstof) dealProperties.brandstof = ext.brandstof;
       if (ext.type_aanschaf) dealProperties.type_aanschaf = ext.type_aanschaf;

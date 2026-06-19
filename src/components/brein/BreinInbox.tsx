@@ -170,6 +170,8 @@ export default function BreinInbox() {
     setSending(true);
     try {
       await verstuur(actief.id);
+      await setStatus(actief.id, 'opgepakt');
+      setTab('opgepakt');
     } catch (e) {
       alert('Versturen mislukt: ' + (e instanceof Error ? e.message : String(e)));
     } finally {

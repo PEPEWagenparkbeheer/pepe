@@ -301,6 +301,25 @@ export interface DealInput {
   pipeline?: string;
 }
 
+/** Exacte dealname-match zonder normalisatie — voor "InBestelling [contractnummer]" lookups. */
+export async function searchDealByName(naam: string): Promise<string | null> {
+  if (!naam?.trim()) return null;
+  const data = await hsFetch<{ results?: { id: string }[] }>(
+    `${HS_BASE}/crm/v3/objects/deals/search`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        limit: 1,
+        properties: ['dealname'],
+        filterGroups: [{
+          filters: [{ propertyName: 'dealname', operator: 'EQ', value: naam.trim() }],
+        }],
+      }),
+    },
+  );
+  return data.results?.[0]?.id ?? null;
+}
+
 export async function searchDealByKenteken(kenteken: string): Promise<string | null> {
   if (!kenteken?.trim()) return null;
   const norm = kenteken.replace(/\s+/g, '').toUpperCase();
