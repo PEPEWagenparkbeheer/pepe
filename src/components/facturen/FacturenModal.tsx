@@ -63,9 +63,8 @@ function SectieContract({ form, stel }: { form: Factuur; stel: StelFn }) {
         <select className="fi" value={form.type_aanschaf ?? ''}
           onChange={(e) => stel('type_aanschaf', e.target.value || null)}>
           <option value="">— kies —</option>
-          <option value="Operational Lease">Operational Lease</option>
-          <option value="Finance Lease">Finance Lease</option>
-          <option value="Eigendom">Eigendom</option>
+          <option value="Full operational">Full operational</option>
+          <option value="shortlease">Shortlease</option>
         </select>
       </div>
       <div className={styles.fg}>
@@ -325,6 +324,8 @@ export default function FacturenModal({
     if (!form.pdf_storage_path) { alert('Geen PDF beschikbaar om opnieuw te extraheren'); return; }
     setExtractBezig(true);
     try {
+      // Sla eerst op zodat documenttype (en evt. handmatige wijzigingen) in de DB staan
+      await onOpslaan(form);
       const rec = await onReExtract(form.id);
       if (rec) setForm(rec);
       else alert('Re-extract mislukt — zie console');

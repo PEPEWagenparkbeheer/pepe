@@ -15,7 +15,7 @@ export interface InzetdocumentExtract {
   inzetdatum: string | null;          // ISO yyyy-mm-dd
   looptijd_maanden: number | null;
   jaarkilometrage: number | null;
-  type_aanschaf: string | null;       // "Operational Lease" | "Finance Lease" | "Eigendom"
+  type_aanschaf: string | null;       // "Full operational" | "shortlease"
 
   banden: string | null;              // "Zomer" | "Winter" | "All season"
 
@@ -61,7 +61,7 @@ JSON-structuur:
   "inzetdatum": "yyyy-mm-dd"|null,
   "looptijd_maanden": number|null,
   "jaarkilometrage": number|null,
-  "type_aanschaf": "Operational Lease"|"Finance Lease"|"Eigendom"|null,
+  "type_aanschaf": "Full operational"|"shortlease"|null,
   "banden": "Zomer"|"Winter"|"All season"|null,
   "berijder_voornaam": string|null,
   "berijder_achternaam": string|null,
