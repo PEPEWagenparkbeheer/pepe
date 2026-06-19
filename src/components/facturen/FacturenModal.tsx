@@ -186,6 +186,58 @@ function SectieKlant({
   );
 }
 
+function SectieKlantLease({
+  form, stel, kvkOphalen, kvkBezig,
+}: { form: Factuur; stel: StelFn; kvkOphalen: (stil?: boolean) => void; kvkBezig: boolean }) {
+  return (
+    <>
+      <div className={styles.sectieKop}>Klant (lessee)</div>
+      <div className={`${styles.fg} ${styles.vol}`}>
+        <label>Bedrijfsnaam *</label>
+        <input className="fi" value={form.bedrijfsnaam ?? ''}
+          onChange={(e) => stel('bedrijfsnaam', e.target.value)} />
+      </div>
+      <div className={`${styles.fg} ${styles.vol}`}>
+        <label>KvK-nummer</label>
+        <div className={styles.rdwRij}>
+          <input className="fi" placeholder="12345678"
+            value={form.kvk ?? ''}
+            onChange={(e) => stel('kvk', e.target.value.replace(/\D/g, ''))} />
+          <button className="btn" type="button" onClick={() => kvkOphalen()} disabled={kvkBezig || !form.kvk}>
+            {kvkBezig ? '⏳ KVK...' : '🔍 KVK ophalen'}
+          </button>
+        </div>
+      </div>
+      <div className={`${styles.fg} ${styles.vol}`}>
+        <label>Straat + huisnummer</label>
+        <input className="fi" placeholder="Torenbaan 123" value={form.straat ?? ''}
+          onChange={(e) => stel('straat', e.target.value)} />
+      </div>
+      <div className={styles.fg}>
+        <label>Postcode</label>
+        <input className="fi" placeholder="1234 AB" value={form.postcode ?? ''}
+          onChange={(e) => stel('postcode', e.target.value.toUpperCase())} />
+      </div>
+      <div className={styles.fg}>
+        <label>Plaats</label>
+        <input className="fi" value={form.plaats ?? ''}
+          onChange={(e) => stel('plaats', e.target.value)} />
+      </div>
+      <div className={styles.sectieKop}>Berijder</div>
+      <div className={styles.fg}>
+        <label>Naam</label>
+        <input className="fi" placeholder="Voornaam Achternaam" value={form.berijder_naam ?? ''}
+          onChange={(e) => stel('berijder_naam', e.target.value)} />
+      </div>
+      <div className={styles.fg}>
+        <label>E-mail</label>
+        <input className="fi" type="email" value={form.berijder_email ?? ''}
+          onChange={(e) => stel('berijder_email', e.target.value)} />
+      </div>
+    </>
+  );
+}
+
 // ── Hoofd-component ──────────────────────────────────────────
 export default function FacturenModal({
   factuur, open, onSluiten, onOpslaan, onAkkoord, onPdfUrl, onReExtract,
@@ -249,10 +301,10 @@ export default function FacturenModal({
       return !!form?.kenteken?.trim() && (isBedrijf ? !!form?.bedrijfsnaam?.trim() : !!form?.berijder_naam?.trim());
     }
     if (dt === 'bestelbevestiging') {
-      return !!form?.contractnummer?.trim() && (isBedrijf ? !!form?.bedrijfsnaam?.trim() : !!form?.berijder_naam?.trim());
+      return !!form?.contractnummer?.trim() && !!form?.bedrijfsnaam?.trim();
     }
     if (dt === 'inzetbevestiging') {
-      return !!form?.kenteken?.trim() && !!form?.contractnummer?.trim();
+      return !!form?.kenteken?.trim() && !!form?.contractnummer?.trim() && !!form?.bedrijfsnaam?.trim();
     }
     if (dt === 'autokosten') {
       return !!form?.kenteken?.trim();
@@ -262,8 +314,8 @@ export default function FacturenModal({
 
   function klaarHint(): string {
     if (dt === 'factuur') return 'Kenteken en bedrijfsnaam zijn verplicht';
-    if (dt === 'bestelbevestiging') return 'Contractnummer en bedrijfsnaam zijn verplicht';
-    if (dt === 'inzetbevestiging') return 'Kenteken en contractnummer zijn verplicht';
+    if (dt === 'bestelbevestiging') return 'Contractnummer en bedrijfsnaam (lessee) zijn verplicht';
+    if (dt === 'inzetbevestiging') return 'Kenteken, contractnummer en bedrijfsnaam (lessee) zijn verplicht';
     if (dt === 'autokosten') return 'Kenteken is verplicht';
     return '';
   }
@@ -349,9 +401,12 @@ export default function FacturenModal({
     if (dt === 'bestelbevestiging' || dt === 'inzetbevestiging') {
       if (!form.contractnummer?.trim()) { alert('Contractnummer is verplicht'); return; }
     }
-    if (dt === 'factuur' || dt === 'bestelbevestiging') {
+    if (dt === 'factuur') {
       if (isBedrijf && !form.bedrijfsnaam?.trim()) { alert('Bedrijfsnaam is verplicht (zakelijk)'); return; }
       if (!isBedrijf && !form.berijder_naam?.trim()) { alert('Berijder-naam is verplicht (particulier)'); return; }
+    }
+    if (dt === 'bestelbevestiging' || dt === 'inzetbevestiging') {
+      if (!form.bedrijfsnaam?.trim()) { alert('Bedrijfsnaam (lessee) is verplicht'); return; }
     }
     setBezig(true);
     await onOpslaan(form);
@@ -457,7 +512,7 @@ export default function FacturenModal({
             {dt === 'bestelbevestiging' && (
               <>
                 <SectieContract form={form} stel={stel} />
-                <SectieKlant form={form} stel={stel} isBedrijf={isBedrijf} kvkOphalen={kvkOphalen} kvkBezig={kvkBezig} />
+                <SectieKlantLease form={form} stel={stel} kvkOphalen={kvkOphalen} kvkBezig={kvkBezig} />
               </>
             )}
 
@@ -496,7 +551,7 @@ export default function FacturenModal({
                   <input className="fi" value={form.leasemaatschappij ?? ''}
                     onChange={(e) => stel('leasemaatschappij', e.target.value)} />
                 </div>
-                <SectieKlant form={form} stel={stel} isBedrijf={isBedrijf} kvkOphalen={kvkOphalen} kvkBezig={kvkBezig} />
+                <SectieKlantLease form={form} stel={stel} kvkOphalen={kvkOphalen} kvkBezig={kvkBezig} />
               </>
             )}
 
