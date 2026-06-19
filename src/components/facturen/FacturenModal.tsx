@@ -1,10 +1,24 @@
 ﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { Factuur } from '@/types';
+import type { Factuur, Documenttype } from '@/types';
 import { rdwOpzoeken } from '@/lib/rdw';
 import { authHeaders } from '@/lib/clientAuth';
 import styles from './FacturenModal.module.css';
+
+const DOCUMENTTYPE_LABEL: Record<Documenttype, string> = {
+  factuur: 'Factuur',
+  bestelbevestiging: 'Bestelbevestiging',
+  inzetbevestiging: 'Inzetbevestiging',
+  autokosten: 'Autokosten',
+};
+
+const DOCUMENTTYPE_ICOON: Record<Documenttype, string> = {
+  factuur: '📄',
+  bestelbevestiging: '🛒',
+  inzetbevestiging: '🚗',
+  autokosten: '🔧',
+};
 
 interface Props {
   factuur: Factuur | null;
@@ -191,7 +205,8 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
       <div className={styles.modal}>
         <div className={styles.header}>
           <div className={styles.titel}>
-            📄 Factuur {form.factuurnummer ? `#${form.factuurnummer}` : ''}
+            {DOCUMENTTYPE_ICOON[form.documenttype ?? 'factuur']} {DOCUMENTTYPE_LABEL[form.documenttype ?? 'factuur']}
+            {form.factuurnummer ? ` #${form.factuurnummer}` : form.contractnummer ? ` ${form.contractnummer}` : ''}
             {form.afzender && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 13 }}>· {form.afzender}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -233,6 +248,17 @@ export default function FacturenModal({ factuur, open, onSluiten, onOpslaan, onA
                 <strong>HubSpot-fout:</strong> {form.hubspot_error}
               </div>
             )}
+
+            <div className={styles.fg}>
+              <label>Documenttype</label>
+              <select className="fi" value={form.documenttype ?? 'factuur'}
+                onChange={(e) => stel('documenttype', e.target.value as Documenttype)}>
+                <option value="factuur">📄 Factuur</option>
+                <option value="bestelbevestiging">🛒 Bestelbevestiging</option>
+                <option value="inzetbevestiging">🚗 Inzetbevestiging</option>
+                <option value="autokosten">🔧 Autokosten</option>
+              </select>
+            </div>
 
             <div className={styles.sectieKop}>Factuur</div>
 

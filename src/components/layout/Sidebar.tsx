@@ -22,7 +22,7 @@ const NAV_ITEMS = [
       { href: '/aftersales', label: 'After Sales', icon: '🚗' },
       { href: '/inname', label: 'Inname', icon: '📋' },
       { href: '/btw', label: 'BTW / Credit', icon: '💶' },
-      { href: '/facturen', label: 'Facturen', icon: '📄' },
+      { href: '/facturen', label: 'Documentenstroom', icon: '📨' },
       { href: '/werk-derden', label: 'Werk Derden', icon: '🔨' },
     ],
   },

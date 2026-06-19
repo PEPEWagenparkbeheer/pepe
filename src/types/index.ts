@@ -304,7 +304,9 @@ export interface Lead {
   klant_reacties?: KlantReactie[];
 }
 
-// ── Facturen (inbox → HubSpot) ───────────────────────────────
+// ── Facturen / Documentenstroom (inbox → HubSpot) ────────────
+
+export type Documenttype = 'factuur' | 'bestelbevestiging' | 'inzetbevestiging' | 'autokosten';
 
 export type FactuurStatus =
   | 'nieuw'
@@ -360,6 +362,18 @@ export interface Factuur {
   hubspot_deal_id?: string | null;
   hubspot_synced_at?: string | null;
   hubspot_error?: string | null;
+
+  // Documentenstroom — extra velden per documenttype
+  documenttype?: Documenttype;
+  contractnummer?: string | null;
+  looptijd_maanden?: number | null;
+  jaarkilometrage?: number | null;
+  merk_model?: string | null;
+  banden?: string | null;
+  inzetdatum?: string | null;
+  type_aanschaf?: string | null;
+  brandstof?: string | null;
+  leasemaatschappij?: string | null;
 
   gearchiveerd: boolean;
   veld_meta?: Record<string, { op: string; door: string }>;

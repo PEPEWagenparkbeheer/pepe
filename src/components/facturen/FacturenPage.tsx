@@ -2,11 +2,25 @@
 
 import { useState } from 'react';
 import { useFacturen } from '@/hooks/useFacturen';
-import type { Factuur, FactuurStatus } from '@/types';
+import type { Factuur, FactuurStatus, Documenttype } from '@/types';
 import FacturenModal from './FacturenModal';
 import styles from './FacturenPage.module.css';
 
 type Tab = 'actief' | 'archief';
+
+const DOCUMENTTYPE_LABEL: Record<Documenttype, string> = {
+  factuur: 'Factuur',
+  bestelbevestiging: 'Bestelling',
+  inzetbevestiging: 'Inzet',
+  autokosten: 'Autokosten',
+};
+
+const DOCUMENTTYPE_ICOON: Record<Documenttype, string> = {
+  factuur: '📄',
+  bestelbevestiging: '🛒',
+  inzetbevestiging: '🚗',
+  autokosten: '🔧',
+};
 
 const STATUS_CSS: Record<FactuurStatus, string> = {
   nieuw:        styles.stNieuw,
@@ -31,8 +45,17 @@ function euroFmt(n?: number | null) {
   if (n == null) return '—';
   return n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' });
 }
+function typeChip(dt?: Documenttype | null) {
+  const type = dt ?? 'factuur';
+  return (
+    <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'var(--faint)', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+      {DOCUMENTTYPE_ICOON[type]} {DOCUMENTTYPE_LABEL[type]}
+    </span>
+  );
+}
+
 function zoekMatch(r: Factuur, q: string): boolean {
-  const blob = `${r.afzender ?? ''} ${r.onderwerp ?? ''} ${r.kenteken ?? ''} ${r.bedrijfsnaam ?? ''} ${r.berijder_naam ?? ''} ${r.factuurnummer ?? ''}`;
+  const blob = `${r.contractnummer ?? ''} ` +`${r.afzender ?? ''} ${r.onderwerp ?? ''} ${r.kenteken ?? ''} ${r.bedrijfsnaam ?? ''} ${r.berijder_naam ?? ''} ${r.factuurnummer ?? ''}`;
   return blob.toLowerCase().includes(q.toLowerCase());
 }
 
@@ -69,23 +92,26 @@ function KpiStrip({ facturen }: { facturen: Factuur[] }) {
   );
 }
 
-function TabActief({ facturen, zoek, onEdit, onAkkoord, onNegeer }: {
+function TabActief({ facturen, zoek, typeFilter, onEdit, onAkkoord, onNegeer }: {
   facturen: Factuur[];
   zoek: string;
+  typeFilter: string;
   onEdit: (r: Factuur) => void;
   onAkkoord: (r: Factuur) => void;
   onNegeer: (id: string) => void;
 }) {
   const rijen = facturen
     .filter((r) => !r.gearchiveerd)
-    .filter((r) => !zoek || zoekMatch(r, zoek));
+    .filter((r) => !zoek || zoekMatch(r, zoek))
+    .filter((r) => !typeFilter || (r.documenttype ?? 'factuur') === typeFilter);
 
-  if (!rijen.length) return <div className={styles.leeg}>Geen actieve facturen</div>;
+  if (!rijen.length) return <div className={styles.leeg}>Geen actieve documenten</div>;
 
   return (
     <div className={styles.tabelWrapper}>
       <table className={styles.tabel}>
         <thead><tr>
+          <th>Type</th>
           <th>Status</th>
           <th>Factuurdatum</th>
           <th>Afzender</th>
@@ -108,6 +134,7 @@ function TabActief({ facturen, zoek, onEdit, onAkkoord, onNegeer }: {
                 }
                 onClick={() => onEdit(r)}
               >
+                <td>{typeChip(r.documenttype)}</td>
                 <td>
                   <span className={`${styles.badge} ${STATUS_CSS[r.status]}`}>{STATUS_LABEL[r.status]}</span>
                   {r.hubspot_error && (
@@ -151,7 +178,7 @@ function TabActief({ facturen, zoek, onEdit, onAkkoord, onNegeer }: {
                       className={styles.negeerKnop}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (window.confirm(`Factuur ${r.factuurnummer ?? r.onderwerp ?? ''} negeren en archiveren?`)) {
+                        if (window.confirm(`Document ${r.factuurnummer ?? r.contractnummer ?? r.onderwerp ?? ''} negeren en archiveren?`)) {
                           onNegeer(r.id);
                         }
                       }}
@@ -169,15 +196,17 @@ function TabActief({ facturen, zoek, onEdit, onAkkoord, onNegeer }: {
   );
 }
 
-function TabArchief({ facturen, zoek, onEdit, onTerugzetten }: {
+function TabArchief({ facturen, zoek, typeFilter, onEdit, onTerugzetten }: {
   facturen: Factuur[];
   zoek: string;
+  typeFilter: string;
   onEdit: (r: Factuur) => void;
   onTerugzetten: (r: Factuur) => void;
 }) {
   const rijen = facturen
     .filter((r) => r.gearchiveerd)
-    .filter((r) => !zoek || zoekMatch(r, zoek));
+    .filter((r) => !zoek || zoekMatch(r, zoek))
+    .filter((r) => !typeFilter || (r.documenttype ?? 'factuur') === typeFilter);
 
   if (!rijen.length) return <div className={styles.leeg}>Archief is leeg</div>;
 
@@ -185,6 +214,7 @@ function TabArchief({ facturen, zoek, onEdit, onTerugzetten }: {
     <div className={styles.tabelWrapper}>
       <table className={styles.tabel}>
         <thead><tr>
+          <th>Type</th>
           <th>Status</th>
           <th>Factuurdatum</th>
           <th>Afzender</th>
@@ -197,6 +227,7 @@ function TabArchief({ facturen, zoek, onEdit, onTerugzetten }: {
         <tbody>
           {rijen.map((r) => (
             <tr key={r.id} onClick={() => onEdit(r)}>
+              <td>{typeChip(r.documenttype)}</td>
               <td><span className={`${styles.badge} ${STATUS_CSS[r.status]}`}>{STATUS_LABEL[r.status]}</span></td>
               <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{datumFmt(r.factuurdatum)}</td>
               <td style={{ fontSize: 12, fontWeight: 600 }}>{r.afzender ?? '—'}</td>
@@ -221,6 +252,7 @@ export default function FacturenPage() {
   const { facturen, loading, gebruiker, save, akkoord, negeer, terugzetten, pdfUrl, reExtract } = useFacturen();
   const [tab, setTab] = useState<Tab>('actief');
   const [zoek, setZoek] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [edit, setEdit] = useState<Factuur | null>(null);
 
@@ -230,7 +262,7 @@ export default function FacturenPage() {
     const klantLabel = r.is_bedrijf !== false
       ? `Bedrijf: ${r.bedrijfsnaam}`
       : `Particulier: ${r.berijder_naam}`;
-    if (!window.confirm(`Factuur ${r.factuurnummer ?? ''} wegschrijven naar HubSpot?\n\nKenteken: ${r.kenteken}\n${klantLabel}`)) return;
+    if (!window.confirm(`Document ${r.factuurnummer ?? r.contractnummer ?? ''} wegschrijven naar HubSpot?\n\nKenteken: ${r.kenteken ?? '—'}\n${klantLabel}`)) return;
     const res = await akkoord(r.id);
     if (!res.ok) alert('HubSpot-fout: ' + res.error);
   }
@@ -243,11 +275,20 @@ export default function FacturenPage() {
         <div className={styles.tabBalkRechts}>
           <input
             className={styles.zoekbalk}
-            placeholder="Zoeken (kenteken, bedrijf, afzender)..."
+            placeholder="Zoeken (kenteken, contractnr, bedrijf, afzender)..."
             value={zoek}
             onChange={(e) => setZoek(e.target.value)}
           />
         </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 4, padding: '6px 12px 0', flexWrap: 'wrap' }}>
+        <button className={`tab ${!typeFilter ? 'on' : ''}`} style={{ fontSize: 12, padding: '3px 10px' }} onClick={() => setTypeFilter('')}>Alle</button>
+        {(['factuur', 'bestelbevestiging', 'inzetbevestiging', 'autokosten'] as const).map((t) => (
+          <button key={t} className={`tab ${typeFilter === t ? 'on' : ''}`} style={{ fontSize: 12, padding: '3px 10px' }} onClick={() => setTypeFilter(t)}>
+            {DOCUMENTTYPE_ICOON[t]} {DOCUMENTTYPE_LABEL[t]}
+          </button>
+        ))}
       </div>
 
       <KpiStrip facturen={facturen} />
@@ -258,6 +299,7 @@ export default function FacturenPage() {
         <TabActief
           facturen={facturen}
           zoek={zoek}
+          typeFilter={typeFilter}
           onEdit={openEdit}
           onAkkoord={handleAkkoord}
           onNegeer={negeer}
@@ -266,6 +308,7 @@ export default function FacturenPage() {
         <TabArchief
           facturen={facturen}
           zoek={zoek}
+          typeFilter={typeFilter}
           onEdit={openEdit}
           onTerugzetten={terugzetten}
         />

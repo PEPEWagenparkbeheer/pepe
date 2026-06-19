@@ -13,6 +13,7 @@ import { webhookSecretOk } from '@/lib/apiAuth';
 import { extractText, getDocumentProxy } from 'unpdf';
 import { parseFactuurTekst } from '@/lib/factuur-parser';
 import { rdwOpzoeken } from '@/lib/rdw';
+import { classifyDocument } from '@/lib/documentenstroom/classifyDocument';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -96,6 +97,8 @@ export async function POST(req: NextRequest) {
     body.TextBody || body.StrippedTextReply || '',
   ].filter(Boolean).join('\n\n');
 
+  const classificatie = await classifyDocument(body.Subject ?? '', combinedTekst);
+
   const extract = combinedTekst.trim()
     ? await parseFactuurTekst(combinedTekst)
     : null;
@@ -158,6 +161,7 @@ export async function POST(req: NextRequest) {
     land: extract?.land ?? null,
     extracted_data: extract ?? null,
     rdw_data: rdwData,
+    documenttype: classificatie.documenttype,
     // Als RDW een APK heeft maar Groq geen factuurdatum, vullen we het
     // factuur-record niet met APK; we slaan de APK alleen op in rdw_data
     // zodat de modal het kan tonen. (apkDatum hieronder enkel als veld
