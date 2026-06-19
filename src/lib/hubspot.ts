@@ -406,45 +406,42 @@ export async function getDealFields(
   return data.properties ?? {};
 }
 
-// ── Leasemaatschappij matcher ─────────────────────────────────────────────────
-// Haalt HubSpot-enum opties op voor leasemaatschappij_goed en matcht de
-// geëxtraheerde vrije tekst op de dichtstbijzijnde optie-waarde.
-// Cache leeft per serverless cold start (1-per-minute volstaat).
+// ── Generieke HubSpot enum matcher ───────────────────────────────────────────
+// Haalt opties op voor een deal-property en matcht vrije tekst op de dichtstbij-
+// zijnde optie-waarde. Cache per property per cold start.
 
-let _lmOpties: Array<{ value: string; label: string }> | null = null;
+const _enumCache: Record<string, Array<{ value: string; label: string }>> = {};
 
-async function fetchLmOpties(): Promise<Array<{ value: string; label: string }>> {
-  if (_lmOpties) return _lmOpties;
+async function fetchEnumOpties(property: string): Promise<Array<{ value: string; label: string }>> {
+  if (_enumCache[property]) return _enumCache[property];
   try {
     const d = await hsFetch<{ options?: Array<{ value: string; label: string }> }>(
-      `${HS_BASE}/crm/v3/properties/deals/leasemaatschappij_goed`,
+      `${HS_BASE}/crm/v3/properties/deals/${property}`,
     );
-    _lmOpties = d.options ?? [];
+    _enumCache[property] = d.options ?? [];
   } catch {
-    _lmOpties = [];
+    _enumCache[property] = [];
   }
-  return _lmOpties;
+  return _enumCache[property];
 }
 
-function lmNorm(s: string): string {
+function enumNorm(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-async function matchLeasemaatschappij(naam: string): Promise<string> {
-  const opties = await fetchLmOpties();
-  if (!opties.length) return naam;
-  const zoek = lmNorm(naam);
-  // exacte match
-  const exact = opties.find((o) => lmNorm(o.label) === zoek);
+async function matchEnum(property: string, waarde: string): Promise<string> {
+  const opties = await fetchEnumOpties(property);
+  if (!opties.length) return waarde;
+  const zoek = enumNorm(waarde);
+  const exact = opties.find((o) => enumNorm(o.label) === zoek || enumNorm(o.value) === zoek);
   if (exact) return exact.value;
-  // bevat-match (label bevat zoekterm of andersom)
   const bevat = opties.find((o) => {
-    const lbl = lmNorm(o.label);
+    const lbl = enumNorm(o.label);
     return lbl.includes(zoek) || zoek.includes(lbl);
   });
   if (bevat) return bevat.value;
-  console.warn(`matchLeasemaatschappij: geen match voor "${naam}"`);
-  return naam;
+  console.warn(`matchEnum(${property}): geen match voor "${waarde}"`);
+  return waarde;
 }
 
 /** PATCH losse velden op een deal (= voertuig/contract). Leeg object = no-op. */
@@ -454,12 +451,15 @@ export async function updateDealFields(
 ): Promise<void> {
   const id = String(dealId ?? '').trim();
   if (!id || Object.keys(properties).length === 0) return;
-  // Match leasemaatschappij automatisch naar HubSpot enum-waarde
-  if (properties.leasemaatschappij_goed) {
-    properties = {
-      ...properties,
-      leasemaatschappij_goed: await matchLeasemaatschappij(properties.leasemaatschappij_goed),
-    };
+  // Match enum-properties automatisch naar geldige HubSpot-waarden
+  const toMatch: Record<string, string> = {};
+  if (properties.leasemaatschappij_goed) toMatch.leasemaatschappij_goed = properties.leasemaatschappij_goed;
+  if (properties.type_aanschaf) toMatch.type_aanschaf = properties.type_aanschaf;
+  if (Object.keys(toMatch).length) {
+    const matched = Object.fromEntries(
+      await Promise.all(Object.entries(toMatch).map(async ([k, v]) => [k, await matchEnum(k, v)])),
+    );
+    properties = { ...properties, ...matched };
   }
   await hsFetch(
     `${HS_BASE}/crm/v3/objects/deals/${id}`,
@@ -605,7 +605,8 @@ export async function createDeal(input: DealInput): Promise<string> {
   if (input.kilometerstand_huidig != null) {
     properties.kilometerstand_huidig = String(input.kilometerstand_huidig);
   }
-  if (input.leasemaatschappij) properties.leasemaatschappij_goed = await matchLeasemaatschappij(input.leasemaatschappij);
+  if (input.leasemaatschappij) properties.leasemaatschappij_goed = await matchEnum('leasemaatschappij_goed', input.leasemaatschappij);
+  if (properties.type_aanschaf) properties.type_aanschaf = await matchEnum('type_aanschaf', properties.type_aanschaf);
   if (input.verwachte_einddatum) properties.verwachte_einddatum = input.verwachte_einddatum;
 
   const data = await hsFetch<{ id: string }>(

@@ -471,7 +471,21 @@ export default function FacturenModal({
             <div className={styles.fg}>
               <label>Documenttype</label>
               <select className="fi" value={dt}
-                onChange={(e) => stel('documenttype', e.target.value as Documenttype)}>
+                onChange={async (e) => {
+                  const nieuwType = e.target.value as Documenttype;
+                  const updatedForm = { ...form, documenttype: nieuwType };
+                  setForm(updatedForm);
+                  if (updatedForm.pdf_storage_path) {
+                    setExtractBezig(true);
+                    try {
+                      await onOpslaan(updatedForm);
+                      const rec = await onReExtract(updatedForm.id);
+                      if (rec) setForm(rec);
+                    } finally {
+                      setExtractBezig(false);
+                    }
+                  }
+                }}>
                 <option value="factuur">📄 Factuur</option>
                 <option value="bestelbevestiging">🛒 Bestelbevestiging</option>
                 <option value="inzetbevestiging">🚗 Inzetbevestiging</option>

@@ -12,13 +12,14 @@ import {
 } from '@/lib/hubspot';
 import { kvkOpzoeken } from '@/lib/kvk';
 
+// HubSpot-opties voor winterbanden_in_contract: Ja | Nee | 4-seizoenen | Onbekend
 function mapBanden(banden?: string | null): string | undefined {
   if (!banden) return undefined;
   const b = banden.toLowerCase();
-  if (b.includes('winter')) return 'Winter- & zomerbanden';
+  if (b.includes('winter')) return 'Ja';
   if (b.includes('all') || b.includes('seizoen')) return '4-seizoenen';
-  if (b.includes('zomer')) return 'Zomerbanden';
-  return undefined;
+  if (b.includes('zomer')) return 'Nee';
+  return 'Onbekend';
 }
 
 export async function approveBestelbevestiging(
