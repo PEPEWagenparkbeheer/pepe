@@ -56,6 +56,15 @@ Datums formatteer je als "yyyy-mm-dd". Fiscale waarde is een getal (geen euro-te
 Looptijd in hele maanden. Jaarkilometrage als getal (geen "km").
 Kenteken zonder spaties en koppeltekens, in hoofdletters (bijv. "AB123CD").
 
+Alternatieve labelnotaties (per leasemaatschappij anders):
+- "Leasecontract", "Contractnr", "Contract nr" of "Contractnummer" → contractnummer
+- "Ingangsdatum", "Aanvangsdatum", "Startdatum" of "Inzetdatum" → inzetdatum
+- "Contract: X maanden en Y kilometer per jaar" of "Looptijd: X mnd / Y km" → looptijd_maanden: X, jaarkilometrage: Y
+- Kenteken in onderwerpregel ("met het kenteken KJX-52-K") of in tekst → kenteken
+- Als de afzender een leasemaatschappij is (bijv. "Hiltermann Lease") en de naam nergens expliciet staat → leasemaatschappij_naam
+- "Lessee", "Contractant" of "Klant" → bedrijf_naam
+- Tab-gescheiden rijen: de linker kolom is het label, de rechter de waarde
+
 JSON-structuur:
 {
   "kenteken": string|null,

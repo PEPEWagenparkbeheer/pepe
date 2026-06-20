@@ -16,6 +16,7 @@ import { rdwOpzoeken } from '@/lib/rdw';
 import { classifyDocument } from '@/lib/documentenstroom/classifyDocument';
 import { extraheertInzetdocument } from '@/lib/brein/inzetdocument';
 import { extraheertAutokosten } from '@/lib/documentenstroom/autokosten';
+import { htmlNaarTekst } from '@/lib/htmlNaarTekst';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -92,11 +93,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Haal de best beschikbare mailtekst op (TextBody > HtmlBody gestript > leeg)
+  // Haal de best beschikbare mailtekst op (TextBody > HtmlBody tabel-bewust gestript > leeg)
   const mailBodyTekst =
     body.TextBody ||
     body.StrippedTextReply ||
-    (body.HtmlBody ? body.HtmlBody.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim() : '');
+    (body.HtmlBody ? htmlNaarTekst(body.HtmlBody) : '');
 
   // Combineer PDF-tekst met mail-body voor classificatie + extractie
   // Body-only emails: mailBodyTekst is de primaire bron (pdfTekst is leeg)

@@ -9,6 +9,7 @@ import { extraheertInzetdocument } from '@/lib/brein/inzetdocument';
 import { extraheertAutokosten } from '@/lib/documentenstroom/autokosten';
 import { rdwOpzoeken } from '@/lib/rdw';
 import { requirePepe } from '@/lib/apiAuth';
+import { htmlNaarTekst } from '@/lib/htmlNaarTekst';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -53,9 +54,10 @@ export async function POST(
     }
   }
 
-  // Fallback naar raw_email als er geen PDF is (body-only inzetbevestigingen)
+  // Fallback naar raw_email als er geen PDF is (body-only inzetbevestigingen).
+  // htmlNaarTekst is veilig op plain text én stript HTML-tabellen tabel-bewust.
   const bodyFallback = !pdfTekst && factuur.raw_email
-    ? String(factuur.raw_email)
+    ? htmlNaarTekst(String(factuur.raw_email))
     : '';
 
   const combined = [
