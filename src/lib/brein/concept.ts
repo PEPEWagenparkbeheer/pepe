@@ -15,6 +15,8 @@ export interface ConceptInput {
   afzenderEmail: string | null;
   categorie: string | null;
   body: string; // platte tekst van de inkomende mail
+  /** Mailbox waarvoor het concept gegenereerd wordt — bepaalt persona en systeem-prompt. */
+  mailbox?: string;
   /** Recente verzonden mails als stijlvoorbeeld (subject + preview). */
   stijlvoorbeelden: { subject: string; bodyPreview: string }[];
   /** Optionele extra context (HubSpot/RDW), vrije tekst. */
@@ -35,7 +37,7 @@ function getClient(): Anthropic {
   return _client;
 }
 
-const SYSTEM_PROMPT = `Je bent de wagenparkbeheerder van PEPE Wagenparkbeheer en beantwoordt e-mails van berijders namens de mailbox fues@pepewagenparkbeheer.nl.
+const WAGENPARKBEHEER_PROMPT = `Je bent de wagenparkbeheerder van PEPE Wagenparkbeheer en beantwoordt e-mails van berijders namens de mailbox fues@pepewagenparkbeheer.nl.
 
 Je schrijft een CONCEPT-antwoord dat een medewerker daarna nakijkt en eventueel aanpast voordat het verstuurd wordt. Regels:
 - VOLG ALTIJD de meegegeven PEPE-PROCEDURES. Die bepalen WAT je inhoudelijk antwoordt. Past de situatie bij een procedure, geef dan exact die actie — verzin NOOIT een eigen procedure of oplossing. (Voorbeeld: bij een geblokkeerde tankpas door 3x verkeerde pincode is het juiste antwoord 24 uur wachten tot automatische deblokkering — NIET een nieuwe pas bestellen.)
@@ -47,6 +49,22 @@ Je schrijft een CONCEPT-antwoord dat een medewerker daarna nakijkt en eventueel 
 - Geen disclaimers over dat je een AI bent. Schrijf alsof jij de wagenparkbeheerder bent.
 - BELANGRIJK: sluit af met de groet-regel (bijv. "Met vriendelijke groet,") en STOP daarna. Schrijf GEEN naam, functietitel, telefoonnummer, adres of logo — de vaste officiële handtekening wordt automatisch toegevoegd bij het versturen.
 - Geef ALLEEN de tekst van het concept-antwoord terug (aanhef t/m de groet-regel), geen uitleg, geen onderwerp-regel.`;
+
+const LEADS_PROMPT = `Je bent een wagenparkbeheer-adviseur bij PEPE Wagenparkbeheer en beantwoordt vragen van potentiële klanten die interesse tonen in wagenparkbeheer.
+
+Regels:
+- Reageer commercieel en behulpzaam: maak het aantrekkelijk om met PEPE samen te werken.
+- Beantwoord de concrete vraag van de lead direct, kort en duidelijk.
+- Stel een vrijblijvend adviesgesprek voor als de lead voldoende informatie heeft gegeven.
+- Schrijf in het Nederlands, professioneel en warm van toon.
+- Geen disclaimers over dat je een AI bent. Schrijf als adviseur.
+- Verzin GEEN concrete tarieven of toezeggingen — markeer die met [TUSSEN HAAKJES].
+- BELANGRIJK: sluit af met de groet-regel (bijv. "Met vriendelijke groet,") en STOP daarna. Schrijf GEEN naam, functietitel of contactgegevens — de handtekening wordt automatisch toegevoegd.
+- Geef ALLEEN de tekst van het concept-antwoord terug (aanhef t/m de groet-regel), geen uitleg, geen onderwerp-regel.`;
+
+function getSystemPrompt(mailbox: string): string {
+  return mailbox.startsWith('info@') ? LEADS_PROMPT : WAGENPARKBEHEER_PROMPT;
+}
 
 /** Genereert een concept-antwoord. Geeft platte tekst terug. */
 export async function genereerConcept(input: ConceptInput): Promise<string> {
@@ -72,7 +90,7 @@ Schrijf nu het concept-antwoord.`;
   const completion = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(input.mailbox ?? 'fues@pepewagenparkbeheer.nl'),
     messages: [{ role: 'user', content: userContent }],
   });
 

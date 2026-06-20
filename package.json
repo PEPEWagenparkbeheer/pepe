@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/office-js": "^1.0.592",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

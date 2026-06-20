@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useAuth } from '@/hooks/useAuth';
 import { usePathname } from 'next/navigation';
@@ -9,7 +9,7 @@ import styles from './AppLayout.module.css';
 
 const PartnerPage = dynamic(() => import('@/components/partner/PartnerPage'), { ssr: false });
 
-const SIDEBAR_HIDDEN = ['/inname'];
+const SIDEBAR_HIDDEN = ['/inname', '/addin'];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
