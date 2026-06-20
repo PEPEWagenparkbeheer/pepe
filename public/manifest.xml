@@ -94,9 +94,9 @@
         <bt:String id="button-description" DefaultValue="Genereer automatisch een concept-antwoord op deze berijdersmail." />
       </bt:LongStrings>
       <bt:Images>
-        <bt:Image id="icon-16" DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
-        <bt:Image id="icon-32" DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
-        <bt:Image id="icon-80" DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
+        <bt:Image id="icon-16" DefaultValue="https://flow.pepewagenparkbeheer.nl/assets/brein-icon-16.png" />
+        <bt:Image id="icon-32" DefaultValue="https://flow.pepewagenparkbeheer.nl/assets/brein-icon-32.png" />
+        <bt:Image id="icon-80" DefaultValue="https://flow.pepewagenparkbeheer.nl/assets/brein-icon-80.png" />
       </bt:Images>
     </Resources>
 
