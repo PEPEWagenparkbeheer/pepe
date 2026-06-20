@@ -67,9 +67,9 @@
                     <Description resid="button-description" />
                   </Supertip>
                   <Icon>
-                    <bt:Image size="16" resid="icon-16" />
-                    <bt:Image size="32" resid="icon-32" />
-                    <bt:Image size="80" resid="icon-80" />
+                    <bt:Image size="16" DefaultValue="https://flow.pepewagenparkbeheer.nl/assets/brein-icon-16.png" />
+                    <bt:Image size="32" DefaultValue="https://flow.pepewagenparkbeheer.nl/assets/brein-icon-32.png" />
+                    <bt:Image size="80" DefaultValue="https://flow.pepewagenparkbeheer.nl/assets/brein-icon-80.png" />
                   </Icon>
                   <Action xsi:type="ShowTaskpane">
                     <SourceLocation resid="addin-url" />
@@ -93,11 +93,6 @@
       <bt:LongStrings>
         <bt:String id="button-description" DefaultValue="Genereer automatisch een concept-antwoord op deze berijdersmail." />
       </bt:LongStrings>
-      <bt:Images>
-        <bt:Image id="icon-16" DefaultValue="https://flow.pepewagenparkbeheer.nl/assets/brein-icon-16.png" />
-        <bt:Image id="icon-32" DefaultValue="https://flow.pepewagenparkbeheer.nl/assets/brein-icon-32.png" />
-        <bt:Image id="icon-80" DefaultValue="https://flow.pepewagenparkbeheer.nl/assets/brein-icon-80.png" />
-      </bt:Images>
     </Resources>
 
   </VersionOverrides>
