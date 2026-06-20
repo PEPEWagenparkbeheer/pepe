@@ -53,9 +53,15 @@ export async function POST(
     }
   }
 
+  // Fallback naar raw_email als er geen PDF is (body-only inzetbevestigingen)
+  const bodyFallback = !pdfTekst && factuur.raw_email
+    ? String(factuur.raw_email)
+    : '';
+
   const combined = [
     factuur.onderwerp ? `Onderwerp: ${factuur.onderwerp}` : '',
     pdfTekst,
+    bodyFallback,
   ].filter(Boolean).join('\n\n');
 
   const dt: string = factuur.documenttype ?? 'factuur';

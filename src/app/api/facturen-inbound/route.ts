@@ -92,11 +92,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Combineer PDF-tekst met mail-body voor Groq
+  // Haal de best beschikbare mailtekst op (TextBody > HtmlBody gestript > leeg)
+  const mailBodyTekst =
+    body.TextBody ||
+    body.StrippedTextReply ||
+    (body.HtmlBody ? body.HtmlBody.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim() : '');
+
+  // Combineer PDF-tekst met mail-body voor classificatie + extractie
+  // Body-only emails: mailBodyTekst is de primaire bron (pdfTekst is leeg)
   const combinedTekst = [
     body.Subject ? `Onderwerp: ${body.Subject}` : '',
     pdfTekst,
-    body.TextBody || body.StrippedTextReply || '',
+    mailBodyTekst,
   ].filter(Boolean).join('\n\n');
 
   const classificatie = await classifyDocument(body.Subject ?? '', combinedTekst);
