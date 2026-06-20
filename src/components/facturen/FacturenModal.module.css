@@ -71,6 +71,19 @@
   color: #888;
   font-size: 14px;
 }
+.mailBody {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #ccc;
+  font-family: 'Consolas', 'Menlo', monospace;
+  background: #1a1a1a;
+}
 .pdfDownload {
   padding: 8px 14px;
   border-top: 1px solid var(--border);
