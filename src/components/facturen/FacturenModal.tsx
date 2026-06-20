@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Factuur, Documenttype } from '@/types';
 import { rdwOpzoeken } from '@/lib/rdw';
 import { authHeaders } from '@/lib/clientAuth';
-import { htmlNaarTekst } from '@/lib/htmlNaarTekst';
+import { htmlNaarTekst, extractOrigineleSectie } from '@/lib/htmlNaarTekst';
 import styles from './FacturenModal.module.css';
 
 const DOCUMENTTYPE_LABEL: Record<Documenttype, string> = {
@@ -448,7 +448,7 @@ export default function FacturenModal({
             {pdfUrl ? (
               <iframe className={styles.pdfFrame} src={pdfUrl} title="Document PDF" />
             ) : form.raw_email ? (
-              <pre className={styles.mailBody}>{htmlNaarTekst(form.raw_email)}</pre>
+              <pre className={styles.mailBody}>{extractOrigineleSectie(htmlNaarTekst(form.raw_email))}</pre>
             ) : (
               <div className={styles.pdfLeeg}>
                 {form.pdf_storage_path ? 'PDF laden...' : 'Geen document aanwezig'}

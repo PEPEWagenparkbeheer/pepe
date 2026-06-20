@@ -1,4 +1,16 @@
 /**
+ * Extraheert de diepste (originele) email-sectie uit een doorgezonden keten.
+ * Zoekt naar Outlook forward-headers ("Van: ...\nVerzonden: ...") en geeft
+ * alles na de laatste zo'n header terug — dat is de originele mail.
+ * Zonder forward-markers: volledige tekst terug.
+ */
+export function extractOrigineleSectie(tekst: string): string {
+  const delen = tekst.split(/\n(?=(?:Van:|From:)\s+\S[^\n]*\n(?:Verzonden:|Sent:)\s+)/);
+  if (delen.length <= 1) return tekst.trim();
+  return delen[delen.length - 1].trim();
+}
+
+/**
  * Converteert HTML naar leesbare tekst met behoud van tabelstructuur.
  * <td>/<th> → tab-scheider, <tr>/<br>/<p>/<div> → newline, rest gestript.
  * Veilig op plain text: geen tags → tekst ongewijzigd.
