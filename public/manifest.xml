@@ -1,46 +1,25 @@
-﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<!--
-  PEPE BREIN — Outlook Add-in Manifest
-  Type: MailApp (Outlook)
-  ID: B0188867-CA86-4841-9FA3-AC8239FACEB2
-
-  Installatie (sideload):
-    Outlook Web → Tandwiel → Invoegtoepassingen beheren → Aangepaste invoegtoepassingen
-      → Toevoegen via URL → https://flow.pepewagenparkbeheer.nl/manifest.xml
-
-    Outlook Desktop → Bestand → Invoegtoepassingen beheren → Aangepaste invoegtoepassingen
-      → + Toevoegen uit bestand/URL → manifest.xml uploaden of URL opgeven
-
-    Of centrale deployment via M365 Admin Center → Geïntegreerde apps → Add-in implementeren.
--->
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <OfficeApp
   xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
-  xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
 
-  <!-- ── Identiteit ──────────────────────────────────────────────────── -->
   <Id>B0188867-CA86-4841-9FA3-AC8239FACEB2</Id>
-  <Version>1.0.0.0</Version>
+  <Version>1.0.2.0</Version>
   <ProviderName>PEPE Wagenparkbeheer</ProviderName>
   <DefaultLocale>nl-NL</DefaultLocale>
   <DisplayName DefaultValue="PEPE BREIN" />
   <Description DefaultValue="Genereer automatisch een concept-antwoord op berijdersmails namens PEPE Wagenparkbeheer." />
 
-  <!-- ── Iconen (absoluut URL naar pepe-logo-rgb.png in /public) ──── -->
   <IconUrl DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
   <HighResolutionIconUrl DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
-
-  <!-- ── Supportlink (verplicht veld, moet https zijn) ─────────────── -->
   <SupportUrl DefaultValue="https://flow.pepewagenparkbeheer.nl" />
 
-  <!-- ── AppDomains (alleen domein, geen protocol) ─────────────────── -->
   <AppDomains>
     <AppDomain>flow.pepewagenparkbeheer.nl</AppDomain>
   </AppDomains>
 
-  <!-- ── Hosts & Requirements ───────────────────────────────────────── -->
   <Hosts>
     <Host Name="Mailbox" />
   </Hosts>
@@ -51,7 +30,6 @@
     </Sets>
   </Requirements>
 
-  <!-- ── Formulier-factor (fallback voor oudere clients) ────────────── -->
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
@@ -61,79 +39,68 @@
     </Form>
   </FormSettings>
 
-  <!-- ── Rechten ────────────────────────────────────────────────────── -->
-  <!-- ReadWriteItem: body lezen + displayReplyFormAsync -->
   <Permissions>ReadWriteItem</Permissions>
 
-  <!-- ── Activeringsregels (fallback) ───────────────────────────────── -->
   <Rule xsi:type="RuleCollection" Mode="Or">
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read" />
   </Rule>
 
-  <!-- ── Versie-overrides (knop in ribbon) ─────────────────────────── -->
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
-    <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1" xsi:type="VersionOverridesV1_1">
 
-      <Requirements>
-        <bt:Sets DefaultMinVersion="1.3">
-          <bt:Set Name="Mailbox" />
-        </bt:Sets>
-      </Requirements>
+    <Requirements>
+      <bt:Sets DefaultMinVersion="1.3">
+        <bt:Set Name="Mailbox" />
+      </bt:Sets>
+    </Requirements>
 
-      <Hosts>
-        <Host xsi:type="MailHost">
-          <DesktopFormFactor>
-            <!-- Functie-bestand (niet gebruikt bij ShowTaskpane, maar verplicht) -->
-            <FunctionFile resid="addin-url" />
+    <Hosts>
+      <Host xsi:type="MailHost">
+        <DesktopFormFactor>
+          <FunctionFile resid="addin-url" />
 
-            <!-- ── Commandsurface: knop in het leesvenster ─────────── -->
-            <ExtensionPoint xsi:type="MessageReadCommandSurface">
-              <OfficeTab id="TabDefault">
-                <Group id="pepe.brein.group">
-                  <Label resid="group-label" />
-                  <Control xsi:type="Button" id="pepe.brein.button">
-                    <Label resid="button-label" />
-                    <Supertip>
-                      <Title resid="button-label" />
-                      <Description resid="button-description" />
-                    </Supertip>
-                    <Icon>
-                      <bt:Image size="16" resid="icon-16" />
-                      <bt:Image size="32" resid="icon-32" />
-                      <bt:Image size="80" resid="icon-80" />
-                    </Icon>
-                    <Action xsi:type="ShowTaskpane">
-                      <TaskpaneId>brein-taskpane</TaskpaneId>
-                      <SourceLocation resid="addin-url" />
-                    </Action>
-                  </Control>
-                </Group>
-              </OfficeTab>
-            </ExtensionPoint>
-          </DesktopFormFactor>
-        </Host>
-      </Hosts>
+          <ExtensionPoint xsi:type="MessageReadCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="pepe.brein.group">
+                <Label resid="group-label" />
+                <Control xsi:type="Button" id="pepe.brein.button">
+                  <Label resid="button-label" />
+                  <Supertip>
+                    <Title resid="button-label" />
+                    <Description resid="button-description" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="icon-16" />
+                    <bt:Image size="32" resid="icon-32" />
+                    <bt:Image size="80" resid="icon-80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <SourceLocation resid="addin-url" />
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
 
-      <!-- ── Resource-strings ──────────────────────────────────────── -->
-      <Resources>
-        <bt:Urls>
-          <bt:Url id="addin-url" DefaultValue="https://flow.pepewagenparkbeheer.nl/addin" />
-        </bt:Urls>
-        <bt:ShortStrings>
-          <bt:String id="group-label"  DefaultValue="PEPE BREIN" />
-          <bt:String id="button-label" DefaultValue="BREIN Antwoord" />
-        </bt:ShortStrings>
-        <bt:LongStrings>
-          <bt:String id="button-description" DefaultValue="Genereer automatisch een concept-antwoord op deze berijdersmail." />
-        </bt:LongStrings>
-        <bt:Images>
-          <!-- Alle sizes wijzen voorlopig naar hetzelfde PNG; vervanging door
-               formaat-correcte versies zodra beschikbaar. -->
-          <bt:Image id="icon-16" DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
-          <bt:Image id="icon-32" DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
-          <bt:Image id="icon-80" DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
-        </bt:Images>
-      </Resources>
-    </VersionOverrides>
+    <Resources>
+      <bt:Urls>
+        <bt:Url id="addin-url" DefaultValue="https://flow.pepewagenparkbeheer.nl/addin" />
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="group-label"  DefaultValue="PEPE BREIN" />
+        <bt:String id="button-label" DefaultValue="BREIN Antwoord" />
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="button-description" DefaultValue="Genereer automatisch een concept-antwoord op deze berijdersmail." />
+      </bt:LongStrings>
+      <bt:Images>
+        <bt:Image id="icon-16" DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
+        <bt:Image id="icon-32" DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
+        <bt:Image id="icon-80" DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
+      </bt:Images>
+    </Resources>
+
   </VersionOverrides>
 </OfficeApp>

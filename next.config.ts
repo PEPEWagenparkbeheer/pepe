@@ -19,6 +19,18 @@ const nextConfig: NextConfig = {
   // omdat dat zorgvuldig getest moet worden met Next.js' inline scripts/styles.
   async headers() {
     return [
+      // /addin wordt geladen in een Outlook iframe — framing toestaan voor Office origins
+      {
+        source: '/addin',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          {
+            key: 'Content-Security-Policy',
+            value:
+              "frame-ancestors 'self' https://outlook.office.com https://outlook.office365.com https://outlook.live.com https://*.microsoft.com; object-src 'none'; base-uri 'self'",
+          },
+        ],
+      },
       {
         source: '/:path*',
         headers: [
