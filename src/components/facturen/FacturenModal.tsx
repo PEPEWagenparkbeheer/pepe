@@ -321,7 +321,7 @@ export default function FacturenModal({
 
   async function opnieuwExtraheren() {
     if (!form) return;
-    if (!form.pdf_storage_path) { alert('Geen PDF beschikbaar om opnieuw te extraheren'); return; }
+    if (!form.pdf_storage_path && !form.raw_email) { alert('Geen document of mailbody beschikbaar om opnieuw te extraheren'); return; }
     setExtractBezig(true);
     try {
       // Sla eerst op zodat documenttype (en evt. handmatige wijzigingen) in de DB staan
@@ -433,8 +433,8 @@ export default function FacturenModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button className="btn" style={{ fontSize: 12, padding: '6px 12px' }}
               onClick={opnieuwExtraheren}
-              disabled={extractBezig || !form.pdf_storage_path}
-              title="Opnieuw extraheren uit PDF">
+              disabled={extractBezig || (!form.pdf_storage_path && !form.raw_email)}
+              title="Opnieuw extraheren">
               {extractBezig ? '⏳ Bezig...' : '🔄 Opnieuw extraheren'}
             </button>
             <button className={styles.sluit} onClick={onSluiten}>×</button>
@@ -448,7 +448,7 @@ export default function FacturenModal({
               <iframe className={styles.pdfFrame} src={pdfUrl} title="Document PDF" />
             ) : (
               <div className={styles.pdfLeeg}>
-                {form.pdf_storage_path ? 'PDF laden...' : 'Geen PDF aanwezig'}
+                {form.pdf_storage_path ? 'PDF laden...' : form.raw_email ? 'Mail ontvangen (geen bijlage)' : 'Geen document aanwezig'}
               </div>
             )}
             {pdfUrl && (
@@ -475,7 +475,7 @@ export default function FacturenModal({
                   const nieuwType = e.target.value as Documenttype;
                   const updatedForm = { ...form, documenttype: nieuwType };
                   setForm(updatedForm);
-                  if (updatedForm.pdf_storage_path) {
+                  if (updatedForm.pdf_storage_path || updatedForm.raw_email) {
                     setExtractBezig(true);
                     try {
                       await onOpslaan(updatedForm);
