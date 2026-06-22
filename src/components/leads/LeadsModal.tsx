@@ -71,6 +71,7 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
   const [conceptInruil, setConceptInruil] = useState(false);
   const [genereren, setGenereren] = useState(false);
   const [versturen, setVersturen] = useState(false);
+  const [expandedMomenten, setExpandedMomenten] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!open) return;
@@ -158,6 +159,7 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
         tekst: `Reactie verstuurd naar ${form.email}${conceptInruil ? ' (incl. waardebepaling-PDF)' : ''}`,
         op: new Date().toISOString(),
         door: gebruiker || '?',
+        inhoud: concept,
       };
       const nieuw = {
         ...form,
@@ -419,8 +421,27 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
               ) : (
                 momenten.map((u, i) => (
                   <div key={i} className={styles.updateRij}>
-                    <div className={styles.updateMeta}>{u.door} · {momentTijd(u.op)}</div>
+                    <div
+                      className={styles.updateMeta}
+                      style={u.inhoud ? { cursor: 'pointer', userSelect: 'none' } : undefined}
+                      onClick={() => u.inhoud && setExpandedMomenten((prev) => {
+                        const s = new Set(prev);
+                        s.has(i) ? s.delete(i) : s.add(i);
+                        return s;
+                      })}
+                    >
+                      {u.inhoud ? (expandedMomenten.has(i) ? '▾ ' : '▸ ') : ''}{u.door} · {momentTijd(u.op)}
+                    </div>
                     <div className={styles.updateTekst}>{u.tekst}</div>
+                    {u.inhoud && expandedMomenten.has(i) && (
+                      <div style={{
+                        marginTop: 6, padding: '8px 10px', background: 'var(--surface)',
+                        border: '1px solid var(--border)', borderRadius: 8,
+                        fontSize: 12, whiteSpace: 'pre-wrap', color: 'var(--text)', lineHeight: 1.5,
+                      }}>
+                        {u.inhoud}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
