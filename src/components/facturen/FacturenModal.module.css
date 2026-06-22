@@ -1,13 +1,16 @@
 .overlay {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
+  left: 0;
+  top: 0;
   background: rgba(0,0,0,.82);
   z-index: 500;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   padding: 20px 12px;
-  overflow-y: auto;
 }
 
 .modal {
@@ -19,7 +22,8 @@
   animation: inschuiven 0.2s ease;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 40px);
+  max-height: 90dvh;
+  overflow: hidden;
 }
 
 @keyframes inschuiven {
@@ -43,7 +47,7 @@
   display: flex;
   flex-direction: row;
   flex: 1;
-  height: 0;
+  min-height: 0;
   overflow: hidden;
 }
 @media (max-width: 900px) {
