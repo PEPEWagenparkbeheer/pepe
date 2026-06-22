@@ -117,6 +117,7 @@ export interface KlachtUpdate {
   tekst: string;
   op: string;    // ISO timestamp
   door: string;
+  inhoud?: string; // volledige tekst van verstuurde PEPE-reactie (indien aanwezig)
 }
 
 export interface ASKlacht {
