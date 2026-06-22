@@ -72,6 +72,7 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
   const [genereren, setGenereren] = useState(false);
   const [versturen, setVersturen] = useState(false);
   const [expandedMomenten, setExpandedMomenten] = useState<Set<number>>(new Set());
+  const [expandedReacties, setExpandedReacties] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!open) return;
@@ -355,12 +356,47 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
               <div className={styles.sectieKop}>Reacties van klant</div>
               <div className={styles.vol}>
                 <div className={styles.updateLijst}>
-                  {(form.klant_reacties as KlantReactie[]).map((r, i) => (
-                    <div key={i} className={styles.updateRij} style={{ background: '#e8f4fd', borderLeft: '3px solid #2196f3' }}>
-                      <div className={styles.updateMeta} style={{ color: '#1565c0' }}>📩 {r.naam} · {momentTijd(r.op)}</div>
-                      <div className={styles.updateTekst} style={{ whiteSpace: 'pre-wrap' }}>{r.tekst}</div>
-                    </div>
-                  ))}
+                  {(form.klant_reacties as KlantReactie[]).map((r, i) => {
+                    // Vind het PEPE-antwoord dat aan deze klantreactie voorafging.
+                    const onsAntwoord = (form.contactmomenten ?? [])
+                      .filter((m) => m.inhoud && m.op <= r.op)
+                      .sort((a, b) => a.op.localeCompare(b.op))
+                      .pop();
+                    const open = expandedReacties.has(i);
+                    return (
+                      <div key={i} className={styles.updateRij} style={{ background: '#e8f4fd', borderLeft: '3px solid #2196f3' }}>
+                        <div
+                          className={styles.updateMeta}
+                          style={{ color: '#1565c0', cursor: onsAntwoord ? 'pointer' : undefined, userSelect: 'none' }}
+                          onClick={() => onsAntwoord && setExpandedReacties((prev) => {
+                            const s = new Set(prev);
+                            s.has(i) ? s.delete(i) : s.add(i);
+                            return s;
+                          })}
+                        >
+                          📩 {r.naam} · {momentTijd(r.op)}
+                          {onsAntwoord && (
+                            <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600 }}>
+                              {open ? '▾ ons antwoord' : '▸ ons antwoord'}
+                            </span>
+                          )}
+                        </div>
+                        <div className={styles.updateTekst} style={{ whiteSpace: 'pre-wrap' }}>{r.tekst}</div>
+                        {onsAntwoord && open && (
+                          <div style={{
+                            marginTop: 8, padding: '8px 10px', background: '#fff',
+                            border: '1px solid #cfe3f6', borderRadius: 8,
+                            fontSize: 12, whiteSpace: 'pre-wrap', color: '#333', lineHeight: 1.5,
+                          }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: '#1565c0', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                              ↩ Door ons verstuurd · {momentTijd(onsAntwoord.op)}
+                            </div>
+                            {onsAntwoord.inhoud}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </>
