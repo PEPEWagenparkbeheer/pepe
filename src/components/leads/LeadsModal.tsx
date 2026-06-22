@@ -357,11 +357,14 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
               <div className={styles.vol}>
                 <div className={styles.updateLijst}>
                   {(form.klant_reacties as KlantReactie[]).map((r, i) => {
-                    // Vind het PEPE-antwoord dat aan deze klantreactie voorafging.
-                    const onsAntwoord = (form.contactmomenten ?? [])
-                      .filter((m) => m.inhoud && m.op <= r.op)
-                      .sort((a, b) => a.op.localeCompare(b.op))
-                      .pop();
+                    // Vind het bijbehorende PEPE-antwoord: bij voorkeur het antwoord dat ná
+                    // deze klantreactie is verstuurd (= het antwoord erop), anders het laatste ervoor.
+                    const metInhoud = (form.contactmomenten ?? [])
+                      .filter((m) => m.inhoud)
+                      .sort((a, b) => a.op.localeCompare(b.op));
+                    const onsAntwoord =
+                      metInhoud.find((m) => m.op >= r.op) ??
+                      [...metInhoud].reverse().find((m) => m.op < r.op);
                     const open = expandedReacties.has(i);
                     return (
                       <div key={i} className={styles.updateRij} style={{ background: '#e8f4fd', borderLeft: '3px solid #2196f3' }}>
