@@ -194,10 +194,16 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
           </div>
 
           {isImport && (
-            <div className={`${styles.fg} ${styles.vol}`}>
-              <label>Transportdatum</label>
-              <input className="fi" type="date" value={form.transportdatum ?? ''} onChange={(e) => stel('transportdatum', e.target.value)} />
-            </div>
+            <>
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <label>Transportdatum</label>
+                <input className="fi" type="date" value={form.transportdatum ?? ''} onChange={(e) => stel('transportdatum', e.target.value)} />
+              </div>
+              <div className={`${styles.fg} ${styles.vol}`}>
+                <label>TC Order ID <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 12 }}>(TransConnect — automatische status-updates)</span></label>
+                <input className="fi" placeholder="bijv. 12345 of TW12345" value={form.transport_order_id ?? ''} onChange={(e) => stel('transport_order_id', e.target.value.replace(/^TW/i, '').trim())} />
+              </div>
+            </>
           )}
 
           <div className={styles.fg}>
