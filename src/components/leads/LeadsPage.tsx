@@ -101,7 +101,7 @@ function KpiStrip({ leads }: { leads: Lead[] }) {
 }
 
 // ── Tabel: Actief ─────────────────────────────────────────────
-function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer, onAkkoord }: {
+function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer, onAkkoord, selectModus, geselecteerd, onToggleSelect }: {
   leads: Lead[];
   zoek: string;
   statusFilter: string;
@@ -109,6 +109,9 @@ function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer,
   onOppakken: (id: string) => void;
   onArchiveer: (id: string) => void;
   onAkkoord: (id: string) => void;
+  selectModus: boolean;
+  geselecteerd: Set<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   const rijen = leads
     .filter((r) => !r.gearchiveerd && r.status !== 'geen_interesse')
@@ -121,6 +124,7 @@ function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer,
     <div className={styles.tabelWrapper}>
       <table className={styles.tabel}>
         <thead><tr>
+          {selectModus && <th style={{ width: 32 }}></th>}
           <th>Bron</th>
           <th>Klant</th>
           <th>Auto</th>
@@ -134,9 +138,18 @@ function TabActief({ leads, zoek, statusFilter, onEdit, onOppakken, onArchiveer,
           {rijen.map((r) => (
             <tr
               key={r.id}
-              className={r.status === 'nieuw' ? styles.nieuwRij : r.status === 'verkocht' ? styles.verkochtRij : ''}
-              onClick={() => onEdit(r)}
+              className={[
+                r.status === 'nieuw' ? styles.nieuwRij : r.status === 'verkocht' ? styles.verkochtRij : '',
+                selectModus && geselecteerd.has(r.id) ? styles.geselecteerdRij : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => selectModus ? onToggleSelect(r.id) : onEdit(r)}
+              style={selectModus ? { cursor: 'pointer' } : undefined}
             >
+              {selectModus && (
+                <td onClick={(e) => { e.stopPropagation(); onToggleSelect(r.id); }}>
+                  <input type="checkbox" checked={geselecteerd.has(r.id)} onChange={() => onToggleSelect(r.id)} style={{ cursor: 'pointer' }} />
+                </td>
+              )}
               <td>
                 <span className={`${styles.badge} ${BRON_CSS[r.bron]}`}>{BRON_LABEL[r.bron]}</span>
               </td>
@@ -295,7 +308,7 @@ function TabArchief({ leads, zoek, onEdit, onTerugzetten }: {
 
 // ── Hoofdpagina ───────────────────────────────────────────────
 export default function LeadsPage() {
-  const { leads, loading, gebruiker, add, save, remove, archiveer, oppakken, akkoord } = useLeads();
+  const { leads, loading, gebruiker, add, save, remove, archiveer, oppakken, akkoord, merge } = useLeads();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>('actief');
   const [zoek, setZoek] = useState('');
@@ -304,6 +317,10 @@ export default function LeadsPage() {
   const [editLead, setEditLead] = useState<Lead | null>(null);
   const [verversBezig, setVerversBezig] = useState(false);
   const [verversMelding, setVerversMelding] = useState<string | null>(null);
+  const [selectModus, setSelectModus] = useState(false);
+  const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
+  const [mergeBevestig, setMergeBevestig] = useState(false);
+  const [mergeBezig, setMergeBezig] = useState(false);
 
   async function handleVervers() {
     setVerversBezig(true);
@@ -318,6 +335,38 @@ export default function LeadsPage() {
     } finally {
       setVerversBezig(false);
       setTimeout(() => setVerversMelding(null), 4000);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setGeselecteerd((prev) => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
+    });
+    setMergeBevestig(false);
+  }
+
+  function stopSelectModus() {
+    setSelectModus(false);
+    setGeselecteerd(new Set());
+    setMergeBevestig(false);
+  }
+
+  async function handleMerge() {
+    const [idA, idB] = [...geselecteerd];
+    const leadsGeselecteerd = leads.filter((l) => l.id === idA || l.id === idB);
+    const sorted = leadsGeselecteerd.sort((a, b) =>
+      (a.created_at ?? '') <= (b.created_at ?? '') ? -1 : 1,
+    );
+    setMergeBezig(true);
+    try {
+      await merge(sorted[0].id, sorted[1].id);
+      stopSelectModus();
+    } catch (err) {
+      alert(`Samenvoegen mislukt: ${String(err)}`);
+    } finally {
+      setMergeBezig(false);
     }
   }
 
@@ -354,9 +403,46 @@ export default function LeadsPage() {
             {verversBezig ? '⟳ Bezig…' : '⟳ Ververs'}
           </button>
           {verversMelding && <span style={{ fontSize: 12, color: verversMelding.startsWith('Fout') ? '#c00' : '#2e7d32' }}>{verversMelding}</span>}
+          {!selectModus ? (
+            <button className="btn" style={{ background: '#e8e8e8', color: '#333' }} onClick={() => setSelectModus(true)} title="Selecteer leads om samen te voegen">
+              Selecteer
+            </button>
+          ) : (
+            <>
+              <button className="btn" style={{ background: '#e8e8e8', color: '#333' }} onClick={stopSelectModus}>
+                Annuleer ({geselecteerd.size} geselecteerd)
+              </button>
+              {geselecteerd.size === 2 && (
+                <button className="btn btn-a" onClick={() => setMergeBevestig(true)} disabled={mergeBezig}>
+                  Samenvoegen
+                </button>
+              )}
+            </>
+          )}
           <button className="btn btn-a" onClick={openNieuw}>+ Lead toevoegen</button>
         </div>
       </div>
+
+      {mergeBevestig && geselecteerd.size === 2 && (() => {
+        const sel = leads.filter((l) => geselecteerd.has(l.id)).sort((a, b) => (a.created_at ?? '') <= (b.created_at ?? '') ? -1 : 1);
+        const [primary, secondary] = sel;
+        return (
+          <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8, padding: '12px 16px', margin: '12px 0', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1 }}>
+              <strong>Blijft:</strong> {primary.klant_naam} – {primary.auto} <span style={{ color: '#666', fontSize: 12 }}>(binnenkomst: {primary.created_at ? new Date(primary.created_at).toLocaleDateString('nl-NL') : '?'})</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              <strong>Wordt gearchiveerd:</strong> {secondary.klant_naam} – {secondary.auto} <span style={{ color: '#666', fontSize: 12 }}>(binnenkomst: {secondary.created_at ? new Date(secondary.created_at).toLocaleDateString('nl-NL') : '?'})</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-a" onClick={handleMerge} disabled={mergeBezig}>
+                {mergeBezig ? 'Bezig…' : 'Bevestig samenvoegen'}
+              </button>
+              <button className="btn" style={{ background: '#e8e8e8', color: '#333' }} onClick={() => setMergeBevestig(false)}>Annuleer</button>
+            </div>
+          </div>
+        );
+      })()}
 
       <KpiStrip leads={leads} />
 
@@ -373,6 +459,9 @@ export default function LeadsPage() {
               onOppakken={oppakken}
               onArchiveer={archiveer}
               onAkkoord={akkoord}
+              selectModus={selectModus}
+              geselecteerd={geselecteerd}
+              onToggleSelect={toggleSelect}
             />
           )}
           {tab === 'archief' && (

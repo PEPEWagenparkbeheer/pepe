@@ -87,6 +87,12 @@ const naamKey = (n: string | null) => {
   const x = (n ?? '').trim().toLowerCase();
   return x && x !== 'onbekend' && x.length >= 4 ? x : '';
 };
+/** Achternaam (laatste woord) als extra zwakke identiteit — vangt "Lou Gerritse" vs "Gerritse". */
+const achternaamKey = (n: string | null) => {
+  const words = (n ?? '').trim().toLowerCase().split(/\s+/);
+  const last = words[words.length - 1] ?? '';
+  return last.length >= 4 ? last : '';
+};
 
 /**
  * True als er al een niet-gearchiveerde lead bestaat met dezelfde identiteit (e-mail,
@@ -114,11 +120,13 @@ async function isDuplicaatLead(
   if (error || !data) return false;
 
   const autoN = normAuto(auto);
+  const achternaam = achternaamKey(klantNaam);
   return data.some((c) => {
     const contactMatch =
       (eMail && normEmail(c.email) === eMail) ||
       (tel && normTel(c.telefoon) === tel) ||
-      (naam && naamKey(c.klant_naam) === naam);
+      (naam && naamKey(c.klant_naam) === naam) ||
+      (achternaam && achternaamKey(c.klant_naam) === achternaam);
     if (!contactMatch) return false;
     const onderwerpMatch =
       (advertentieUrl && c.advertentie_url && c.advertentie_url === advertentieUrl) ||

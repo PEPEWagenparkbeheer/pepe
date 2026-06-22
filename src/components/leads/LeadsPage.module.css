@@ -136,6 +136,7 @@
 .tabel tbody tr:hover td:first-child { border-left-color: var(--accent); }
 .tabel tbody tr.nieuwRij td { border-left-color: rgba(37,99,235,.4); }
 .tabel tbody tr.verkochtRij td { border-left-color: rgba(22,163,74,.4); }
+.tabel tbody tr.geselecteerdRij td { background: #dbeafe; }
 .tabel thead th:nth-child(6),
 .tabel tbody td:nth-child(6) { min-width: 200px; }
 

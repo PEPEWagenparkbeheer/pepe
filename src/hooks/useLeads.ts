@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/clientAuth';
 import type { Lead, LeadStatus } from '@/types';
 
 const SK = 'pepe_leads_v1';
@@ -137,5 +138,22 @@ export function useLeads() {
     });
   }, [save]);
 
-  return { leads, loading, gebruiker, add, save, remove, archiveer, setStatus, oppakken, akkoord };
+  const merge = useCallback(async (primaryId: string, secondaryId: string): Promise<Lead> => {
+    const res = await fetch('/api/leads/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      body: JSON.stringify({ primaryId, secondaryId }),
+    });
+    const data = (await res.json()) as { ok?: boolean; primary?: Lead; secondaryId?: string; error?: string };
+    if (!res.ok) throw new Error(data.error ?? 'Samenvoegen mislukt');
+    // Verwijder secondary uit lokale state, update primary
+    setLeads((prev) =>
+      prev
+        .filter((l) => l.id !== data.secondaryId)
+        .map((l) => (l.id === primaryId ? (data.primary as Lead) : l)),
+    );
+    return data.primary as Lead;
+  }, []);
+
+  return { leads, loading, gebruiker, add, save, remove, archiveer, setStatus, oppakken, akkoord, merge };
 }
