@@ -16,10 +16,10 @@
   border-radius: 20px;
   width: 100%;
   max-width: 1200px;
+  margin-bottom: 20px;
   animation: inschuiven 0.2s ease;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 40px);
 }
 
 @keyframes inschuiven {
@@ -41,9 +41,7 @@
 .body {
   display: flex;
   flex-direction: row;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  align-items: stretch;
 }
 @media (max-width: 900px) {
   .body { flex-direction: column; }
@@ -52,7 +50,9 @@
 .pdfBox {
   flex: 1.4;
   min-width: 0;
-  min-height: 0;
+  height: calc(100vh - 120px);
+  position: sticky;
+  top: 0;
   background: #1a1a1a;
   border-right: 1px solid var(--border);
   display: flex;
@@ -101,9 +101,7 @@
 .velden {
   flex: 1;
   min-width: 0;
-  min-height: 0;
   padding: 20px;
-  overflow-y: auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
