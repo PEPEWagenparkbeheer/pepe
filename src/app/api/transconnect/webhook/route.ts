@@ -90,11 +90,14 @@ export async function POST(req: NextRequest) {
     aangevraagd: true,
   };
 
-  if (geplandeDatum && (status.includes('planned') || status.includes('confirmed') || status.includes('created'))) {
+  const isGepland = status.includes('planned') || status.includes('gepland') ||
+    status.includes('confirmed') || status.includes('created') || status.includes('uitvoering');
+  if (geplandeDatum && isGepland) {
     update.transportdatum = geplandeDatum.slice(0, 10);
   }
 
-  if (status.includes('delivered') || status.includes('aangekomen') || aankomstDatum) {
+  if (status.includes('delivered') || status.includes('afgeleverd') ||
+      status.includes('aangekomen') || aankomstDatum) {
     update.binnen      = true;
     update.binnen_op   = (aankomstDatum ?? new Date().toISOString()).slice(0, 10);
   }
