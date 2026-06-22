@@ -16,10 +16,10 @@
   border-radius: 20px;
   width: 100%;
   max-width: 1200px;
-  margin-bottom: 20px;
   animation: inschuiven 0.2s ease;
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 40px);
 }
 
 @keyframes inschuiven {
@@ -33,6 +33,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 .titel { font-weight: 700; font-size: 17px; }
 .sluit { background: none; border: none; font-size: 24px; color: var(--muted); cursor: pointer; padding: 0 4px; line-height: 1; }
@@ -41,7 +42,9 @@
 .body {
   display: flex;
   flex-direction: row;
-  align-items: stretch;
+  flex: 1;
+  height: 0;
+  overflow: hidden;
 }
 @media (max-width: 900px) {
   .body { flex-direction: column; }
@@ -50,9 +53,7 @@
 .pdfBox {
   flex: 1.4;
   min-width: 0;
-  height: calc(100vh - 120px);
-  position: sticky;
-  top: 0;
+  min-height: 0;
   background: #1a1a1a;
   border-right: 1px solid var(--border);
   display: flex;
@@ -101,6 +102,8 @@
 .velden {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  overflow-y: scroll;
   padding: 20px;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -171,5 +174,6 @@
   justify-content: flex-end;
   align-items: center;
   background: var(--surface);
+  flex-shrink: 0;
 }
 .footerLinks { margin-right: auto; font-size: 11px; color: var(--muted); }
