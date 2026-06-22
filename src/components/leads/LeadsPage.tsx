@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -319,7 +319,6 @@ export default function LeadsPage() {
   const [verversMelding, setVerversMelding] = useState<string | null>(null);
   const [selectModus, setSelectModus] = useState(false);
   const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
-  const [mergeBevestig, setMergeBevestig] = useState(false);
   const [mergeBezig, setMergeBezig] = useState(false);
 
   async function handleVervers() {
@@ -344,13 +343,11 @@ export default function LeadsPage() {
       s.has(id) ? s.delete(id) : s.add(id);
       return s;
     });
-    setMergeBevestig(false);
   }
 
   function stopSelectModus() {
     setSelectModus(false);
     setGeselecteerd(new Set());
-    setMergeBevestig(false);
   }
 
   async function handleMerge() {
@@ -413,8 +410,8 @@ export default function LeadsPage() {
                 Annuleer ({geselecteerd.size} geselecteerd)
               </button>
               {geselecteerd.size === 2 && (
-                <button className="btn btn-a" onClick={() => setMergeBevestig(true)} disabled={mergeBezig}>
-                  Samenvoegen
+                <button className="btn btn-a" onClick={handleMerge} disabled={mergeBezig}>
+                  {mergeBezig ? 'Bezig…' : 'Samenvoegen'}
                 </button>
               )}
             </>
@@ -423,26 +420,6 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {mergeBevestig && geselecteerd.size === 2 && (() => {
-        const sel = leads.filter((l) => geselecteerd.has(l.id)).sort((a, b) => (a.created_at ?? '') <= (b.created_at ?? '') ? -1 : 1);
-        const [primary, secondary] = sel;
-        return (
-          <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8, padding: '12px 16px', margin: '12px 0', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1 }}>
-              <strong>Blijft:</strong> {primary.klant_naam} – {primary.auto} <span style={{ color: '#666', fontSize: 12 }}>(binnenkomst: {primary.created_at ? new Date(primary.created_at).toLocaleDateString('nl-NL') : '?'})</span>
-            </div>
-            <div style={{ flex: 1 }}>
-              <strong>Wordt gearchiveerd:</strong> {secondary.klant_naam} – {secondary.auto} <span style={{ color: '#666', fontSize: 12 }}>(binnenkomst: {secondary.created_at ? new Date(secondary.created_at).toLocaleDateString('nl-NL') : '?'})</span>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-a" onClick={handleMerge} disabled={mergeBezig}>
-                {mergeBezig ? 'Bezig…' : 'Bevestig samenvoegen'}
-              </button>
-              <button className="btn" style={{ background: '#e8e8e8', color: '#333' }} onClick={() => setMergeBevestig(false)}>Annuleer</button>
-            </div>
-          </div>
-        );
-      })()}
 
       <KpiStrip leads={leads} />
 
