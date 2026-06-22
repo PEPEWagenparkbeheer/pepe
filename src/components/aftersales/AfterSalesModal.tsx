@@ -200,17 +200,6 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
             </div>
           )}
 
-          {isImport && (
-            <div className={styles.fg}>
-              <label>TC Order ID</label>
-              <input
-                className="fi"
-                placeholder="bijv. 12345"
-                value={form.transport_order_id ?? ''}
-                onChange={(e) => stel('transport_order_id', e.target.value.replace(/\D/g, ''))}
-              />
-            </div>
-          )}
 
           <div className={styles.fg}>
             <label>Datum binnenkomst</label>

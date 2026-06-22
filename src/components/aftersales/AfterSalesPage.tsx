@@ -464,31 +464,6 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
 }) {
   const [binPopup, setBinPopup] = useState<AfterSalesAuto | null>(null);
   const [kentekentje, setKentekentje] = useState('');
-  const [syncBezig, setSyncBezig] = useState(false);
-  const [syncMelding, setSyncMelding] = useState<string | null>(null);
-
-  async function handleSyncTc() {
-    setSyncBezig(true);
-    setSyncMelding(null);
-    try {
-      const { authHeaders } = await import('@/lib/clientAuth');
-      const res = await fetch('/api/transconnect/sync', {
-        method: 'POST',
-        headers: await authHeaders(),
-      });
-      const data = await res.json() as { ok?: boolean; updated?: number; skipped?: number; error?: string };
-      if (!res.ok) { setSyncMelding(`Fout: ${data.error ?? res.statusText}`); return; }
-      setSyncMelding(
-        data.updated
-          ? `✓ ${data.updated} record${data.updated !== 1 ? 's' : ''} bijgewerkt`
-          : 'Geen updates (nog geen TC order-ID\'s gekoppeld)',
-      );
-    } catch (e) {
-      setSyncMelding(`Fout: ${String(e)}`);
-    } finally {
-      setSyncBezig(false);
-    }
-  }
 
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => r.type === 'import' && !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
@@ -512,21 +487,6 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
   if (!rijen.length) return <div className={styles.leeg}>Geen importauto's</div>;
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px 0' }}>
-        <button
-          className="btn-s"
-          onClick={handleSyncTc}
-          disabled={syncBezig}
-          style={{ opacity: syncBezig ? 0.6 : 1 }}
-        >
-          {syncBezig ? '⟳ Bezig…' : '⟳ Ververs TC status'}
-        </button>
-        {syncMelding && (
-          <span style={{ fontSize: 12, color: syncMelding.startsWith('✓') ? '#16a34a' : '#dc2626' }}>
-            {syncMelding}
-          </span>
-        )}
-      </div>
       {binPopup && (
         <div className={styles.overlay} onClick={() => setBinPopup(null)}>
           <div className={styles.modal} style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>
