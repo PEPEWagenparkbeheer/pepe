@@ -112,16 +112,19 @@ export async function runLeadsIntake(): Promise<LeadsIntakeResult> {
           null;
         if (bestaandeLead) {
           const reacties = (bestaandeLead.klant_reacties ?? []) as Array<Record<string, unknown>>;
-          reacties.push({
-            tekst: tekst || m.bodyPreview,
-            op: m.ontvangenOp,
-            naam: m.afzenderNaam || m.afzenderEmail,
-            gelezen: false,
-          });
-          await supabaseAdmin
-            .from('leads')
-            .update({ klant_reacties: reacties })
-            .eq('id', bestaandeLead.id);
+          // Dedupliceer op timestamp — voorkomt dubbele reacties bij herverwerking van de ledger.
+          if (!reacties.some((r) => r.op === m.ontvangenOp)) {
+            reacties.push({
+              tekst: tekst || m.bodyPreview,
+              op: m.ontvangenOp,
+              naam: m.afzenderNaam || m.afzenderEmail,
+              gelezen: false,
+            });
+            await supabaseAdmin
+              .from('leads')
+              .update({ klant_reacties: reacties })
+              .eq('id', bestaandeLead.id);
+          }
           resultaat = 'reactie';
           leads++;
         } else {
