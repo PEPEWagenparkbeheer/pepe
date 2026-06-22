@@ -15,6 +15,8 @@ interface Props {
   onKlaarMelden: (id: string) => Promise<{ ok: boolean; error?: string }>;
   /** PEPE-zijde: opent het bewerkvenster voor dit record. */
   onBewerken?: () => void;
+  /** PEPE-zijde: verwijdert het record definitief. */
+  onVerwijderen?: () => Promise<{ ok: boolean; error?: string }>;
   /** Aanwezig in het partnerportaal: partner accepteert een PEPE-opdracht. */
   onAccepteren?: (
     id: string,
@@ -46,9 +48,10 @@ function statusKleur(status: WerkDerdenStatus): React.CSSProperties {
   }
 }
 
-export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, onKlaarMelden, onBewerken, onAccepteren }: Props) {
+export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, onKlaarMelden, onBewerken, onVerwijderen, onAccepteren }: Props) {
   const [bijlageSignedUrl, setBijlageSignedUrl] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
+  const [verwijderBevestig, setVerwijderBevestig] = useState(false);
   const [aanpasModus, setAanpasModus] = useState(false);
   const [aangepasteRegels, setAangepasteRegels] = useState<WerkRegel[]>(() =>
     (record.regels?.length ? record.regels : [{ omschrijving: '', bedrag: 0 }]).map((r) => ({ ...r })),
@@ -280,12 +283,29 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
             </button>
           </div>
         )}
-        {/* Footer — bewerken voor PEPE-kant (open records) */}
-        {onBewerken && record.status === 'open' && (
-          <div className={styles.modalFooter}>
-            <button className={styles.sluitenKnopFooter ?? styles.klaarKnop} style={{ background: '#555' }} onClick={onBewerken}>
-              ✏️ Bewerken
-            </button>
+        {/* Footer — bewerken / verwijderen voor PEPE-kant (open records) */}
+        {(onBewerken ?? onVerwijderen) && record.status === 'open' && (
+          <div className={styles.modalFooter} style={{ gap: 8 }}>
+            {onBewerken && (
+              <button style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: '#555', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14 }} onClick={onBewerken}>
+                ✏️ Bewerken
+              </button>
+            )}
+            {onVerwijderen && (
+              <button
+                disabled={bezig}
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: verwijderBevestig ? '#c62828' : '#eee', color: verwijderBevestig ? '#fff' : '#333', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
+                onClick={async () => {
+                  if (!verwijderBevestig) { setVerwijderBevestig(true); return; }
+                  setBezig(true);
+                  await onVerwijderen();
+                  setBezig(false);
+                  onSluiten();
+                }}
+              >
+                {bezig ? 'Bezig…' : verwijderBevestig ? '⚠️ Zeker weten?' : '🗑️ Verwijderen'}
+              </button>
+            )}
           </div>
         )}
       </div>

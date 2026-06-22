@@ -309,7 +309,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
 // --- Hoofd component ---------------------------------------------------------
 
 export default function WerkDerdenOverzicht() {
-  const { records, loading, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, setKlaarGemeld, bijlageUrl } =
+  const { records, loading, addRecord, updateRecord, deleteRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, setKlaarGemeld, bijlageUrl } =
     useWerkDerden();
   const { user } = useAuth();
   const stamper = medewerkerNaam(
@@ -735,6 +735,12 @@ export default function WerkDerdenOverzicht() {
             return res;
           }}
           onBewerken={() => { setBewerkRec(detailRec); setDetailRec(null); }}
+          onVerwijderen={async () => {
+            const res = await deleteRecord(detailRec.id);
+            if (res.ok) toonMelding('Verwijderd ✓', true);
+            else toonMelding(res.error ?? 'Fout bij verwijderen', false);
+            return res;
+          }}
         />
       )}
       {bewerkRec && (

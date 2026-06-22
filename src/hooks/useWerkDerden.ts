@@ -131,6 +131,19 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     [],
   );
 
+  const deleteRecord = useCallback(
+    async (id: string): Promise<{ ok: boolean; error?: string }> => {
+      const { error } = await supabase
+        .from('werk_derden')
+        .delete()
+        .eq('id', id);
+      if (error) return { ok: false, error: error.message };
+      update(ref.current.filter((r) => r.id !== id));
+      return { ok: true };
+    },
+    [],
+  );
+
   const setGoedgekeurd = useCallback(
     async (
       id: string,
@@ -265,6 +278,7 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
     actieCount,
     addRecord,
     updateRecord,
+    deleteRecord,
     setGoedgekeurd,
     setGeaccepteerd,
     setAfgerond,
