@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLeads } from '@/hooks/useLeads';
 import type { Lead, LeadBron, LeadStatus } from '@/types';
+import { authHeaders } from '@/lib/clientAuth';
 import LeadsModal from './LeadsModal';
 import styles from './LeadsPage.module.css';
 
@@ -308,7 +309,7 @@ export default function LeadsPage() {
     setVerversBezig(true);
     setVerversMelding(null);
     try {
-      const res = await fetch('/api/leads/intake', { method: 'POST' });
+      const res = await fetch('/api/leads/intake', { method: 'POST', headers: await authHeaders() });
       const data = await res.json() as { ok?: boolean; leads?: number; tenders?: number; error?: string };
       if (!res.ok) throw new Error(data.error ?? 'Onbekende fout');
       setVerversMelding(`✓ ${data.leads ?? 0} nieuwe leads verwerkt`);
