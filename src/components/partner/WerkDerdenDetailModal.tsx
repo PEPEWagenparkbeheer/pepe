@@ -13,6 +13,8 @@ interface Props {
   bijlageUrl: (path: string) => Promise<string | null>;
   onSluiten: () => void;
   onKlaarMelden: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  /** PEPE-zijde: opent het bewerkvenster voor dit record. */
+  onBewerken?: () => void;
   /** Aanwezig in het partnerportaal: partner accepteert een PEPE-opdracht. */
   onAccepteren?: (
     id: string,
@@ -44,7 +46,7 @@ function statusKleur(status: WerkDerdenStatus): React.CSSProperties {
   }
 }
 
-export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, onKlaarMelden, onAccepteren }: Props) {
+export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, onKlaarMelden, onBewerken, onAccepteren }: Props) {
   const [bijlageSignedUrl, setBijlageSignedUrl] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
   const [aanpasModus, setAanpasModus] = useState(false);
@@ -275,6 +277,14 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
               }}
             >
               {bezig ? 'Bezig…' : '✓ Klaar melden'}
+            </button>
+          </div>
+        )}
+        {/* Footer — bewerken voor PEPE-kant (open records) */}
+        {onBewerken && record.status === 'open' && (
+          <div className={styles.modalFooter}>
+            <button className={styles.sluitenKnopFooter ?? styles.klaarKnop} style={{ background: '#555' }} onClick={onBewerken}>
+              ✏️ Bewerken
             </button>
           </div>
         )}

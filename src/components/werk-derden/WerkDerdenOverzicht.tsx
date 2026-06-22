@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
 import { useAuth } from '@/hooks/useAuth';
 import WerkDerdenModal from '@/components/partner/WerkDerdenModal';
+import WerkDerdenDetailModal from '@/components/partner/WerkDerdenDetailModal';
 import type { WerkDerdenRecord, WerkRegel } from '@/types';
 import { medewerkerNaam } from '@/lib/naam';
 import { isPepeOpdracht } from '@/lib/werk-derden/richting';
@@ -308,7 +309,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
 // --- Hoofd component ---------------------------------------------------------
 
 export default function WerkDerdenOverzicht() {
-  const { records, loading, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, bijlageUrl } =
+  const { records, loading, addRecord, updateRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, setKlaarGemeld, bijlageUrl } =
     useWerkDerden();
   const { user } = useAuth();
   const stamper = medewerkerNaam(
@@ -322,6 +323,8 @@ export default function WerkDerdenOverzicht() {
   const [bezig, setBezig] = useState<string | null>(null);
 
   const [nieuwOpen, setNieuwOpen] = useState(false);
+  const [detailRec, setDetailRec] = useState<WerkDerdenRecord | null>(null);
+  const [bewerkRec, setBewerkRec] = useState<WerkDerdenRecord | null>(null);
   const [goedkeurenRec, setGoedkeurenRec] = useState<WerkDerdenRecord | null>(null);
   const [afkeurenRec, setAfkeurenRec] = useState<WerkDerdenRecord | null>(null);
   const [factureerRec, setFactureerRec] = useState<WerkDerdenRecord | null>(null);
@@ -560,7 +563,7 @@ export default function WerkDerdenOverzicht() {
                 const bedragAangepast = !!rec.voorwaarden && rec.voorwaarden.startsWith('Bedrag aangepast');
 
                 return (
-                  <tr key={rec.id} className={styles.rij}>
+                  <tr key={rec.id} className={styles.rij} style={{ cursor: 'pointer' }} onClick={() => setDetailRec(rec)}>
                     <td className={styles.datumKolom}>{datumFmt(rec.created_at)}</td>
                     <td>
                       <span className={styles.kenteken}>{voertuig}</span>
@@ -605,7 +608,7 @@ export default function WerkDerdenOverzicht() {
                         )}
                       </td>
                     )}
-                    <td>
+                    <td onClick={e => e.stopPropagation()}>
                       {rec.bijlage_storage_path ? (
                         <button className={styles.bijlageKnop} onClick={() => openBijlage(rec)}>
                           📎 Bijlage
@@ -614,7 +617,7 @@ export default function WerkDerdenOverzicht() {
                         <span className={styles.geenBijlage}>—</span>
                       )}
                     </td>
-                    <td>
+                    <td onClick={e => e.stopPropagation()}>
                       <div className={styles.actieKnoppen}>
                         {/* PEPE-opdracht wacht op de partner; PEPE keurt die niet zelf goed. */}
                         {tab === 'open' && isPepeOpdracht(rec) && (
@@ -719,6 +722,29 @@ export default function WerkDerdenOverzicht() {
           pepeNaam={stamper}
           onSluiten={() => setNieuwOpen(false)}
           onIngediend={() => toonMelding('Kosten ingediend ✓', true)}
+        />
+      )}
+      {detailRec && (
+        <WerkDerdenDetailModal
+          record={detailRec}
+          bijlageUrl={bijlageUrl}
+          onSluiten={() => setDetailRec(null)}
+          onKlaarMelden={async (id) => {
+            const res = await setKlaarGemeld(id);
+            if (res.ok) toonMelding('Klaar gemeld ✓', true);
+            return res;
+          }}
+          onBewerken={() => { setBewerkRec(detailRec); setDetailRec(null); }}
+        />
+      )}
+      {bewerkRec && (
+        <WerkDerdenModal
+          record={bewerkRec}
+          addRecord={addRecord}
+          updateRecord={updateRecord}
+          pepeNaam={stamper}
+          onSluiten={() => setBewerkRec(null)}
+          onIngediend={() => { toonMelding('Opgeslagen ✓', true); setBewerkRec(null); }}
         />
       )}
     </div>
