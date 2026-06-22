@@ -311,7 +311,7 @@ export default function LeadsPage() {
       const res = await fetch('/api/leads/intake', { method: 'POST' });
       const data = await res.json() as { ok?: boolean; leads?: number; tenders?: number; error?: string };
       if (!res.ok) throw new Error(data.error ?? 'Onbekende fout');
-      setVerversMelding(`✓ ${data.leads ?? 0} nieuwe leads, ${data.tenders ?? 0} tenders`);
+      setVerversMelding(`✓ ${data.leads ?? 0} nieuwe leads verwerkt`);
     } catch (err) {
       setVerversMelding(`Fout: ${String(err)}`);
     } finally {
