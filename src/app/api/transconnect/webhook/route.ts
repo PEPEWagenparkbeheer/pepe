@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
 
   // TC payload veldnamen (bevestigd via API: order_status, planned_arrival_date, arrival_date)
   const orderId: string = String(body.order_id ?? body.orderId ?? body.id ?? '');
+  // chassis: TC stuurt dit mogelijk als vehicle_chassis_number, chassis_number of vin
+  const chassis: string = String(
+    body.vehicle_chassis_number ?? body.chassis_number ?? body.vin ?? body.chassis ?? ''
+  ).toUpperCase().replace(/\s/g, '');
   // status normaliseren: spaties → underscore, lowercase ("Picked Up" → "picked_up")
   const status: string  = String(body.order_status ?? body.status ?? body.state ?? '')
     .toLowerCase().replace(/\s+/g, '_');
@@ -40,7 +44,9 @@ export async function POST(req: NextRequest) {
 
   if (!orderId) return NextResponse.json({ error: 'Geen order_id' }, { status: 400 });
 
-  // Zoek record op via transport_order_id — dit veld wordt ingevuld in het AfterSales modal
+  // ── Stap 1: zoek via transport_order_id (na eerste koppeling het snelste pad) ──
+  let recordId: string | null = null;
+
   const { data: bestaand } = await supabase
     .from('after_sales')
     .select('id')
@@ -48,11 +54,32 @@ export async function POST(req: NextRequest) {
     .eq('gearchiveerd', false)
     .maybeSingle();
 
-  const recordId: string | null = bestaand?.id ?? null;
+  if (bestaand) {
+    recordId = bestaand.id;
+  } else if (chassis.length >= 4) {
+    // ── Stap 2: eerste keer — koppelen via laatste 4 cijfers chassisnummer = meldcode ──
+    const chassis4 = chassis.slice(-4);
+
+    const { data: gevonden } = await supabase
+      .from('after_sales')
+      .select('id')
+      .ilike('meldcode', `%${chassis4}%`)
+      .eq('gearchiveerd', false)
+      .eq('type', 'import')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (gevonden) {
+      recordId = gevonden.id;
+      // Sla order_id op zodat volgende webhooks direct via stap 1 matchen
+      await supabase.from('after_sales').update({ transport_order_id: orderId }).eq('id', recordId);
+    }
+  }
 
   if (!recordId) {
-    console.warn('TransConnect webhook: geen record gevonden voor order', orderId, '— vul TC Order ID in bij de import-kaart');
-    return NextResponse.json({ ok: false, error: 'Record niet gevonden — koppel TC Order ID aan import-kaart' }, { status: 404 });
+    console.warn('TransConnect webhook: geen record gevonden voor order', orderId, 'chassis', chassis);
+    return NextResponse.json({ ok: false, error: 'Record niet gevonden' }, { status: 404 });
   }
 
   // Status vertalen naar PEPE-veldwijzigingen
