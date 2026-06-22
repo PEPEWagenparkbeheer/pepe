@@ -301,6 +301,24 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('filter') ?? '');
   const [modalOpen, setModalOpen] = useState(false);
   const [editLead, setEditLead] = useState<Lead | null>(null);
+  const [verversBezig, setVerversBezig] = useState(false);
+  const [verversMelding, setVerversMelding] = useState<string | null>(null);
+
+  async function handleVervers() {
+    setVerversBezig(true);
+    setVerversMelding(null);
+    try {
+      const res = await fetch('/api/leads/intake', { method: 'POST' });
+      const data = await res.json() as { ok?: boolean; leads?: number; tenders?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Onbekende fout');
+      setVerversMelding(`✓ ${data.leads ?? 0} nieuwe leads, ${data.tenders ?? 0} tenders`);
+    } catch (err) {
+      setVerversMelding(`Fout: ${String(err)}`);
+    } finally {
+      setVerversBezig(false);
+      setTimeout(() => setVerversMelding(null), 4000);
+    }
+  }
 
   function openEdit(r: Lead) { setEditLead(r); setModalOpen(true); }
   function openNieuw() { setEditLead(null); setModalOpen(true); }
@@ -331,6 +349,10 @@ export default function LeadsPage() {
             <option value="verkocht">Verkocht</option>
             <option value="geen_interesse">Geen interesse</option>
           </select>
+          <button className="btn btn-a" onClick={handleVervers} disabled={verversBezig} title="Haal nieuwe leads en reacties op uit info@">
+            {verversBezig ? '⟳ Bezig…' : '⟳ Ververs'}
+          </button>
+          {verversMelding && <span style={{ fontSize: 12, color: verversMelding.startsWith('Fout') ? '#c00' : '#2e7d32' }}>{verversMelding}</span>}
           <button className="btn btn-a" onClick={openNieuw}>+ Lead toevoegen</button>
         </div>
       </div>
