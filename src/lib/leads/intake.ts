@@ -75,13 +75,41 @@ export async function runLeadsIntake(): Promise<LeadsIntakeResult> {
       );
     }
 
+    // Email-fallback: leads zonder graph_conversation_id (bijv. via Postmark aangemaakt)
+    // worden herkend via het afzender-emailadres.
+    const externeEmails = nieuw
+      .map((m) => m.afzenderEmail.toLowerCase())
+      .filter((e) => e && !e.includes('pepewagenparkbeheer.nl'));
+    let emailLead = new Map<string, { id: string; klant_reacties: unknown[] }>();
+    if (externeEmails.length > 0) {
+      const { data: opEmail } = await supabaseAdmin
+        .from('leads')
+        .select('id, klant_reacties, email')
+        .in('email', externeEmails)
+        .eq('gearchiveerd', false)
+        .is('graph_conversation_id', null)
+        .order('created_at', { ascending: false });
+      for (const l of opEmail ?? []) {
+        if (l.email && !emailLead.has(l.email.toLowerCase())) {
+          emailLead.set(l.email.toLowerCase(), l);
+        }
+      }
+    }
+
     for (const m of nieuw) {
       let resultaat: 'lead' | 'tender' | 'skipped' | 'reactie' = 'skipped';
       try {
         const tekst = htmlNaarTekst(m.bodyHtml) || m.bodyPreview;
 
         // Klantreactie op bestaand gesprek — voeg toe aan lead, maak geen nieuwe lead.
-        const bestaandeLead = m.conversationId ? convLead.get(m.conversationId) : null;
+        // Primaire match: via graph_conversation_id. Fallback: via afzender-email (voor
+        // leads aangemaakt vóór de graph_conversation_id kolom of via Postmark).
+        const bestaandeLead =
+          (m.conversationId ? convLead.get(m.conversationId) : null) ??
+          (!m.afzenderEmail.toLowerCase().includes('pepewagenparkbeheer.nl')
+            ? emailLead.get(m.afzenderEmail.toLowerCase())
+            : null) ??
+          null;
         if (bestaandeLead) {
           const reacties = (bestaandeLead.klant_reacties ?? []) as Array<Record<string, unknown>>;
           reacties.push({

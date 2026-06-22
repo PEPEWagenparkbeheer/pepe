@@ -141,6 +141,25 @@ export async function getMessage(
 }
 
 /**
+ * Haalt de conversationId op van een bestaand Graph-bericht.
+ * Gebruikt om na het versturen van een reply de lead bij te werken
+ * zodat toekomstige klantreacties correct worden gekoppeld.
+ */
+export async function getMessageConversationId(
+  accessToken: string,
+  mailbox: string,
+  messageId: string,
+): Promise<string | null> {
+  const url = `${GRAPH_BASE}/users/${encodeURIComponent(mailbox)}/messages/${encodeURIComponent(messageId)}?$select=conversationId`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { conversationId?: string };
+  return data.conversationId ?? null;
+}
+
+/**
  * Verstuurt een HTML-reply op een bestaand bericht via de Graph thread.
  * De klant ziet zijn originele bericht automatisch onderaan de reply.
  * Vereist Mail.Send permissie op de app-registratie.

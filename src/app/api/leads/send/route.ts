@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePepe } from '@/lib/apiAuth';
-import { readAzureConfig, getAccessToken, sendMail, replyToMessage, type MailBijlage } from '@/lib/graph';
+import { readAzureConfig, getAccessToken, sendMail, replyToMessage, getMessageConversationId, type MailBijlage } from '@/lib/graph';
 import { leadHandtekening } from '@/lib/leads/handtekening';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -85,17 +85,30 @@ export async function POST(req: NextRequest) {
 
     // Verstuur als reply op de originele klantmail als we de Graph message-ID hebben.
     let graphMessageId: string | null = null;
+    let graphConversationId: string | null = null;
     if (leadId) {
       const { data: lead } = await supabaseAdmin
         .from('leads')
-        .select('graph_message_id')
+        .select('graph_message_id, graph_conversation_id')
         .eq('id', leadId)
         .maybeSingle();
       graphMessageId = lead?.graph_message_id ?? null;
+      graphConversationId = lead?.graph_conversation_id ?? null;
     }
 
     if (graphMessageId) {
       await replyToMessage(accessToken, from, graphMessageId, bodyHtml, bijlagen);
+      // Sla graph_conversation_id op de lead op zodat toekomstige klantreacties
+      // door de intake worden herkend als reactie op deze lead.
+      if (leadId && !graphConversationId) {
+        const convId = await getMessageConversationId(accessToken, from, graphMessageId);
+        if (convId) {
+          await supabaseAdmin
+            .from('leads')
+            .update({ graph_conversation_id: convId })
+            .eq('id', leadId);
+        }
+      }
     } else {
       await sendMail(accessToken, from, to, subject, bodyHtml, bijlagen);
     }
