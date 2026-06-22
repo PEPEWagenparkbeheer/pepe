@@ -57,13 +57,14 @@ export async function POST(req: NextRequest) {
   if (bestaand) {
     recordId = bestaand.id;
   } else if (chassis.length >= 4) {
-    // ── Stap 2: eerste keer — koppelen via laatste 4 cijfers chassisnummer = meldcode ──
-    const chassis4 = chassis.slice(-4);
+    // ── Stap 2: eerste keer — koppelen via laatste 4 cijfers chassisnummer = kenteken_clean ──
+    // Voor import-records bevat `kenteken` de laatste 4 van het chassisnummer (meldcode).
+    const chassis4 = chassis.slice(-4).toUpperCase();
 
     const { data: gevonden } = await supabase
       .from('after_sales')
       .select('id')
-      .ilike('meldcode', `%${chassis4}%`)
+      .eq('kenteken_clean', chassis4)
       .eq('gearchiveerd', false)
       .eq('type', 'import')
       .order('created_at', { ascending: false })
