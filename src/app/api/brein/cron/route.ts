@@ -14,7 +14,10 @@ const CRON_SECRET = process.env.CRON_SECRET ?? '';
 
 function geautoriseerd(req: NextRequest): boolean {
   const auth = req.headers.get('authorization');
-  return !!CRON_SECRET && auth === `Bearer ${CRON_SECRET}`;
+  if (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`) return true;
+  const secret = new URL(req.url).searchParams.get('secret');
+  const syncSecret = process.env.BREIN_SYNC_SECRET ?? '';
+  return !!syncSecret && secret === syncSecret;
 }
 
 export async function GET(req: NextRequest) {
