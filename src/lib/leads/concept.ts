@@ -33,6 +33,8 @@ export interface LeadConceptInput {
   feedbackLessen?: string;
   /** Door RDW gevalideerd voertuig dat de klant wil inruilen. */
   inruilVoertuig?: { kenteken: string; merk: string; model: string } | null;
+  /** Eerdere reacties van de klant in de conversatie (oudste eerst). */
+  klantReacties?: { naam: string; tekst: string; op: string }[];
 }
 
 export interface LeadConcept {
@@ -81,6 +83,16 @@ export async function genereerLeadConcept(input: LeadConceptInput): Promise<Lead
     `Bericht van de klant:`,
     (input.bericht || '(geen los bericht; alleen interesse in bovenstaande auto)').slice(0, 4000),
     '',
+    ...(
+      (input.klantReacties ?? []).length > 0
+        ? [
+            'VERVOLGCONVERSATIE — de klant heeft inmiddels gereageerd. Reageer op het LAATSTE bericht van de klant (onderaan). De eerder verstuurde reactie van ons zit er al in (impliciet). Ga NIET herhalen wat wij eerder schreven.',
+            ...(input.klantReacties ?? [])
+              .sort((a, b) => a.op.localeCompare(b.op))
+              .map((r) => `[Klant]: ${r.tekst.slice(0, 1000)}`),
+          ]
+        : []
+    ),
     voorraadLijn,
   ]
     .filter(Boolean)

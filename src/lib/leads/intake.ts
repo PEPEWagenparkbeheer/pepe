@@ -112,10 +112,17 @@ export async function runLeadsIntake(): Promise<LeadsIntakeResult> {
           null;
         if (bestaandeLead) {
           const reacties = (bestaandeLead.klant_reacties ?? []) as Array<Record<string, unknown>>;
-          // Dedupliceer op timestamp — voorkomt dubbele reacties bij herverwerking van de ledger.
-          if (!reacties.some((r) => r.op === m.ontvangenOp)) {
+          const nieuweTekst = tekst || m.bodyPreview;
+          // Dedup: zelfde minuut + eerste 80 tekens — vangt hetzelfde bericht met licht afwijkende body/preview.
+          const opMinuut = (s: string) => s.slice(0, 16);
+          const alBekend = reacties.some(
+            (r) =>
+              opMinuut(r.op as string) === opMinuut(m.ontvangenOp) &&
+              (r.tekst as string).slice(0, 80) === nieuweTekst.slice(0, 80),
+          );
+          if (!alBekend) {
             reacties.push({
-              tekst: tekst || m.bodyPreview,
+              tekst: nieuweTekst,
               op: m.ontvangenOp,
               naam: m.afzenderNaam || m.afzenderEmail,
               gelezen: false,

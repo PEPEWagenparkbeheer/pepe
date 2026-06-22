@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       beschikbaar: voorraad.beschikbaar,
       feedbackLessen,
       inruilVoertuig,
+      klantReacties: Array.isArray(b.klant_reacties) ? b.klant_reacties : [],
     });
     return NextResponse.json({ ok: true, ...concept, beschikbaar: voorraad.beschikbaar, inruilVoertuig });
   } catch (err) {

@@ -114,6 +114,7 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
         body: JSON.stringify({
           klant_naam: form.klant_naam, auto: form.auto, prijs: form.prijs,
           advertentie_url: form.advertentie_url, bericht: form.bericht, bron: form.bron,
+          klant_reacties: form.klant_reacties ?? [],
         }),
       });
       const data = await res.json();
@@ -346,10 +347,29 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
             </>
           )}
 
+          {/* Klantreacties — inkomende replies van de klant */}
+          {(form.klant_reacties ?? []).length > 0 && (
+            <>
+              <div className={styles.sectieKop}>Reacties van klant</div>
+              <div className={styles.vol}>
+                <div className={styles.updateLijst}>
+                  {(form.klant_reacties as KlantReactie[]).map((r, i) => (
+                    <div key={i} className={styles.updateRij} style={{ background: '#e8f4fd', borderLeft: '3px solid #2196f3' }}>
+                      <div className={styles.updateMeta} style={{ color: '#1565c0' }}>📩 {r.naam} · {momentTijd(r.op)}</div>
+                      <div className={styles.updateTekst} style={{ whiteSpace: 'pre-wrap' }}>{r.tekst}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Voorgestelde reactie (alleen bij bestaande lead) */}
           {lead && (
             <>
-              <div className={styles.sectieKop}>Voorgestelde reactie</div>
+              <div className={styles.sectieKop}>
+                {(form.klant_reacties ?? []).length > 0 ? 'Antwoord op klant' : 'Voorgestelde reactie'}
+              </div>
               <div className={`${styles.fg} ${styles.vol}`}>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <button className="btn" type="button" onClick={genereerReactie} disabled={genereren || !form.auto}>
@@ -359,7 +379,7 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
                     <span style={{ fontSize: 12, color: 'green' }}>📎 Inruil — waardebepaling-PDF wordt meegestuurd</span>
                   )}
                 </div>
-                <textarea className="fi" rows={9}
+                <textarea className="fi" rows={7}
                   placeholder="Klik op 'Genereer reactie', of typ zelf een antwoord…"
                   value={concept} onChange={(e) => setConcept(e.target.value)} />
                 {concept.trim() && (
@@ -389,23 +409,6 @@ export default function LeadsModal({ lead, open, gebruiker, onSluiten, onOpslaan
             <textarea className="fi" rows={3} placeholder="Interne aantekeningen..."
               value={form.notities ?? ''} onChange={(e) => stel('notities', e.target.value)} />
           </div>
-
-          {/* Klantreacties — inkomende replies van de klant */}
-          {(form.klant_reacties ?? []).length > 0 && (
-            <>
-              <div className={styles.sectieKop}>Reacties van klant</div>
-              <div className={styles.vol}>
-                <div className={styles.updateLijst}>
-                  {(form.klant_reacties as KlantReactie[]).map((r, i) => (
-                    <div key={i} className={styles.updateRij} style={{ background: '#e8f4fd', borderLeft: '3px solid #2196f3' }}>
-                      <div className={styles.updateMeta} style={{ color: '#1565c0' }}>📩 {r.naam} · {momentTijd(r.op)}</div>
-                      <div className={styles.updateTekst} style={{ whiteSpace: 'pre-wrap' }}>{r.tekst}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
 
           {/* Contactmomenten */}
           <div className={styles.sectieKop}>Contactmomenten</div>
