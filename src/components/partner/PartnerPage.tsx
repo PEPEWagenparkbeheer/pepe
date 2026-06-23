@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,6 +35,16 @@ function datumFmt(d?: string) {
 export default function PartnerPage({ wie }: { wie: string }) {
   const { autos, updateAuto } = useAfterSales();
   const { signOut } = useAuth();
+
+  // body heeft overflow:hidden (globals.css) — reset zodat iOS Safari normaal scrolt
+  useEffect(() => {
+    document.body.style.overflow = 'auto';
+    document.body.style.overflowX = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.overflowX = '';
+    };
+  }, []);
   const { records: wdRecords, addRecord: wdAddRecord, updateRecord: wdUpdateRecord, setKlaarGemeld, setGeaccepteerd, bijlageUrl } = useWerkDerden(wie);
   const [wdModalOpen, setWdModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<WerkDerdenRecord | null>(null);

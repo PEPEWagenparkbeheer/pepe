@@ -25,5 +25,14 @@ export default function ZoekenMobielLayout({ children }: { children: React.React
   }
 
   if (!user) return <LoginScreen />;
+
+  if (user.app_metadata?.rol === 'partner') {
+    return (
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>
+        Deze pagina is alleen toegankelijk voor PEPE-medewerkers.
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
