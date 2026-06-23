@@ -10,21 +10,12 @@ interface Props {
   onSluiten: () => void;
 }
 
-function stoplichtLabel(status: RapportStatus): string {
+function stoplicht(status: RapportStatus): string {
   switch (status) {
-    case 'goed': return 'OK';
-    case 'let_op': return 'LET OP';
-    case 'slecht': return 'SLECHT';
-    default: return 'ONBEKEND';
-  }
-}
-
-function stoplichtKleur(status: RapportStatus): string {
-  switch (status) {
-    case 'goed': return '#2e7d32';
-    case 'let_op': return '#e65100';
-    case 'slecht': return '#b71c1c';
-    default: return '#757575';
+    case 'goed': return '🟢';
+    case 'let_op': return '🟠';
+    case 'slecht': return '🔴';
+    default: return '⚪';
   }
 }
 
@@ -149,12 +140,7 @@ export default function ToestandsrapportModal({ open, onSluiten }: Props) {
               <div className={styles.bijzonderheden}>
                 {(resultaat.bijzonderheden ?? []).map((b) => (
                   <div key={b.sleutel} className={styles.bijzonderheidRij}>
-                    <span
-                      className={styles.statusLabel}
-                      style={{ color: stoplichtKleur(b.status) }}
-                    >
-                      {stoplichtLabel(b.status)}
-                    </span>
+                    <span className={styles.icoon}>{stoplicht(b.status)}</span>
                     <span className={styles.bijLabel}>{b.label}</span>
                     <span className={styles.bijTekst}>{b.tekst}</span>
                   </div>
