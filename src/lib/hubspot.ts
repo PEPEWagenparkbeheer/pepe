@@ -516,6 +516,21 @@ async function matchEnum(property: string, waarde: string): Promise<string | nul
   return null;
 }
 
+/**
+ * Normaliseert een leasemaatschappij-naam naar de juiste HubSpot-dropdownwaarde
+ * voor lastige gevallen. Van Mossel levert onder twee namen: "van Mossel Lease"
+ * (regulier) en "Shortlease van Mossel" (shortlease) — de vrije tekst uit het
+ * document ("Van Mossel Autolease Zuid B.V.") matcht op geen van beide vanzelf.
+ * isShortlease komt uit het contract (type_aanschaf bevat "short").
+ */
+export function mapLeasemaatschappij(naam: string, isShortlease: boolean): string {
+  const n = (naam ?? '').trim();
+  if (/mossel/i.test(n)) {
+    return (isShortlease || /short/i.test(n)) ? 'Shortlease van Mossel' : 'van Mossel Lease';
+  }
+  return n;
+}
+
 /** PATCH losse velden op een deal (= voertuig/contract). Leeg object = no-op. */
 export async function updateDealFields(
   dealId: string,

@@ -7,7 +7,7 @@ import {
   searchContactByEmail, searchContactByName, createContact, updateContact,
   searchDealByName, searchDealByContractnummer, createDeal, updateDealFields,
   associateDealCompany, associateDealContact, associateContactCompany,
-  uploadFile, createNoteOnDeal,
+  uploadFile, createNoteOnDeal, mapLeasemaatschappij,
   DEALSTAGE_IN_BESTELLING,
 } from '@/lib/hubspot';
 import { kvkOpzoeken } from '@/lib/kvk';
@@ -114,7 +114,10 @@ export async function approveBestelbevestiging(
   if (factuur.type_aanschaf) dealProps.type_aanschaf = String(factuur.type_aanschaf);
   if (factuur.looptijd_maanden != null) dealProps.looptijd = String(factuur.looptijd_maanden);
   if (factuur.jaarkilometrage != null) dealProps.kilometers_per_jaar = String(factuur.jaarkilometrage);
-  if (factuur.leasemaatschappij) dealProps.leasemaatschappij_goed = String(factuur.leasemaatschappij);
+  if (factuur.leasemaatschappij) {
+    const isShortlease = /short/i.test(`${factuur.type_aanschaf ?? ''} ${factuur.leasemaatschappij}`);
+    dealProps.leasemaatschappij_goed = mapLeasemaatschappij(String(factuur.leasemaatschappij), isShortlease);
+  }
   const bandenMapped = mapBanden(factuur.banden ? String(factuur.banden) : null);
   if (bandenMapped) dealProps.winterbanden_in_contract = bandenMapped;
   if (fiscaleWaarde != null) dealProps.fiscale_waarde = String(fiscaleWaarde);

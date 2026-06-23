@@ -7,7 +7,7 @@ import {
   findCompany, searchCompanyByKvk, createCompany, updateCompany,
   searchDealByName, searchDealByContractnummer, searchDealByKenteken, createDeal, updateDealFields,
   associateDealContact, associateDealCompany, associateContactCompany,
-  uploadFile, createNoteOnDeal,
+  uploadFile, createNoteOnDeal, mapLeasemaatschappij,
   DEALSTAGE_RIJDEND,
 } from '@/lib/hubspot';
 
@@ -142,7 +142,10 @@ export async function koppelInzet(
     if (ext.fiscale_waarde != null) dealProperties.fiscale_waarde = String(ext.fiscale_waarde);
     if (ext.inzetdatum) dealProperties.inzetdatum = ext.inzetdatum;
     if (einddatum) dealProperties.verwachte_einddatum = einddatum;
-    if (ext.leasemaatschappij_naam) dealProperties.leasemaatschappij_goed = ext.leasemaatschappij_naam;
+    if (ext.leasemaatschappij_naam) {
+      const isShortlease = /short/i.test(`${ext.type_aanschaf ?? ''} ${ext.leasemaatschappij_naam}`);
+      dealProperties.leasemaatschappij_goed = mapLeasemaatschappij(ext.leasemaatschappij_naam, isShortlease);
+    }
     if (ext.jaarkilometrage != null) dealProperties.kilometers_per_jaar = String(ext.jaarkilometrage);
 
     if (dealId) {
