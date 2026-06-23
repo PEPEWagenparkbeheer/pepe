@@ -593,15 +593,13 @@ function VoortgangKaart({
               key={k}
               className={[
                 styles.progPill,
-                aan && !isUitgesteld && styles.progPillActief,
-                isUitgesteld && styles.progUitgesteld,
-                isUitgesteld && aan && styles.progUitgesteldActief,
+                aan && (isUitgesteld ? styles.progUitgesteld : styles.progPillActief),
               ]
                 .filter(Boolean)
                 .join(' ')}
               onClick={() => onToggle(record.id, k as keyof Zoekopdracht)}
             >
-              {isUitgesteld && '⏸ '}{l}
+              {l}
             </button>
           );
         })}
