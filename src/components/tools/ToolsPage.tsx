@@ -1,11 +1,12 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import BijtellingModal from './BijtellingModal';
 import ConsignatieModal from './ConsignatieModal';
+import ToestandsrapportModal from './ToestandsrapportModal';
 import styles from './ToolsPage.module.css';
 
-type ToolKey = 'bijtelling' | 'consignatie' | 'inkoopverklaring';
+type ToolKey = 'bijtelling' | 'consignatie' | 'inkoopverklaring' | 'toestandsrapport';
 
 type Tool =
   | { type: 'modal'; key: ToolKey; icoon: string; titel: string; desc: string }
@@ -15,35 +16,42 @@ const TOOLS: Tool[] = [
   {
     type: 'modal',
     key: 'bijtelling',
-    icoon: '🧮',
+    icoon: "\u{1F9EE}",
     titel: 'Bijtelling calculator',
     desc: 'Bereken bijtelling en netto loonbelasting voor zakelijke auto (2022-2026).',
   },
   {
     type: 'modal',
     key: 'consignatie',
-    icoon: '📋',
+    icoon: "\u{1F4CB}",
     titel: 'Consignatie eindafrekening',
     desc: 'Wizard voor netto opbrengst klant na verkoop, met PDF-download.',
   },
   {
     type: 'modal',
     key: 'inkoopverklaring',
-    icoon: '🧾',
+    icoon: "\u{1F9FE}",
     titel: 'Inkoopverklaring maken',
     desc: 'Maak inkoopverklaringen (marge) met RDW-gegevens, beheer opgeslagen verklaringen en verstuur via DocuSign.',
   },
   {
+    type: 'modal',
+    key: 'toestandsrapport',
+    icoon: "\u{1F50D}",
+    titel: 'Toestandsrapport scanner',
+    desc: 'Upload een buitenlands toestandsrapport (PDF) en krijg direct de bijzonderheden waar je op moet letten.',
+  },
+  {
     type: 'extern',
     url: 'https://app.pepewagenparkbeheer.nl/',
-    icoon: '📲',
+    icoon: "\u{1F4F2}",
     titel: 'Uitwerkapp',
     desc: 'Open de PEPE uitwerkapp in een nieuw tabblad.',
   },
   {
     type: 'extern',
     url: 'https://mobilityonline.eu/nl/pepe/auth/grant_access?client=pepe&ticket=l1DRKTlBX8WKkJB79EOc3MQ5_zxuCj84sedzttiq0lzQPmwh4Hp6F0W9ZZ0eIqvYWaY1',
-    icoon: '🚙',
+    icoon: "\u{1F699}",
     titel: 'Car Configurator',
     desc: 'Open de configurator (MobilityOnline) in een nieuw tabblad.',
   },
@@ -74,7 +82,7 @@ export default function ToolsPage() {
             className={styles.tegel}
             onClick={() => klik(t)}
           >
-            {t.type === 'extern' && <span className={styles.externBadge} title="Opent in nieuw tabblad">↗</span>}
+            {t.type === 'extern' && <span className={styles.externBadge} title="Opent in nieuw tabblad">&#x2197;</span>}
             <span className={styles.tegelIcoon}>{t.icoon}</span>
             <div className={styles.tegelTitel}>{t.titel}</div>
             <div className={styles.tegelDesc}>{t.desc}</div>
@@ -85,6 +93,7 @@ export default function ToolsPage() {
       <BijtellingModal open={open === 'bijtelling'} onSluiten={() => setOpen(null)} />
       <ConsignatieModal open={open === 'consignatie'} onSluiten={() => setOpen(null)} />
       <ConsignatieModal open={open === 'inkoopverklaring'} directInkoop onSluiten={() => setOpen(null)} />
+      <ToestandsrapportModal open={open === 'toestandsrapport'} onSluiten={() => setOpen(null)} />
     </div>
   );
 }

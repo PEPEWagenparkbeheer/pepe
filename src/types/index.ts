@@ -450,3 +450,29 @@ export interface WerkDerdenRecord {
   bestemming?: WerkDerdenBestemming; // default 'doorbelasten'; 'voertuigprijs' = niet factureren
   voorwaarden?: string;              // aanpassingen door PEPE bij goedkeuren
 }
+
+// ── Toestandsrapporten ────────────────────────────────────────
+
+export type RapportStatus = 'goed' | 'let_op' | 'slecht' | 'onbekend';
+
+export interface RapportBijzonderheid {
+  sleutel: string; // 'schade' | 'geur' | 'onderhoud' | 'banden' | 'winterbanden' | 'technisch' | 'schadeverleden'
+  label: string;
+  status: RapportStatus;
+  tekst: string;
+}
+
+export interface Toestandsrapport {
+  id: string;
+  created_at?: string;
+  bestandsnaam?: string;
+  pdf_storage_path?: string;
+  merk?: string;
+  model?: string;
+  kenteken?: string;
+  km_stand?: string;
+  conclusie?: string;
+  bijzonderheden?: RapportBijzonderheid[];
+  door?: string;
+  gearchiveerd?: boolean;
+}
