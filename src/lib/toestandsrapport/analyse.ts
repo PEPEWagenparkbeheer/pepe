@@ -30,6 +30,8 @@ Analyseer het rapport en beoordeel ALTIJD de volgende 7 punten. Elk punt krijgt 
 Geef ook: merk, model, kenteken, km-stand indien herkenbaar in het rapport.
 Schrijf een conclusie van 1-2 zinnen met koopadvies of waarschuwing.
 
+BELANGRIJK: Schrijf ALLES in het Nederlands. Vertaal alle tekst uit het rapport — citeer nooit woorden in het Duits, Frans of andere talen. Gebruik Nederlandse woorden voor alle bevindingen.
+
 Retourneer UITSLUITEND geldige JSON zonder markdown of uitleg:
 {"merk":"...","model":"...","kenteken":"...","km_stand":"...","conclusie":"...","bijzonderheden":[{"sleutel":"schade","label":"Schade","status":"goed","tekst":"..."},{"sleutel":"geur","label":"Geur","status":"onbekend","tekst":"..."},{"sleutel":"onderhoud","label":"Onderhoud","status":"goed","tekst":"..."},{"sleutel":"banden","label":"Banden","status":"goed","tekst":"..."},{"sleutel":"winterbanden","label":"Winterbanden","status":"onbekend","tekst":"..."},{"sleutel":"technisch","label":"Technisch","status":"goed","tekst":"..."},{"sleutel":"schadeverleden","label":"Schadeverleden","status":"onbekend","tekst":"..."}]}`;
 

@@ -1,0 +1,274 @@
+.pagina {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Koptekst */
+.kop {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.terugKnop {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  margin-bottom: 6px;
+  transition: color 0.15s;
+}
+
+.terugKnop:hover { color: var(--text); }
+
+.titel {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* Upload */
+.uploadBlok {
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uploadRij {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kiesKnop {
+  background: var(--text);
+  color: var(--surface);
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.kiesKnop:hover { opacity: 0.8; }
+
+.bestandsnaam {
+  flex: 1;
+  font-size: 13px;
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analyseerKnop {
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.analyseerKnop:hover:not(:disabled) { background: #a93226; }
+
+.analyseerKnop:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fout {
+  color: #c0392b;
+  font-size: 13px;
+  margin: 0;
+}
+
+.laadTekst {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* Resultaat */
+.resultaatBlok {
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.autoHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.autoNaam {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.kenteken {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--bg, #f5f5f5);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.kmStand {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.conclusieBlok {
+  background: #f0f4ff;
+  border-left: 3px solid #3b6bda;
+  border-radius: 0 8px 8px 0;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: #1a1a2e;
+  line-height: 1.55;
+}
+
+.bijzonderheden {
+  display: flex;
+  flex-direction: column;
+}
+
+.bijRij {
+  display: grid;
+  grid-template-columns: 28px 160px 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.bijRij:last-child { border-bottom: none; }
+
+.icoon { font-size: 16px; line-height: 1.4; }
+
+.bijLabel {
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.bijTekst {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* Geschiedenis */
+.geschiedenisBlok {
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 20px;
+}
+
+.geschiedenisKop {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.geschiedenisLijst {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gRij {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.gRij:hover { background: var(--hover, #f7f7f7); }
+.gRij.actief { background: #f0f4ff; }
+
+.gInfo { flex: 1; min-width: 0; }
+
+.gAuto {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gMeta {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.gStoplicht {
+  display: flex;
+  gap: 2px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.verwijderKnop {
+  background: none;
+  border: none;
+  color: var(--border);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.verwijderKnop:hover {
+  color: #c62828;
+  background: #fff0f0;
+}

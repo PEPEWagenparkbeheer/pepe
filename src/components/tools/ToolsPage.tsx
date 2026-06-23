@@ -1,15 +1,16 @@
 ﻿'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import BijtellingModal from './BijtellingModal';
 import ConsignatieModal from './ConsignatieModal';
-import ToestandsrapportModal from './ToestandsrapportModal';
 import styles from './ToolsPage.module.css';
 
-type ToolKey = 'bijtelling' | 'consignatie' | 'inkoopverklaring' | 'toestandsrapport';
+type ToolKey = 'bijtelling' | 'consignatie' | 'inkoopverklaring';
 
 type Tool =
   | { type: 'modal'; key: ToolKey; icoon: string; titel: string; desc: string }
+  | { type: 'intern'; url: string; icoon: string; titel: string; desc: string }
   | { type: 'extern'; url: string; icoon: string; titel: string; desc: string };
 
 const TOOLS: Tool[] = [
@@ -35,8 +36,8 @@ const TOOLS: Tool[] = [
     desc: 'Maak inkoopverklaringen (marge) met RDW-gegevens, beheer opgeslagen verklaringen en verstuur via DocuSign.',
   },
   {
-    type: 'modal',
-    key: 'toestandsrapport',
+    type: 'intern',
+    url: '/tools/toestandsrapport',
     icoon: "\u{1F50D}",
     titel: 'Toestandsrapport scanner',
     desc: 'Upload een buitenlands toestandsrapport (PDF) en krijg direct de bijzonderheden waar je op moet letten.',
@@ -58,11 +59,14 @@ const TOOLS: Tool[] = [
 ];
 
 export default function ToolsPage() {
+  const router = useRouter();
   const [open, setOpen] = useState<ToolKey | null>(null);
 
   function klik(t: Tool) {
     if (t.type === 'modal') {
       setOpen(t.key);
+    } else if (t.type === 'intern') {
+      router.push(t.url);
     } else {
       window.open(t.url, '_blank', 'noopener,noreferrer');
     }
@@ -93,7 +97,6 @@ export default function ToolsPage() {
       <BijtellingModal open={open === 'bijtelling'} onSluiten={() => setOpen(null)} />
       <ConsignatieModal open={open === 'consignatie'} onSluiten={() => setOpen(null)} />
       <ConsignatieModal open={open === 'inkoopverklaring'} directInkoop onSluiten={() => setOpen(null)} />
-      <ToestandsrapportModal open={open === 'toestandsrapport'} onSluiten={() => setOpen(null)} />
     </div>
   );
 }
