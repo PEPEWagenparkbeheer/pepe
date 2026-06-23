@@ -4,8 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'PEPE Flow',
     short_name: 'PEPE',
-    description: 'PEPE Wagenparkbeheer — Innameformulier',
-    start_url: '/inname',
+    description: 'PEPE Wagenparkbeheer — Fleet management tool',
+    start_url: '/zoeken-mobiel',
     display: 'standalone',
     background_color: '#ffffff',
     theme_color: '#921939',
