@@ -2,8 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import type { RapportStatus, Toestandsrapport } from '@/types';
 import styles from './ToestandsrapportScanner.module.css';
+
+async function authHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+}
 
 function stoplicht(status: RapportStatus): string {
   switch (status) {
@@ -26,10 +32,12 @@ export default function ToestandsrapportScanner() {
   const [actiefId, setActiefId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/toestandsrapport')
-      .then((r) => r.json())
-      .then((data: Toestandsrapport[]) => setGeschiedenis(data))
-      .catch(() => {});
+    authHeaders().then((headers) =>
+      fetch('/api/toestandsrapport', { headers })
+        .then((r) => r.json())
+        .then((data: Toestandsrapport[]) => setGeschiedenis(data))
+        .catch(() => {}),
+    );
   }, []);
 
   function kiesBestand(file: File) {
@@ -52,7 +60,7 @@ export default function ToestandsrapportScanner() {
     fd.append('file', geselecteerdBestand);
 
     try {
-      const r = await fetch('/api/toestandsrapport', { method: 'POST', body: fd });
+      const r = await fetch('/api/toestandsrapport', { method: 'POST', headers: await authHeaders(), body: fd });
       if (!r.ok) {
         const e = await r.json().catch(() => ({ error: 'Analyse mislukt' }));
         setFout(e.error ?? 'Analyse mislukt');
@@ -77,7 +85,7 @@ export default function ToestandsrapportScanner() {
 
   async function verwijder(id: string, e: React.MouseEvent) {
     e.stopPropagation();
-    await fetch(`/api/toestandsrapport/${id}`, { method: 'DELETE' });
+    await fetch(`/api/toestandsrapport/${id}`, { method: 'DELETE', headers: await authHeaders() });
     setGeschiedenis((prev) => prev.filter((r) => r.id !== id));
     if (actiefId === id) { setResultaat(null); setActiefId(null); }
   }
