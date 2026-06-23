@@ -92,6 +92,8 @@ export default function ZoekenTable({
             <th>Details</th>
             <KolomHeader veld="budget" label="Budget" sortVeld={sortVeld} sortRichting={sortRichting} onSort={onSort} />
             <KolomHeader veld="btw" label="BTW/Marge" sortVeld={sortVeld} sortRichting={sortRichting} onSort={onSort} />
+            <th className={styles.datumKolom}>Aangemaakt</th>
+            <th className={styles.datumKolom}>Rijdatum</th>
             {QUICK_VELDEN.map(({ veld, titel }) => (
               <th key={veld} className={styles.chkKolom}>{titel}</th>
             ))}

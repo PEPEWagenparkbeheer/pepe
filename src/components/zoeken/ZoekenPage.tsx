@@ -17,12 +17,14 @@ import ZoekenTable, { type SortVeld } from './ZoekenTable';
 import styles from './ZoekenPage.module.css';
 
 function exportCsv(rijen: Zoekopdracht[]) {
-  const headers = ['Klant', 'E-mail klant', 'Auto', 'Details', 'Budget', 'BTW', 'Km', 'Jaar', 'Wie zoekt', 'Kleuren', 'Brandstof', 'Uitgewerkt', 'Terugkoppeling', 'Terugkoppeling notitie', 'Dealer', 'Inkopen', 'Contract', 'Akkoord', 'Opmerkingen'];
+  const headers = ['Klant', 'E-mail klant', 'Auto', 'Details', 'Budget', 'BTW', 'Km', 'Jaar', 'Wie zoekt', 'Kleuren', 'Brandstof', 'Uitgewerkt', 'Terugkoppeling', 'Terugkoppeling notitie', 'Dealer', 'Inkopen', 'Contract', 'Akkoord', 'Opmerkingen', 'Aangemaakt', 'Gewenste rijdatum'];
   const rows = rijen.map((r) => [
     r.klant, r.email_klant ?? '', r.auto, r.details ?? '', r.budget ?? '', r.btw ?? '', r.km ?? '', r.jaar ?? '', r.wiezoekt ?? '',
     (r.kleuren ?? []).join(';'), (r.brandstof ?? []).join(';'),
     r.uitgewerkt ? 'Ja' : '', r.terugkoppeling ? 'Ja' : '', r.terugkoppeling_txt ?? '', r.dealer ? 'Ja' : '',
     r.inkopen ? 'Ja' : '', r.contract ? 'Ja' : '', r.akkoord ? 'Ja' : '', r.opmerkingen ?? '',
+    r.created_at ? new Date(r.created_at).toLocaleDateString('nl-NL') : '',
+    r.gewenste_rijdatum ?? '',
   ]);
   const csv = '﻿' + [headers, ...rows].map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
