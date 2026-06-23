@@ -1,10 +1,11 @@
 'use client';
 
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useCallback } from 'react';
 import { WIE_KEY, WIE_DEFAULT } from '@/lib/constants';
 import { supabase } from '@/lib/supabase';
 import type { Medewerker } from '@/hooks/useMedewerkers';
 import { usePartnerLijst } from '@/hooks/usePartnerLijst';
+import { authHeaders } from '@/lib/clientAuth';
 import styles from './InstellingenPage.module.css';
 
 // ── Herbruikbare popup ────────────────────────────────────────────────────────
@@ -534,6 +535,163 @@ function MedewerkersBeheer() {
   );
 }
 
+// ── Twinfield OAuth koppeling ─────────────────────────────────────────────────
+interface TwinfieldStatus {
+  connected: boolean;
+  connected_by?: string;
+  connected_at?: string;
+  company_code?: string | null;
+  offices?: { code: string; name: string }[];
+}
+
+function TwinfieldBeheer() {
+  const [status, setStatus] = useState<TwinfieldStatus | null>(null);
+  const [bezig, setBezig] = useState(false);
+  const [melding, setMelding] = useState<{ tekst: string; ok: boolean } | null>(null);
+  const [gekozenAdmin, setGekozenAdmin] = useState('');
+
+  const laadStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/twinfield/status', {
+        headers: await authHeaders(),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as TwinfieldStatus;
+        setStatus(data);
+        setGekozenAdmin(data.company_code ?? '');
+      }
+    } catch {
+      // stil falen — status blijft null
+    }
+  }, []);
+
+  useEffect(() => {
+    void laadStatus();
+    // Verwerk ?twinfield=ok/fout uit callback-redirect
+    const params = new URLSearchParams(window.location.search);
+    const tf = params.get('twinfield');
+    if (tf === 'ok') {
+      setMelding({ tekst: 'Twinfield succesvol gekoppeld!', ok: true });
+    } else if (tf === 'fout') {
+      const reden = params.get('reden') ?? 'onbekend';
+      setMelding({ tekst: `Koppelen mislukt: ${reden}`, ok: false });
+    }
+  }, [laadStatus]);
+
+  async function slaAdminOp() {
+    if (!gekozenAdmin) return;
+    setBezig(true);
+    try {
+      const res = await fetch('/api/twinfield/administratie', {
+        method: 'POST',
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ company_code: gekozenAdmin }),
+      });
+      if (res.ok) {
+        setMelding({ tekst: 'Administratie opgeslagen', ok: true });
+        await laadStatus();
+      } else {
+        setMelding({ tekst: 'Opslaan mislukt', ok: false });
+      }
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  async function ontkoppel() {
+    setBezig(true);
+    try {
+      await fetch('/api/twinfield/disconnect', {
+        method: 'POST',
+        headers: await authHeaders(),
+      });
+      setStatus({ connected: false });
+      setMelding({ tekst: 'Twinfield ontkoppeld', ok: true });
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  const koppelUrl = '/api/twinfield/connect';
+
+  return (
+    <div className={styles.kaart}>
+      <div className={styles.kaartHeader}>
+        <span className={styles.kaartIcon}>📊</span>
+        <div style={{ flex: 1 }}>
+          <div className={styles.kaartTitel}>Twinfield</div>
+          <div className={styles.kaartSub}>
+            OAuth2-koppeling voor factuurverwerking (werk derden &amp; later meer)
+          </div>
+        </div>
+      </div>
+
+      {melding && (
+        <div className={melding.ok ? styles.meldingOk : styles.meldingFout}
+          style={{ marginBottom: 12 }}>
+          {melding.tekst}
+        </div>
+      )}
+
+      {status === null ? (
+        <p style={{ color: 'var(--muted)', fontSize: 13 }}>Laden…</p>
+      ) : !status.connected ? (
+        <a href={koppelUrl} className={styles.toevoegKnop}
+          style={{ display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }}>
+          Koppel Twinfield
+        </a>
+      ) : (
+        <>
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+            Gekoppeld door <strong>{status.connected_by}</strong>
+            {status.connected_at && (
+              <> op {new Date(status.connected_at).toLocaleDateString('nl-NL')}</>
+            )}
+          </p>
+
+          {status.offices && status.offices.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <label className={styles.emailLabel}>Administratie</label>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <select
+                  value={gekozenAdmin}
+                  onChange={(e) => setGekozenAdmin(e.target.value)}
+                  style={{
+                    flex: 1, border: '1px solid var(--border)', borderRadius: 7,
+                    padding: '7px 9px', background: 'var(--surface)', color: 'var(--text)',
+                    fontSize: 13,
+                  }}>
+                  <option value="">— kies administratie —</option>
+                  {status.offices.map((o) => (
+                    <option key={o.code} value={o.code}>{o.name} ({o.code})</option>
+                  ))}
+                </select>
+                <button
+                  className={styles.opslaanKnop}
+                  onClick={() => void slaAdminOp()}
+                  disabled={bezig || !gekozenAdmin || gekozenAdmin === status.company_code}>
+                  Opslaan
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <a href={koppelUrl} className={styles.annuleerKnop}
+              style={{ textDecoration: 'none', padding: '6px 12px' }}>
+              Opnieuw koppelen
+            </a>
+            <button className={styles.verwijderKnop} onClick={() => void ontkoppel()}
+              disabled={bezig}>
+              Ontkoppelen
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── TransConnect webhook ──────────────────────────────────────────────────────
 function TransConnectBeheer() {
   const [status, setStatus] = useState<'idle' | 'bezig' | 'ok' | 'fout'>('idle');
@@ -679,6 +837,7 @@ export default function InstellingenPage() {
       <div className={styles.grid}>
         <MedewerkersBeheer />
         <TransConnectBeheer />
+        <TwinfieldBeheer />
         <PartnersBeheer />
       </div>
     </div>
