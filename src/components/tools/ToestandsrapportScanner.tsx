@@ -147,6 +147,9 @@ export default function ToestandsrapportScanner() {
             {resultaat.kenteken && (
               <span className={styles.kenteken}>{resultaat.kenteken}</span>
             )}
+            {resultaat.co2_wltp && (
+              <span className={styles.co2}>{resultaat.co2_wltp} CO₂ WLTP</span>
+            )}
             {resultaat.km_stand && (
               <span className={styles.kmStand}>{resultaat.km_stand}</span>
             )}

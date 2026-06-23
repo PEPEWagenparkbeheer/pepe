@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
       model: analyse.model ?? null,
       kenteken: analyse.kenteken ?? null,
       km_stand: analyse.km_stand ?? null,
+      co2_wltp: analyse.co2_wltp ?? null,
       conclusie: analyse.conclusie ?? null,
       bijzonderheden: analyse.bijzonderheden,
       ruwe_analyse: analyse,
@@ -96,7 +97,7 @@ export async function GET(req: NextRequest) {
   const admin = adminClient();
   const { data, error } = await admin
     .from('toestandsrapporten')
-    .select('id, created_at, bestandsnaam, merk, model, kenteken, km_stand, conclusie, bijzonderheden, door')
+    .select('id, created_at, bestandsnaam, merk, model, kenteken, km_stand, co2_wltp, conclusie, bijzonderheden, door')
     .eq('gearchiveerd', false)
     .order('created_at', { ascending: false })
     .limit(50);

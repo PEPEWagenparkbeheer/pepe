@@ -471,6 +471,7 @@ export interface Toestandsrapport {
   model?: string;
   kenteken?: string;
   km_stand?: string;
+  co2_wltp?: string;
   conclusie?: string;
   bijzonderheden?: RapportBijzonderheid[];
   door?: string;

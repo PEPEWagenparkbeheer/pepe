@@ -7,10 +7,11 @@ import type { RapportBijzonderheid } from '@/types';
 const MODEL = 'claude-sonnet-4-6';
 
 export interface AnalyseResultaat {
-  merk?: string;
-  model?: string;
-  kenteken?: string;
-  km_stand?: string;
+  merk?: string | null;
+  model?: string | null;
+  kenteken?: string | null;
+  km_stand?: string | null;
+  co2_wltp?: string | null;
   conclusie?: string;
   bijzonderheden: RapportBijzonderheid[];
 }
@@ -27,13 +28,15 @@ Analyseer het rapport en beoordeel ALTIJD de volgende 7 punten. Elk punt krijgt 
 6. technisch - Mankementen, foutmeldingen, motor/transmissie/elektrisch.
 7. schadeverleden - Eerdere schades, bij voorkeur bedrag in euro's.
 
-Geef ook: merk, model, kenteken, km-stand indien herkenbaar in het rapport.
+Geef ook: merk, model, kenteken, km-stand en CO2 WLTP gecombineerd (in g/km) indien herkenbaar in het rapport.
 Schrijf een conclusie van 1-2 zinnen met koopadvies of waarschuwing.
 
-BELANGRIJK: Schrijf ALLES in het Nederlands. Vertaal alle tekst uit het rapport — citeer nooit woorden in het Duits, Frans of andere talen. Gebruik Nederlandse woorden voor alle bevindingen.
+BELANGRIJK — TAAL EN LEGE VELDEN:
+- Schrijf ALLES in het Nederlands. Vertaal alle tekst — citeer nooit woorden in andere talen.
+- Gebruik JSON null (geen aanhalingstekens) voor velden die NIET in het rapport staan. Schrijf NOOIT tekst als "Niet vermeld", "Onbekend", "n.v.t." of "Nicht angegeben" als veldwaarde — gebruik dan null.
 
 Retourneer UITSLUITEND geldige JSON zonder markdown of uitleg:
-{"merk":"...","model":"...","kenteken":"...","km_stand":"...","conclusie":"...","bijzonderheden":[{"sleutel":"schade","label":"Schade","status":"goed","tekst":"..."},{"sleutel":"geur","label":"Geur","status":"onbekend","tekst":"..."},{"sleutel":"onderhoud","label":"Onderhoud","status":"goed","tekst":"..."},{"sleutel":"banden","label":"Banden","status":"goed","tekst":"..."},{"sleutel":"winterbanden","label":"Winterbanden","status":"onbekend","tekst":"..."},{"sleutel":"technisch","label":"Technisch","status":"goed","tekst":"..."},{"sleutel":"schadeverleden","label":"Schadeverleden","status":"onbekend","tekst":"..."}]}`;
+{"merk":"...","model":"...","kenteken":null,"km_stand":"...","co2_wltp":"142 g/km","conclusie":"...","bijzonderheden":[{"sleutel":"schade","label":"Schade","status":"goed","tekst":"..."},{"sleutel":"geur","label":"Geur","status":"onbekend","tekst":"..."},{"sleutel":"onderhoud","label":"Onderhoud","status":"goed","tekst":"..."},{"sleutel":"banden","label":"Banden","status":"goed","tekst":"..."},{"sleutel":"winterbanden","label":"Winterbanden","status":"onbekend","tekst":"..."},{"sleutel":"technisch","label":"Technisch","status":"goed","tekst":"..."},{"sleutel":"schadeverleden","label":"Schadeverleden","status":"onbekend","tekst":"..."}]}`;
 
 export async function analyseerToestandsrapport(base64Pdf: string): Promise<AnalyseResultaat> {
   const client = new Anthropic();
@@ -77,10 +80,11 @@ export async function analyseerToestandsrapport(base64Pdf: string): Promise<Anal
   try {
     const parsed = JSON.parse(jsonStr) as Partial<AnalyseResultaat>;
     return {
-      merk: parsed.merk,
-      model: parsed.model,
-      kenteken: parsed.kenteken,
-      km_stand: parsed.km_stand,
+      merk: parsed.merk ?? null,
+      model: parsed.model ?? null,
+      kenteken: parsed.kenteken ?? null,
+      km_stand: parsed.km_stand ?? null,
+      co2_wltp: parsed.co2_wltp ?? null,
       conclusie: parsed.conclusie,
       bijzonderheden: Array.isArray(parsed.bijzonderheden) ? parsed.bijzonderheden : [],
     };
