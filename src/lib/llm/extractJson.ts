@@ -18,7 +18,7 @@ function getClient(): Anthropic {
 }
 
 export interface ExtractJsonOpts {
-  /** Max output tokens (default 500). */
+  /** Max output tokens (default 2000). */
   maxTokens?: number;
 }
 
@@ -35,7 +35,10 @@ export async function extractJson<T = Record<string, unknown>>(
   const client = getClient();
   const completion = await client.messages.create({
     model: MODEL,
-    max_tokens: opts.maxTokens ?? 500,
+    // Default ruim: het grootste schema (InzetdocumentExtract, 30 velden) wordt door
+    // Haiku pretty-printed uitgevoerd en liep tegen de oude limiet van 500 aan, waardoor
+    // de JSON mid-object werd afgekapt → parse-fout → null → all-null fallback.
+    max_tokens: opts.maxTokens ?? 2000,
     temperature: 0,
     system,
     messages: [{ role: 'user', content: user }],
