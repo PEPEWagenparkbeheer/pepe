@@ -232,6 +232,10 @@ export default function ZoekenModal({ record, open, onSluiten, onOpslaan, onVerw
               <input className="fi" type="email" placeholder="klant@email.nl" value={form.email_klant ?? ''} onChange={(e) => stelIn('email_klant', e.target.value)} />
             </div>
             <div className={styles.fg}>
+              <label>Gewenste rijdatum</label>
+              <input className="fi" type="date" value={form.gewenste_rijdatum ?? ''} onChange={(e) => stelIn('gewenste_rijdatum', e.target.value)} />
+            </div>
+            <div className={styles.fg}>
               <label>Opmerkingen</label>
               <input className="fi" placeholder="interne notities..." value={form.opmerkingen ?? ''} onChange={(e) => stelIn('opmerkingen', e.target.value)} />
             </div>

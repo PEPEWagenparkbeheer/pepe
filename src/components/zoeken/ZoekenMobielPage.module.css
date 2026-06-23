@@ -1,0 +1,396 @@
+/* ── Mobiele zoekopdrachten pagina ── */
+
+.pagina {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 16px 16px 100px;
+  touch-action: pan-y;
+  overflow-x: hidden;
+}
+
+/* iOS auto-zoom fix: voorkom inzoomen bij focus (vereist font-size >= 16px) */
+.pagina input,
+.pagina select,
+.pagina textarea {
+  font-size: 16px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+.pagina input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 0;
+  line-height: 1.2;
+}
+
+/* ── Header ── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.headerIcoon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.titel {
+  font-size: 20px;
+  font-weight: 700;
+  flex: 1;
+}
+
+/* ── Sectie-kaarten ── */
+
+.sectie {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.sectieTitel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* ── Veldgroepen ── */
+
+.veldLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.veldRij {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.veldVol {
+  margin-bottom: 10px;
+}
+
+/* ── AI-invoer tabs ── */
+
+.aiTabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.aiTab {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--txt);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.aiTabActief {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ── Spraakknop ── */
+
+.spraakKnop {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px auto;
+  transition: background 0.2s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.spraakKnop:active {
+  transform: scale(0.95);
+}
+
+.spraakKnopActief {
+  background: var(--accent);
+  color: #fff;
+  animation: puls 1s ease-in-out infinite;
+}
+
+@keyframes puls {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(99, 102, 241, 0); }
+}
+
+.spraakStatus {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  min-height: 20px;
+}
+
+.transcript {
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--txt);
+  min-height: 60px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+
+.aiVerwerkKnop {
+  width: 100%;
+  padding: 10px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.aiVerwerkKnop:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Pills ── */
+
+.pillGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pill {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--card-border);
+  background: transparent;
+  color: var(--txt);
+  font-size: 13px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pillActief {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ── Kleurpills ── */
+
+.kleurPill {
+  padding: 6px 10px;
+  border-radius: 20px;
+  border: 1.5px solid var(--card-border);
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--txt);
+}
+
+.kleurPillActief {
+  border-color: var(--accent);
+  background: rgba(99,102,241,0.12);
+}
+
+.kleurDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Voortgang ── */
+
+.voortgangLijst {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.zoekCard {
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.zoekCardHdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.zoekCardKlant {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.zoekCardAuto {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.progPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.progPill {
+  padding: 4px 10px;
+  border-radius: 16px;
+  border: 1.5px solid var(--card-border);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+
+.progPillActief {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.progUitgesteld {
+  border-color: #f59e0b;
+}
+
+.progUitgesteldActief {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #fff;
+}
+
+/* ── Submit ── */
+
+.submitBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-top: 1px solid var(--card-border);
+  z-index: 100;
+}
+
+.submitKnop {
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+  display: block;
+  padding: 14px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.submitKnop:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Succes ── */
+
+.succesScherm {
+  text-align: center;
+  padding: 40px 20px 120px;
+}
+
+.succesIcoon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.succesTitel {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.succesSub {
+  font-size: 15px;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+
+.succesKnop {
+  padding: 12px 32px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 32px;
+}
+
+/* ── Fout melding ── */
+
+.foutMelding {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.35);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #ef4444;
+  margin-bottom: 12px;
+}
+
+/* ── Zoekopdrachten teller ── */
+
+.lijstTitel {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--txt);
+}

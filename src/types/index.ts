@@ -1,4 +1,4 @@
-﻿// ── Zoekopdrachten (Zoeken) ──────────────────────────────────
+// ── Zoekopdrachten (Zoeken) ──────────────────────────────────
 
 export interface Zoekopdracht {
   id: string;
@@ -28,6 +28,8 @@ export interface Zoekopdracht {
   akkoord_datum?: string;
   prio?: boolean;
   uitgesteld?: boolean;
+  created_at?: string;
+  gewenste_rijdatum?: string;
 }
 
 // ── After Sales ──────────────────────────────────────────────

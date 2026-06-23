@@ -141,6 +141,12 @@ export default function ZoekenTable({
                 <td>
                   {r.btw && <span className={styles.btwBadge}>{r.btw}</span>}
                 </td>
+                <td className={styles.datumKolom}>
+                  {r.created_at ? new Date(r.created_at).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'}
+                </td>
+                <td className={styles.datumKolom}>
+                  {r.gewenste_rijdatum ? new Date(r.gewenste_rijdatum + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'}
+                </td>
                 {QUICK_VELDEN.map(({ veld }) => (
                   <td key={veld} className={styles.chkKolom}>
                     <Checkbox

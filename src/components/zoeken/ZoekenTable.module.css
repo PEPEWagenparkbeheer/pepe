@@ -137,3 +137,10 @@
 .akkoordBtn:hover {
   background: rgba(146, 25, 57, 0.08);
 }
+
+.datumKolom {
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--txt-muted, #9ca3af);
+  min-width: 72px;
+}
