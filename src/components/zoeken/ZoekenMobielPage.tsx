@@ -8,9 +8,8 @@ import { BRANDSTOF, KLEUR_MAP, KLEUREN, MERKEN_LIJST, OPTIES, PROG } from '@/lib
 import type { Zoekopdracht } from '@/types';
 import styles from './ZoekenMobielPage.module.css';
 
-/* ── Types ────────────────────────────────────────────────────────────── */
-
 type AiModus = 'spraak' | 'tekst';
+type Scherm = 'lijst' | 'formulier';
 
 interface FormState {
   klant: string;
@@ -37,49 +36,35 @@ const LEEG_FORM: FormState = {
   gewenste_rijdatum: '',
 };
 
-/* ── Helpers ─────────────────────────────────────────────────────────── */
-
-function merkUitAuto(auto: string): { merk: string; model: string } {
-  const m = MERKEN_LIJST.find((mk) => auto.toLowerCase().startsWith(mk.toLowerCase()));
-  if (!m) return { merk: '', model: auto };
-  return { merk: m, model: auto.slice(m.length).trim() };
-}
-
-/* ── Hoofdcomponent ──────────────────────────────────────────────────── */
-
 export default function ZoekenMobielPage() {
   const { user } = useAuth();
-  const { records, add, quickToggle } = useZoekopdrachten();
+  const { records, add, update, quickToggle } = useZoekopdrachten();
 
   const wieZoekt =
     (user?.user_metadata?.full_name as string | undefined) ??
     user?.email?.split('@')[0] ??
     '';
 
-  /* ── Formulier state ── */
+  const [scherm, setScherm] = useState<Scherm>('lijst');
   const [form, setForm] = useState<FormState>(LEEG_FORM);
   const [aiModus, setAiModus] = useState<AiModus>('spraak');
   const [opslaan, setOpslaan] = useState(false);
   const [fout, setFout] = useState('');
-  const [succes, setSucces] = useState(false);
+  const [successFlash, setSuccessFlash] = useState('');
 
-  /* ── AI / tekst invoer ── */
   const [tekst, setTekst] = useState('');
   const [verwerken, setVerwerken] = useState(false);
 
-  /* ── Spraakherkenning ── */
   const [luisteren, setLuisteren] = useState(false);
-  const [transcript, setTranscript] = useState('');
   const [spraakStatus, setSpraakStatus] = useState('');
   const recRef = useRef<SpeechRecognitionInstance | null>(null);
+  const finalRef = useRef('');
 
-  /* ── Mijn lopende zoekopdrachten (gefilterd op wiezoekt) ── */
   const mijne = records.filter(
     (r) => !r.akkoord && !r.uitgesteld &&
       (r.wiezoekt ?? '').toLowerCase() === wieZoekt.toLowerCase()
   );
 
-  /* ── Formulier handlers ── */
   const stelIn = useCallback(<K extends keyof FormState>(k: K, v: FormState[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
   }, []);
@@ -94,10 +79,7 @@ export default function ZoekenMobielPage() {
   }, []);
 
   const toggleOptie = useCallback((k: string) => {
-    setForm((f) => ({
-      ...f,
-      opties: { ...f.opties, [k]: !f.opties[k] },
-    }));
+    setForm((f) => ({ ...f, opties: { ...f.opties, [k]: !f.opties[k] } }));
   }, []);
 
   const toggleBrandstof = useCallback((k: string) => {
@@ -109,7 +91,6 @@ export default function ZoekenMobielPage() {
     }));
   }, []);
 
-  /* ── AI-verwerking (spraak + tekst) ── */
   async function verwerkTekst(invoer: string) {
     if (!invoer.trim()) return;
     setVerwerken(true);
@@ -122,20 +103,29 @@ export default function ZoekenMobielPage() {
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      const { merk, model } = merkUitAuto(`${data.merk ?? ''} ${data.model ?? ''}`.trim());
+      const rawMerk = (data.merk ?? '') as string;
+      const rawModel = (data.model ?? '') as string;
+      const gevondenMerk = MERKEN_LIJST.find(
+        (m) => rawMerk.toLowerCase() === m.toLowerCase() ||
+               rawModel.toLowerCase().startsWith(m.toLowerCase() + ' ')
+      ) ?? rawMerk;
+      const gevondenModel = gevondenMerk
+        ? rawModel.replace(new RegExp(`^${gevondenMerk}\\s*`, 'i'), '').trim() || rawModel
+        : rawModel;
       setForm((f) => ({
         ...f,
-        klant: data.klant || f.klant,
-        merk: merk || f.merk,
-        model: model || f.model,
-        details: data.details || f.details,
-        km: data.km || f.km,
-        jaar: data.jaar || f.jaar,
-        budget: data.budget || f.budget,
-        btw: data.btw || f.btw,
-        kleuren: data.kleuren?.length ? data.kleuren : f.kleuren,
-        brandstof: data.brandstof?.length ? data.brandstof : f.brandstof,
-        opties: Object.keys(data.opties ?? {}).length ? data.opties : f.opties,
+        klant: (data.klant as string) || f.klant,
+        merk: gevondenMerk || f.merk,
+        model: gevondenModel || f.model,
+        details: (data.details as string) || f.details,
+        km: (data.km as string) || f.km,
+        jaar: (data.jaar as string) || f.jaar,
+        budget: (data.budget as string) || f.budget,
+        btw: (data.btw as string) || f.btw,
+        kleuren: (data.kleuren as string[])?.length ? data.kleuren : f.kleuren,
+        brandstof: (data.brandstof as string[])?.length ? data.brandstof : f.brandstof,
+        opties: Object.keys(data.opties ?? {}).length ? (data.opties as Record<string, boolean>) : f.opties,
+        gewenste_rijdatum: (data.beschikbaar_vanaf as string) || f.gewenste_rijdatum,
       }));
     } catch (e) {
       setFout(`AI-verwerking mislukt: ${(e as Error).message}`);
@@ -144,7 +134,6 @@ export default function ZoekenMobielPage() {
     }
   }
 
-  /* ── Spraakherkenning ── */
   function startLuisteren() {
     const SR =
       (typeof window !== 'undefined' &&
@@ -160,32 +149,31 @@ export default function ZoekenMobielPage() {
     rec.continuous = false;
     rec.interimResults = true;
 
+    finalRef.current = '';
+
     rec.onstart = () => {
       setLuisteren(true);
-      setTranscript('');
-      setSpraakStatus('Luisteren… spreek nu.');
+      setSpraakStatus('Luisteren… tik op ⏹ om te stoppen.');
     };
     rec.onresult = (e: SpeechRecognitionEvent) => {
-      let interim = '';
-      let final = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript;
-        else interim += e.results[i][0].transcript;
+      // Overschrijf altijd met de volledige cumulatieve transcriptie (vermijdt dubbelingen)
+      let acc = '';
+      for (let i = 0; i < e.results.length; i++) {
+        acc += e.results[i][0].transcript;
       }
-      setTranscript((prev) => (final ? prev + final : prev + interim));
+      finalRef.current = acc;
     };
     rec.onerror = () => {
       setLuisteren(false);
       setSpraakStatus('Fout bij luisteren. Probeer opnieuw.');
+      recRef.current = null;
     };
     rec.onend = () => {
       setLuisteren(false);
       setSpraakStatus('');
       recRef.current = null;
-      setTranscript((t) => {
-        if (t.trim()) verwerkTekst(t);
-        return t;
-      });
+      const t = finalRef.current.trim();
+      if (t) verwerkTekst(t);
     };
     recRef.current = rec;
     rec.start();
@@ -193,10 +181,8 @@ export default function ZoekenMobielPage() {
 
   function stopLuisteren() {
     recRef.current?.stop();
-    setLuisteren(false);
   }
 
-  /* ── Submit ── */
   async function handleOpslaan() {
     const autoStr = `${form.merk} ${form.model}`.trim();
     if (!form.klant || !autoStr) {
@@ -230,7 +216,12 @@ export default function ZoekenMobielPage() {
         uitgesteld: false,
         prio: false,
       });
-      setSucces(true);
+      const flash = `${form.klant} · ${autoStr}`;
+      setForm(LEEG_FORM);
+      setTekst('');
+      setScherm('lijst');
+      setSuccessFlash(flash);
+      window.scrollTo(0, 0);
     } catch (e) {
       setFout(`Opslaan mislukt: ${(e as Error).message}`);
     } finally {
@@ -238,61 +229,71 @@ export default function ZoekenMobielPage() {
     }
   }
 
-  function nieuwFormulier() {
-    setForm(LEEG_FORM);
-    setTranscript('');
-    setTekst('');
-    setFout('');
-    setSucces(false);
-    window.scrollTo(0, 0);
-  }
+  useEffect(() => {
+    if (!successFlash) return;
+    const t = setTimeout(() => setSuccessFlash(''), 4000);
+    return () => clearTimeout(t);
+  }, [successFlash]);
 
-  /* ── Succes-scherm ────────────────────────────────────────────────── */
-  if (succes) {
+  /* ── LIJST SCHERM ──────────────────────────────────────────────────── */
+  if (scherm === 'lijst') {
     return (
       <div className={styles.pagina}>
-        <div className={styles.succesScherm}>
-          <div className={styles.succesIcoon}>✅</div>
-          <div className={styles.succesTitel}>Zoekopdracht opgeslagen!</div>
-          <div className={styles.succesSub}>
-            {form.klant} · {`${form.merk} ${form.model}`.trim()}
-          </div>
-          <button className={styles.succesKnop} onClick={nieuwFormulier}>
-            + Nieuwe zoekopdracht
-          </button>
+        <div className={styles.lijstHeader}>
+          <span className={styles.headerIcoon}>🔍</span>
+          <span className={styles.titel}>Mijn zoekopdrachten</span>
         </div>
 
-        {/* Voortgang van mijn lopende opdrachten */}
-        {mijne.length > 0 && (
-          <div className={styles.sectie}>
-            <div className={styles.sectieTitel}>Mijn lopende opdrachten</div>
-            <div className={styles.voortgangLijst}>
-              {mijne.map((r) => (
-                <VoortgangKaart key={r.id} record={r} onToggle={quickToggle} />
-              ))}
-            </div>
+        {successFlash && (
+          <div className={styles.successFlash}>✅ Opgeslagen: {successFlash}</div>
+        )}
+
+        <button className={styles.nieuweZoekKnop} onClick={() => {
+          setForm(LEEG_FORM);
+          setTekst('');
+          setFout('');
+          setScherm('formulier');
+          window.scrollTo(0, 0);
+        }}>
+          + Nieuwe zoekopdracht
+        </button>
+
+        {mijne.length === 0 ? (
+          <div className={styles.leegMelding}>Geen lopende opdrachten</div>
+        ) : (
+          <div className={styles.voortgangLijst}>
+            {mijne.map((r) => (
+              <VoortgangKaart
+                key={r.id}
+                record={r}
+                onToggle={(id, veld) => quickToggle(id, veld)}
+                onUpdate={async (id, opmerkingen) => {
+                  const rec = records.find((x) => x.id === id);
+                  if (rec) await update({ ...rec, opmerkingen });
+                }}
+              />
+            ))}
           </div>
         )}
       </div>
     );
   }
 
-  /* ── Hoofd-formulier ─────────────────────────────────────────────── */
+  /* ── FORMULIER SCHERM ──────────────────────────────────────────────── */
   return (
     <div className={styles.pagina}>
-      {/* Header */}
-      <div className={styles.header}>
-        <span className={styles.headerIcoon}>🔍</span>
-        <span className={styles.titel}>Nieuwe zoekopdracht</span>
+      <div className={styles.formulierHeader}>
+        <button className={styles.terugKnop} onClick={() => setScherm('lijst')}>
+          ← Terug
+        </button>
+        <span className={styles.formulierTitel}>Nieuwe zoekopdracht</span>
       </div>
 
-      {/* Foutmelding */}
       {fout && <div className={styles.foutMelding}>{fout}</div>}
 
-      {/* ── AI-invoer ── */}
+      {/* AI-invoer */}
       <div className={styles.sectie}>
         <div className={styles.sectieTitel}>AI-invoer</div>
-
         <div className={styles.aiTabs}>
           <button
             className={`${styles.aiTab} ${aiModus === 'spraak' ? styles.aiTabActief : ''}`}
@@ -310,35 +311,28 @@ export default function ZoekenMobielPage() {
 
         {aiModus === 'spraak' ? (
           <>
-            <div className={styles.spraakStatus}>
-              {spraakStatus || (luisteren ? 'Luisteren…' : 'Druk op de microfoon en spreek de zoekopdracht in.')}
-            </div>
+            <p className={styles.spraakStatus}>
+              {verwerken
+                ? '⏳ Verwerken…'
+                : luisteren
+                  ? 'Luisteren… tik op ⏹ om te stoppen.'
+                  : spraakStatus || 'Druk op de microfoon en spreek de zoekopdracht in.'}
+            </p>
             <button
               className={`${styles.spraakKnop} ${luisteren ? styles.spraakKnopActief : ''}`}
               onClick={luisteren ? stopLuisteren : startLuisteren}
+              disabled={verwerken}
               aria-label={luisteren ? 'Stop luisteren' : 'Start spraakherkenning'}
             >
-              {luisteren ? '⏹' : '🎙'}
+              {verwerken ? '⏳' : luisteren ? '⏹' : '🎙'}
             </button>
-            {transcript && (
-              <>
-                <div className={styles.transcript}>{transcript}</div>
-                <button
-                  className={styles.aiVerwerkKnop}
-                  disabled={verwerken}
-                  onClick={() => verwerkTekst(transcript)}
-                >
-                  {verwerken ? 'Verwerken…' : '✨ Formulier invullen'}
-                </button>
-              </>
-            )}
           </>
         ) : (
           <>
             <textarea
               className="fi"
               rows={4}
-              placeholder="Plak of typ de zoekopdracht hier… bijv. 'Klant Jansen zoekt BMW 5-serie, benzine, max €45.000, bouwjaar 2021+'"
+              placeholder="Plak of typ de zoekopdracht hier…"
               value={tekst}
               onChange={(e) => setTekst(e.target.value)}
               style={{ width: '100%', marginBottom: 10, resize: 'vertical' }}
@@ -354,7 +348,7 @@ export default function ZoekenMobielPage() {
         )}
       </div>
 
-      {/* ── Auto ── */}
+      {/* Auto */}
       <div className={styles.sectie}>
         <div className={styles.sectieTitel}>Auto</div>
         <div className={styles.veldVol}>
@@ -384,7 +378,7 @@ export default function ZoekenMobielPage() {
         <div className={styles.veldVol}>
           <label className={styles.veldLabel}>Brandstof</label>
           <div className={styles.pillGrid}>
-            {BRANDSTOF.map(({ k, l }) => (
+            {BRANDSTOF.map(({ k, l }: { k: string; l: string }) => (
               <button
                 key={k}
                 className={`${styles.pill} ${form.brandstof.includes(k) ? styles.pillActief : ''}`}
@@ -422,7 +416,7 @@ export default function ZoekenMobielPage() {
         <div className={styles.veldVol}>
           <label className={styles.veldLabel}>Gewenste kleuren</label>
           <div className={styles.pillGrid}>
-            {KLEUREN.map((k) => (
+            {KLEUREN.map((k: string) => (
               <button
                 key={k}
                 className={`${styles.kleurPill} ${form.kleuren.includes(k) ? styles.kleurPillActief : ''}`}
@@ -440,7 +434,7 @@ export default function ZoekenMobielPage() {
         <div className={styles.veldVol}>
           <label className={styles.veldLabel}>Opties</label>
           <div className={styles.pillGrid}>
-            {OPTIES.map(({ k, l }) => (
+            {OPTIES.map(({ k, l }: { k: string; l: string }) => (
               <button
                 key={k}
                 className={`${styles.pill} ${form.opties[k] ? styles.pillActief : ''}`}
@@ -453,7 +447,7 @@ export default function ZoekenMobielPage() {
         </div>
       </div>
 
-      {/* ── Klant ── */}
+      {/* Klant */}
       <div className={styles.sectie}>
         <div className={styles.sectieTitel}>Klant</div>
         <div className={styles.veldVol}>
@@ -479,7 +473,7 @@ export default function ZoekenMobielPage() {
         </div>
       </div>
 
-      {/* ── Budget & datum ── */}
+      {/* Budget & planning */}
       <div className={styles.sectie}>
         <div className={styles.sectieTitel}>Budget & planning</div>
         <div className={styles.veldRij}>
@@ -509,18 +503,17 @@ export default function ZoekenMobielPage() {
           </div>
         </div>
         <div className={styles.veldVol}>
-          <label className={styles.veldLabel}>Gewenste rijdatum</label>
+          <label className={styles.veldLabel}>Beschikbaar vanaf</label>
           <input
-            className="fi"
+            className={`fi ${styles.datumInput}`}
             type="date"
             value={form.gewenste_rijdatum}
             onChange={(e) => stelIn('gewenste_rijdatum', e.target.value)}
-            style={{ width: '100%' }}
           />
         </div>
       </div>
 
-      {/* ── Details ── */}
+      {/* Details */}
       <div className={styles.sectie}>
         <div className={styles.sectieTitel}>Details & opmerkingen</div>
         <div className={styles.veldVol}>
@@ -546,19 +539,6 @@ export default function ZoekenMobielPage() {
         </div>
       </div>
 
-      {/* ── Mijn lopende opdrachten ── */}
-      {mijne.length > 0 && (
-        <div className={styles.sectie}>
-          <div className={styles.sectieTitel}>Mijn lopende opdrachten — voortgang</div>
-          <div className={styles.voortgangLijst}>
-            {mijne.map((r) => (
-              <VoortgangKaart key={r.id} record={r} onToggle={quickToggle} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Fixed submit bar ── */}
       <div className={styles.submitBar}>
         <button
           className={styles.submitKnop}
@@ -572,15 +552,30 @@ export default function ZoekenMobielPage() {
   );
 }
 
-/* ── Voortgang kaart sub-component ──────────────────────────────────── */
+/* ── Voortgang kaart ─────────────────────────────────────────────────── */
 
 function VoortgangKaart({
   record,
   onToggle,
+  onUpdate,
 }: {
   record: Zoekopdracht;
   onToggle: (id: string, veld: keyof Zoekopdracht) => Promise<void>;
+  onUpdate: (id: string, opmerkingen: string) => Promise<void>;
 }) {
+  const [notitie, setNotitie] = useState(record.opmerkingen ?? '');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setNotitie(record.opmerkingen ?? '');
+  }, [record.opmerkingen]);
+
+  function handleNotitie(val: string) {
+    setNotitie(val);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => onUpdate(record.id, val), 700);
+  }
+
   return (
     <div className={styles.zoekCard}>
       <div className={styles.zoekCardHdr}>
@@ -590,7 +585,7 @@ function VoortgangKaart({
         </div>
       </div>
       <div className={styles.progPills}>
-        {PROG.map(({ k, l }) => {
+        {PROG.map(({ k, l }: { k: string; l: string }) => {
           const aan = !!record[k as keyof Zoekopdracht];
           const isUitgesteld = k === 'uitgesteld';
           return (
@@ -606,11 +601,18 @@ function VoortgangKaart({
                 .join(' ')}
               onClick={() => onToggle(record.id, k as keyof Zoekopdracht)}
             >
-              {l}
+              {isUitgesteld && '⏸ '}{l}
             </button>
           );
         })}
       </div>
+      <textarea
+        className={styles.notitieVeld}
+        placeholder="Notitie (bijv. dealer gebeld, prijs besproken…)"
+        value={notitie}
+        onChange={(e) => handleNotitie(e.target.value)}
+        rows={2}
+      />
     </div>
   );
 }

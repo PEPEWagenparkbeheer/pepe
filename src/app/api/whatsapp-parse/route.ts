@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
     const tekst = body?.tekst;
     if (!tekst?.trim()) return NextResponse.json({ error: 'Geen tekst' }, { status: 400 });
 
+    const vandaag = new Date().toISOString().slice(0, 10);
     const system = `Je bent een assistent voor een autohandelaar. Analyseer een WhatsApp bericht van een klant en extraheer de zoekopdracht. Antwoord ALLEEN met geldige JSON, geen extra tekst.
 
 Velden:
@@ -50,9 +51,10 @@ Velden:
 - opties: object met true/false voor deze opties (alleen true als duidelijk gewenst):
   ${OPTIES_SLEUTELS.map((k) => `"${k}" (${OPTIES_LABELS[k]})`).join(', ')}
 - details: vrije tekst met extra wensen, uitvoeringseisen, bijzonderheden (string, of "")
+- beschikbaar_vanaf: gewenste beschikbaarheidsdatum als ISO datum (YYYY-MM-DD), of "" als niet vermeld. Vandaag is ${vandaag}. Vertaal vage uitdrukkingen naar het eerstvolgende logische datum: "eind november" → dit of volgend jaar november 30, "begin december" → december 1, "half oktober" → oktober 15, "volgend jaar" → volgend jaar januari 1, enz.
 
 Voorbeeld output:
-{"klant":"Burhan","merk":"Volkswagen","model":"Sharan of Tiguan","km":"130000","jaar":"","budget":"20000-25000","btw":"","kleuren":["Zwart","Antraciet"],"brandstof":["benzine"],"opties":{"automaat":true},"details":"Luxe uitvoering, geen R line"}`;
+{"klant":"Burhan","merk":"Volkswagen","model":"Sharan of Tiguan","km":"130000","jaar":"","budget":"20000-25000","btw":"","kleuren":["Zwart","Antraciet"],"brandstof":["benzine"],"opties":{"automaat":true},"details":"Luxe uitvoering, geen R line","beschikbaar_vanaf":""}`;
 
     const parsed = await extractJson(system, `BERICHT:\n${tekst}`, { maxTokens: 512 });
     if (!parsed) return NextResponse.json({ error: 'AI gaf geen geldig antwoord' }, { status: 422 });

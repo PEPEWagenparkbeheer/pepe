@@ -20,8 +20,9 @@
 .pagina input[type="date"] {
   -webkit-appearance: none;
   appearance: none;
-  min-height: 0;
-  line-height: 1.2;
+  min-height: 44px;
+  line-height: 1.4;
+  padding: 6px 10px !important;
 }
 
 /* ── Header ── */
@@ -393,4 +394,101 @@
   font-weight: 700;
   margin-bottom: 10px;
   color: var(--txt);
+}
+
+/* ── Lijst scherm ── */
+
+.lijstHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.nieuweZoekKnop {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  background: #8b1a2a;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.nieuweZoekKnop:active {
+  opacity: 0.85;
+}
+
+.successFlash {
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.4);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #16a34a;
+  margin-bottom: 14px;
+}
+
+.leegMelding {
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  padding: 40px 20px;
+}
+
+/* ── Formulier scherm header ── */
+
+.formulierHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.terugKnop {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: #8b1a2a;
+  cursor: pointer;
+  padding: 4px 0;
+  font-weight: 600;
+}
+
+.formulierTitel {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--txt);
+}
+
+/* ── Datum input fix ── */
+
+.datumInput {
+  display: block;
+  width: 100%;
+  height: 44px;
+}
+
+/* ── Notitie veld in voortgang kaart ── */
+
+.notitieVeld {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--txt);
+  resize: none;
+  background: #fafafa;
+  box-sizing: border-box;
+}
+
+.notitieVeld::placeholder {
+  color: #bbb;
 }
