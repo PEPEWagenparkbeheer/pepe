@@ -3,9 +3,9 @@
 // als documentenstroom approve/inzetbevestiging.ts (PDF-inbox).
 import type { InzetdocumentExtract } from '@/lib/brein/inzetdocument';
 import {
-  searchContactByEmail, searchContactByName, createContact,
+  searchContactByEmail, searchContactByName, createContact, updateContact,
   findCompany, searchCompanyByKvk, createCompany, updateCompany,
-  searchDealByName, searchDealByKenteken, createDeal, updateDealFields,
+  searchDealByName, searchDealByContractnummer, searchDealByKenteken, createDeal, updateDealFields,
   associateDealContact, associateDealCompany, associateContactCompany,
   uploadFile, createNoteOnDeal,
   DEALSTAGE_RIJDEND,
@@ -57,7 +57,17 @@ export async function koppelInzet(
       log.push('Geen berijdergegevens gevonden om contact aan te maken.');
     }
   } else {
-    log.push(`Contact gevonden: ${contactId}`);
+    // Bestaande berijder gematcht → bijwerken met de bekende (niet-lege) gegevens
+    await updateContact(contactId, {
+      email: email ?? undefined,
+      firstname: voornaam ?? undefined,
+      lastname: achternaam ?? undefined,
+      phone: ext.berijder_telefoon ?? undefined,
+      address: ext.berijder_adres ?? undefined,
+      city: ext.berijder_stad ?? undefined,
+      zip: ext.berijder_postcode ?? undefined,
+    });
+    log.push(`Contact gevonden en bijgewerkt: ${contactId}`);
   }
 
   // ── BEDRIJF (Company) ────────────────────────────────────────
@@ -69,6 +79,7 @@ export async function koppelInzet(
         name: ext.bedrijf_naam,
         postcode: ext.bedrijf_postcode,
         plaats: ext.bedrijf_stad,
+        adres: ext.bedrijf_adres,
       });
     }
     if (!companyId) {
@@ -81,15 +92,14 @@ export async function koppelInzet(
       });
       log.push(`Bedrijf aangemaakt: ${ext.bedrijf_naam}`);
     } else {
-      if (ext.bedrijf_kvk || ext.bedrijf_adres) {
-        await updateCompany(companyId, {
-          kvk: ext.bedrijf_kvk ?? undefined,
-          address: ext.bedrijf_adres ?? undefined,
-          city: ext.bedrijf_stad ?? undefined,
-          zip: ext.bedrijf_postcode ?? undefined,
-        });
-      }
-      log.push(`Bedrijf gevonden: ${ext.bedrijf_naam} (${companyId})`);
+      // Bestaand bedrijf gematcht → bijwerken met de bekende (niet-lege) gegevens
+      await updateCompany(companyId, {
+        kvk: ext.bedrijf_kvk ?? undefined,
+        address: ext.bedrijf_adres ?? undefined,
+        city: ext.bedrijf_stad ?? undefined,
+        zip: ext.bedrijf_postcode ?? undefined,
+      });
+      log.push(`Bedrijf gevonden en bijgewerkt: ${ext.bedrijf_naam} (${companyId})`);
     }
   }
 
@@ -100,10 +110,13 @@ export async function koppelInzet(
   let dealViaContractnummer = false;
 
   if (ext.contractnummer) {
+    // 1. Deal aangemaakt door bestelbevestiging ("InBestelling [contractnummer]")
     dealId = await searchDealByName(`InBestelling ${ext.contractnummer}`);
+    // 2. Anders: deal met dit contractnummer op de property (ook al is de naam al een kenteken)
+    if (!dealId) dealId = await searchDealByContractnummer(ext.contractnummer);
     if (dealId) {
       dealViaContractnummer = true;
-      log.push(`Deal gevonden via contractnummer: InBestelling ${ext.contractnummer}`);
+      log.push(`Deal gevonden via contractnummer ${ext.contractnummer}`);
     }
   }
   if (!dealId && ext.kenteken) {
@@ -130,7 +143,7 @@ export async function koppelInzet(
     if (ext.inzetdatum) dealProperties.inzetdatum = ext.inzetdatum;
     if (einddatum) dealProperties.verwachte_einddatum = einddatum;
     if (ext.leasemaatschappij_naam) dealProperties.leasemaatschappij_goed = ext.leasemaatschappij_naam;
-    if (ext.jaarkilometrage != null) dealProperties.jaarkilometrage = String(ext.jaarkilometrage);
+    if (ext.jaarkilometrage != null) dealProperties.kilometers_per_jaar = String(ext.jaarkilometrage);
 
     if (dealId) {
       await updateDealFields(dealId, dealProperties);

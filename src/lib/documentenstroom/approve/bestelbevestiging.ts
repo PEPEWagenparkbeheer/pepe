@@ -4,8 +4,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   findCompany, createCompany, searchCompanyByKvk, updateCompany,
-  searchContactByEmail, searchContactByName, createContact,
-  searchDealByName, createDeal, updateDealFields,
+  searchContactByEmail, searchContactByName, createContact, updateContact,
+  searchDealByName, searchDealByContractnummer, createDeal, updateDealFields,
   associateDealCompany, associateDealContact, associateContactCompany,
   uploadFile, createNoteOnDeal,
   DEALSTAGE_IN_BESTELLING,
@@ -30,69 +30,73 @@ export async function approveBestelbevestiging(
   if (!contractnummer) throw new Error('Contractnummer ontbreekt');
 
   const kvkData = factuur.kvk ? await kvkOpzoeken(String(factuur.kvk)) : null;
+  const ext = factuur.extracted_data as Record<string, unknown> | null;
 
-  // ── Company ───────────────────────────────────────
+  // ── Company: eerst matchen (KVK → naam+adres), pas anders aanmaken ──
   let companyId: string | null = null;
   if (factuur.bedrijfsnaam) {
     const naam = String(factuur.bedrijfsnaam);
+    // Beste bekende NAW (KVK-verrijking heeft voorrang op het document)
+    const adres = kvkData?.straat ?? (factuur.straat ? String(factuur.straat) : undefined);
+    const zip = kvkData?.postcode ?? (factuur.postcode ? String(factuur.postcode) : undefined);
+    const city = kvkData?.plaats ?? (factuur.plaats ? String(factuur.plaats) : undefined);
+    const country = kvkData?.land ?? (factuur.land ? String(factuur.land) : undefined);
+
     if (factuur.kvk) companyId = await searchCompanyByKvk(String(factuur.kvk));
     if (!companyId) {
-      companyId = await findCompany({
-        name: naam,
-        postcode: (factuur.postcode ?? kvkData?.postcode) as string | undefined,
-        plaats: (factuur.plaats ?? kvkData?.plaats) as string | undefined,
-      });
+      companyId = await findCompany({ name: naam, postcode: zip, plaats: city, adres });
     }
     if (!companyId) {
       companyId = await createCompany({
         name: naam,
         kvk: factuur.kvk ? String(factuur.kvk) : undefined,
-        address: kvkData?.straat ?? (factuur.straat ? String(factuur.straat) : undefined),
-        zip: kvkData?.postcode ?? (factuur.postcode ? String(factuur.postcode) : undefined),
-        city: kvkData?.plaats ?? (factuur.plaats ? String(factuur.plaats) : undefined),
-        country: kvkData?.land ?? (factuur.land ? String(factuur.land) : undefined),
-        domain: kvkData?.website,
+        address: adres, zip, city, country, domain: kvkData?.website,
       });
-    } else if (kvkData) {
+    } else {
+      // Bestaand bedrijf gematcht → bijwerken met de bekende (niet-lege) gegevens
       await updateCompany(companyId, {
         kvk: factuur.kvk ? String(factuur.kvk) : undefined,
-        address: kvkData.straat,
-        zip: kvkData.postcode,
-        city: kvkData.plaats,
-        country: kvkData.land,
-        domain: kvkData.website,
+        address: adres, zip, city, country, domain: kvkData?.website,
       });
     }
   }
 
-  // ── Contact ───────────────────────────────────────
+  // ── Contact (berijder): eerst matchen op email, dan naam ──
+  const [voor, ...rest] = String(factuur.berijder_naam ?? '').trim().split(/\s+/);
+  const berijderInput = {
+    email: factuur.berijder_email ? String(factuur.berijder_email) : undefined,
+    firstname: voor || undefined,
+    lastname: rest.join(' ') || undefined,
+    phone: ext?.berijder_telefoon ? String(ext.berijder_telefoon) : undefined,
+    address: ext?.berijder_adres ? String(ext.berijder_adres) : undefined,
+    zip: ext?.berijder_postcode ? String(ext.berijder_postcode) : undefined,
+    city: ext?.berijder_stad ? String(ext.berijder_stad) : undefined,
+  };
+
   let contactId: string | null = null;
   if (factuur.berijder_email) {
     contactId = await searchContactByEmail(String(factuur.berijder_email));
   }
-  if (!contactId && factuur.berijder_naam) {
-    const [voor, ...rest] = String(factuur.berijder_naam).trim().split(/\s+/);
-    if (voor && rest.length) contactId = await searchContactByName(voor, rest.join(' '));
+  if (!contactId && voor && rest.length) {
+    contactId = await searchContactByName(voor, rest.join(' '));
   }
   if (!contactId && (factuur.berijder_email || factuur.berijder_naam)) {
-    const [voor, ...rest] = String(factuur.berijder_naam ?? '').trim().split(/\s+/);
-    contactId = await createContact({
-      email: factuur.berijder_email ? String(factuur.berijder_email) : undefined,
-      firstname: voor || undefined,
-      lastname: rest.join(' ') || undefined,
-    });
+    contactId = await createContact(berijderInput);
+  } else if (contactId) {
+    // Bestaande berijder gematcht → bijwerken met de bekende (niet-lege) gegevens
+    await updateContact(contactId, berijderInput);
   }
 
   // Extra velden uit extracted_data JSON
-  const ext = factuur.extracted_data as Record<string, unknown> | null;
   const leverendeDealerUitDoc = ext?.leverende_dealer ? String(ext.leverende_dealer) : undefined;
   const leasebedragUitDoc = ext?.leasebedrag_per_maand != null ? Number(ext.leasebedrag_per_maand) : null;
   const verwachteLeverdatumUitDoc = ext?.verwachte_leverdatum ? String(ext.verwachte_leverdatum) : undefined;
   const fiscaleWaarde = ext?.fiscale_waarde;
 
-  // ── Deal: InBestelling [contractnummer] ──────────
+  // ── Deal: matchen op contractnummer (naam óf contractnummer_lease) ──
   const dealNaam = `InBestelling ${contractnummer}`;
   let dealId = await searchDealByName(dealNaam);
+  if (!dealId) dealId = await searchDealByContractnummer(contractnummer);
   if (!dealId) {
     dealId = await createDeal({
       kenteken: contractnummer,
@@ -109,14 +113,14 @@ export async function approveBestelbevestiging(
   if (factuur.brandstof) dealProps.brandstof = String(factuur.brandstof);
   if (factuur.type_aanschaf) dealProps.type_aanschaf = String(factuur.type_aanschaf);
   if (factuur.looptijd_maanden != null) dealProps.looptijd = String(factuur.looptijd_maanden);
-  if (factuur.jaarkilometrage != null) dealProps.jaarkilometrage = String(factuur.jaarkilometrage);
+  if (factuur.jaarkilometrage != null) dealProps.kilometers_per_jaar = String(factuur.jaarkilometrage);
   if (factuur.leasemaatschappij) dealProps.leasemaatschappij_goed = String(factuur.leasemaatschappij);
   const bandenMapped = mapBanden(factuur.banden ? String(factuur.banden) : null);
   if (bandenMapped) dealProps.winterbanden_in_contract = bandenMapped;
   if (fiscaleWaarde != null) dealProps.fiscale_waarde = String(fiscaleWaarde);
   dealProps.contractnummer_lease = contractnummer;
   if (leverendeDealerUitDoc) dealProps.leverancier = leverendeDealerUitDoc;
-  if (leasebedragUitDoc != null) dealProps.leasebedrag_per_maand_excl_btw = String(leasebedragUitDoc);
+  if (leasebedragUitDoc != null) dealProps.leasebedrag_per_maand_excl__btw = String(leasebedragUitDoc);
   if (verwachteLeverdatumUitDoc) dealProps.verwachte_leverdatum = verwachteLeverdatumUitDoc;
 
   if (Object.keys(dealProps).length) {

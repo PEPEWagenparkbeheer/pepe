@@ -79,6 +79,13 @@ function normalizeZip(s: string): string {
   return s.toUpperCase().replace(/\s+/g, '');
 }
 
+// Huisnummer uit een adresregel ("Driemanssteeweg 62" → "62", "Oemstraat 3a" → "3").
+// Bedoeld als extra match-signaal: zelfde postcode + huisnummer = vrijwel zeker hetzelfde adres.
+function huisnummer(adres?: string | null): string {
+  const m = (adres ?? '').match(/(\d+)\s*[a-zA-Z]?\s*$/) ?? (adres ?? '').match(/\b(\d+)\b/);
+  return m ? m[1] : '';
+}
+
 function namesSimilar(a: string, b: string): boolean {
   const na = normalizeName(a);
   const nb = normalizeName(b);
@@ -95,13 +102,14 @@ interface CompanyMatchInput {
   name: string;
   postcode?: string | null;
   plaats?: string | null;
+  adres?: string | null;   // straat + huisnummer
 }
 
 // Zoekt eerst exact op naam; vindt niets → free-text query op naam +
-// scoort kandidaten op genormaliseerde naam en (indien beschikbaar)
-// matching postcode/plaats. Voorkomt duplicaten bij spelling-variaties
-// als "Job's Bemiddeling B.V." vs "Jobs Bemiddeling BV".
-export async function findCompany({ name, postcode, plaats }: CompanyMatchInput): Promise<string | null> {
+// scoort kandidaten op genormaliseerde naam, postcode/plaats en huisnummer.
+// Voorkomt duplicaten bij spelling-variaties ("Job's Bemiddeling B.V." vs
+// "Jobs Bemiddeling BV") én bij naamsverschillen op hetzelfde adres.
+export async function findCompany({ name, postcode, plaats, adres }: CompanyMatchInput): Promise<string | null> {
   if (!name?.trim()) return null;
 
   const exact = await searchCompanyByName(name);
@@ -120,10 +128,11 @@ export async function findCompany({ name, postcode, plaats }: CompanyMatchInput)
   );
 
   const kandidaten = data.results ?? [];
+  const zip = postcode ? normalizeZip(postcode) : '';
+  const nr = huisnummer(adres);
 
   // 1. Naam similar + matching postcode → zeer zekere match
-  if (postcode) {
-    const zip = normalizeZip(postcode);
+  if (zip) {
     for (const c of kandidaten) {
       const p = c.properties ?? {};
       if (p.zip && normalizeZip(p.zip) === zip && namesSimilar(p.name ?? '', name)) {
@@ -132,14 +141,32 @@ export async function findCompany({ name, postcode, plaats }: CompanyMatchInput)
     }
   }
 
-  // 2. Naam similar — altijd als fallback, ook als postcode aanwezig maar niet matcht
+  // 2. Postcode + huisnummer match → zelfde adres, vrijwel zeker dezelfde klant
+  //    (vangt naamsverschillen zoals "Fues CompleX" vs "Fues Complex Holding")
+  if (zip && nr) {
+    for (const c of kandidaten) {
+      const p = c.properties ?? {};
+      if (p.zip && normalizeZip(p.zip) === zip && huisnummer(p.address) === nr) {
+        return c.id;
+      }
+    }
+  }
+
+  // 3. Naam similar — altijd als fallback, ook als postcode aanwezig maar niet matcht
   for (const c of kandidaten) {
     if (namesSimilar(c.properties?.name ?? '', name)) return c.id;
   }
 
-  // 3. Exacte postcode + plaats match (zelfde adres = zelfde klant)
-  if (postcode && plaats) {
-    const zip = normalizeZip(postcode);
+  // 4. Naam similar + huisnummer (zonder postcode-info) → match op gedeeltelijk adres
+  if (nr) {
+    for (const c of kandidaten) {
+      const p = c.properties ?? {};
+      if (huisnummer(p.address) === nr && namesSimilar(p.name ?? '', name)) return c.id;
+    }
+  }
+
+  // 5. Exacte postcode + plaats match (zelfde adres = zelfde klant)
+  if (zip && plaats) {
     const city = plaats.toLowerCase().trim();
     for (const c of kandidaten) {
       const p = c.properties ?? {};
@@ -282,6 +309,28 @@ export async function createContact(input: ContactInput): Promise<string> {
   return data.id;
 }
 
+/**
+ * Werkt een BESTAAND contact (berijder) bij: overschrijft alleen de meegegeven,
+ * niet-lege velden (laat ontbrekende velden ongemoeid, wist dus nooit data).
+ */
+export async function updateContact(id: string, input: ContactInput): Promise<void> {
+  if (!id?.trim()) return;
+  const properties: Record<string, string> = {};
+  if (input.email) properties.email = input.email.trim().toLowerCase();
+  if (input.firstname) properties.firstname = input.firstname;
+  if (input.lastname) properties.lastname = input.lastname;
+  if (input.phone) properties.phone = input.phone;
+  if (input.address) properties.address = input.address;
+  if (input.city) properties.city = input.city;
+  if (input.zip) properties.zip = input.zip;
+  if (input.country) properties.country = input.country;
+  if (Object.keys(properties).length === 0) return;
+  await hsFetch(
+    `${HS_BASE}/crm/v3/objects/contacts/${id}`,
+    { method: 'PATCH', body: JSON.stringify({ properties }) },
+  );
+}
+
 // ── Deal (= auto, dealname = kenteken) ──────────────────────────
 
 export interface DealInput {
@@ -315,6 +364,26 @@ export async function searchDealByName(naam: string): Promise<string | null> {
         properties: ['dealname'],
         filterGroups: [{
           filters: [{ propertyName: 'dealname', operator: 'EQ', value: naam.trim() }],
+        }],
+      }),
+    },
+  );
+  return data.results?.[0]?.id ?? null;
+}
+
+/** Zoekt een bestaande deal op het lease-/bestelcontractnummer (property contractnummer_lease). */
+export async function searchDealByContractnummer(contractnummer: string): Promise<string | null> {
+  const c = String(contractnummer ?? '').trim();
+  if (!c) return null;
+  const data = await hsFetch<{ results?: { id: string }[] }>(
+    `${HS_BASE}/crm/v3/objects/deals/search`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        limit: 1,
+        properties: ['contractnummer_lease'],
+        filterGroups: [{
+          filters: [{ propertyName: 'contractnummer_lease', operator: 'EQ', value: c }],
         }],
       }),
     },
@@ -427,9 +496,14 @@ function enumNorm(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-async function matchEnum(property: string, waarde: string): Promise<string> {
+// Matcht vrije tekst op een geldige enum-optie. Retourneert `null` als er geen
+// betrouwbare match is — de caller laat de property dan wég i.p.v. een ongeldige
+// waarde te sturen (HubSpot geeft anders een 400 "was not one of the allowed options").
+async function matchEnum(property: string, waarde: string): Promise<string | null> {
   const opties = await fetchEnumOpties(property);
-  if (!opties.length) return waarde;
+  // Kunnen we de opties niet ophalen, dan durven we de waarde niet te valideren →
+  // niet wegschrijven (voorkomt 400's bij tijdelijke API-fouten).
+  if (!opties.length) return null;
   const zoek = enumNorm(waarde);
   const exact = opties.find((o) => enumNorm(o.label) === zoek || enumNorm(o.value) === zoek);
   if (exact) return exact.value;
@@ -438,8 +512,8 @@ async function matchEnum(property: string, waarde: string): Promise<string> {
     return lbl.includes(zoek) || zoek.includes(lbl);
   });
   if (bevat) return bevat.value;
-  console.warn(`matchEnum(${property}): geen match voor "${waarde}"`);
-  return waarde;
+  console.warn(`matchEnum(${property}): geen geldige optie voor "${waarde}" — property wordt overgeslagen`);
+  return null;
 }
 
 /** PATCH losse velden op een deal (= voertuig/contract). Leeg object = no-op. */
@@ -449,16 +523,16 @@ export async function updateDealFields(
 ): Promise<void> {
   const id = String(dealId ?? '').trim();
   if (!id || Object.keys(properties).length === 0) return;
-  // Match enum-properties automatisch naar geldige HubSpot-waarden
-  const toMatch: Record<string, string> = {};
-  if (properties.leasemaatschappij_goed) toMatch.leasemaatschappij_goed = properties.leasemaatschappij_goed;
-  if (properties.type_aanschaf) toMatch.type_aanschaf = properties.type_aanschaf;
-  if (Object.keys(toMatch).length) {
-    const matched = Object.fromEntries(
-      await Promise.all(Object.entries(toMatch).map(async ([k, v]) => [k, await matchEnum(k, v)])),
-    );
-    properties = { ...properties, ...matched };
+  // Match enum-properties automatisch naar geldige HubSpot-waarden.
+  // Geen geldige match → property uit de payload verwijderen (anders 400).
+  properties = { ...properties };
+  for (const k of ['leasemaatschappij_goed', 'type_aanschaf'] as const) {
+    if (!properties[k]) continue;
+    const m = await matchEnum(k, properties[k]);
+    if (m) properties[k] = m;
+    else delete properties[k];
   }
+  if (Object.keys(properties).length === 0) return;
   await hsFetch(
     `${HS_BASE}/crm/v3/objects/deals/${id}`,
     { method: 'PATCH', body: JSON.stringify({ properties }) },
@@ -603,8 +677,14 @@ export async function createDeal(input: DealInput): Promise<string> {
   if (input.kilometerstand_huidig != null) {
     properties.kilometerstand_huidig = String(input.kilometerstand_huidig);
   }
-  if (input.leasemaatschappij) properties.leasemaatschappij_goed = await matchEnum('leasemaatschappij_goed', input.leasemaatschappij);
-  if (properties.type_aanschaf) properties.type_aanschaf = await matchEnum('type_aanschaf', properties.type_aanschaf);
+  if (input.leasemaatschappij) {
+    const m = await matchEnum('leasemaatschappij_goed', input.leasemaatschappij);
+    if (m) properties.leasemaatschappij_goed = m;
+  }
+  if (properties.type_aanschaf) {
+    const m = await matchEnum('type_aanschaf', properties.type_aanschaf);
+    if (m) properties.type_aanschaf = m; else delete properties.type_aanschaf;
+  }
   if (input.verwachte_einddatum) properties.verwachte_einddatum = input.verwachte_einddatum;
 
   const data = await hsFetch<{ id: string }>(
