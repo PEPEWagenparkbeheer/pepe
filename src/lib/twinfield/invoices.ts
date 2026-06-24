@@ -6,6 +6,10 @@ const DEBITEUR_REGEX = /^1\d{4}$/;
 const DEBITEUR_START = 10001;
 const HS_PROP = 'twinfield_debiteur_code';
 
+// Grootboekrekening voor partner-kostendoorbelasting ("Omzet doorbelasting partnerkosten").
+// Voor toekomstige factuurtypes (bijv. voertuigen) hier een eigen rekening toevoegen.
+const GROOTBOEK_DOORBELASTING = '8054';
+
 export async function findOrCreateDebtor(
   klant: string,
   hubspotDealId?: string,
@@ -86,15 +90,22 @@ export async function createSalesInvoice(
   const vatCode = input.btw_pct === 21 ? 'VH' : 'VN';
   const headerText = `Doorbelasting partnerkosten ${input.kenteken}`.trim();
 
+  // One-off regel (article 0): altijd beschikbaar in elke administratie, geen
+  // artikel-onderhoud nodig. dim1 = grootboekrekening; werkt doordat in de
+  // Classic-factuursoort "Kan de grootboekrekening aanpassen" aanstaat.
+  // Per factuurtype instelbaar (werk-derden = 8054 doorbelasting; voertuigen later anders).
+  const grootboek = GROOTBOEK_DOORBELASTING;
   const regelsXml = input.regels
     .map(
       (r, i) => `
     <line id="${i + 1}">
+      <article>0</article>
       <quantity>1</quantity>
+      <units>1</units>
       <unitspriceexcl>${r.bedrag.toFixed(2)}</unitspriceexcl>
       <vatcode>${vatCode}</vatcode>
       <description>${escapeXml(r.omschrijving)}</description>
-      <dim1>8054</dim1>
+      <dim1>${grootboek}</dim1>
     </line>`,
     )
     .join('');
@@ -139,7 +150,8 @@ function escapeXml(s: string): string {
 }
 
 function toDateString(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // Twinfield verwacht YYYYMMDD (zonder streepjes)
+  return d.toISOString().slice(0, 10).replace(/-/g, '');
 }
 
 function addDays(d: Date, n: number): Date {
