@@ -57,7 +57,7 @@ export async function callProcessXml(xml: string): Promise<string> {
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: '"http://www.twinfield.com/Api/ProcessXmlString"',
+      SOAPAction: '"http://www.twinfield.com/ProcessXmlString"',
     },
     body: envelope,
     cache: 'no-store',
