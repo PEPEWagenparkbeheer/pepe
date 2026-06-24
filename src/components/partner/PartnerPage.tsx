@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useAfterSales } from '@/hooks/useAfterSales';
@@ -12,7 +12,7 @@ import WerkDerdenModal from './WerkDerdenModal';
 import WerkDerdenDetailModal from './WerkDerdenDetailModal';
 import styles from './PartnerPage.module.css';
 
-type Tab = 'actief' | 'klaar' | 'werkzaamheden';
+type Tab = 'actief' | 'klaar';
 
 /** Een auto is "klaar" voor deze partner als:
  *  - partner in partners_klaar (nieuwe systeem), OF
@@ -69,12 +69,9 @@ export default function PartnerPage({ wie }: { wie: string }) {
     setDetailRecord(r);
   }
 
-  // Records die actie van de partner vereisen:
-  //  - open PEPE-opdracht → moet geaccepteerd worden
-  //  - goedgekeurd        → moet klaar gemeld worden
+  // Records die actie van de partner vereisen (open PEPE-opdracht → accepteren)
   const teAccepterenRecords = wdRecords.filter(r => r.status === 'open' && isPepeOpdracht(r));
-  const goedgekeurdeWdRecords = wdRecords.filter(r => r.status === 'goedgekeurd');
-  const wdActieCount = teAccepterenRecords.length + goedgekeurdeWdRecords.length;
+
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
   const [offerteAuto, setOfferteAuto] = useState<AfterSalesAuto | null>(null);
   const [tab, setTab] = useState<Tab>('actief');
@@ -104,12 +101,97 @@ export default function PartnerPage({ wie }: { wie: string }) {
       return aDatum > bDatum ? -1 : 1;
     });
 
-  const mijnAutos = tab === 'actief' ? actieveAutos : tab === 'klaar' ? klareAutos : [];
+  // Werkzaamheden/openstaand: te accepteren bovenaan, daarna lopend, daarna afgehandeld.
+  const wdPrioriteit = (r: WerkDerdenRecord): number => {
+    if (r.status === 'open' && isPepeOpdracht(r)) return 0; // te accepteren (urgentst)
+    if (r.status === 'goedgekeurd') return 1;               // klaar te melden
+    if (r.status === 'klaar_gemeld') return 2;
+    if (r.status === 'open') return 3;                       // eigen indiening, wacht op PEPE
+    if (r.status === 'afgekeurd') return 4;
+    return 5;                                                // gefactureerd / afgerond
+  };
+  const wdGesorteerd = [...wdRecords].sort((a, b) => {
+    const p = wdPrioriteit(a) - wdPrioriteit(b);
+    if (p !== 0) return p;
+    return (b.created_at ?? '') < (a.created_at ?? '') ? -1 : 1;
+  });
 
-  // Openstaande acties tonen we als rijen bovenin de Actief-lijst (de startpagina),
-  // met knipperend bolletje totdat de partner ze één keer heeft geopend — zodat
-  // ze niet vergeten worden zonder naar het tabblad "Openstaand" te klikken.
-  const wdActiefRijen = tab === 'actief' ? [...teAccepterenRecords, ...goedgekeurdeWdRecords] : [];
+  // ── Gedeelde render-helpers ─────────────────────────────────────────────
+  function autoRij(r: AfterSalesAuto) {
+    const updates = r.partner_updates ?? [];
+    const wieKlaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === wieUpper);
+    return (
+      <tr key={r.id} className={wieKlaar ? styles.rijKlaar : ''} onClick={() => setModalAuto(r)}>
+        <td><KentekenPlaat kenteken={r.kenteken} /></td>
+        <td>
+          <span className={styles.merk}>{r.merk}</span>{' '}
+          <span className={styles.model}>{r.model}</span>
+          {/* Mobiel: toon klant + status compact onder merk/model */}
+          <div className={styles.mobielSub}>
+            {r.klant && <span>{r.klant}</span>}
+            {r.type && <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>}
+            {r.partner_binnen && <span className={styles.binnenBadge}>📍 Staat hier</span>}
+            {r.partner_datum && <span style={{ color: 'var(--green)', fontWeight: 600 }}>📅 {datumFmt(r.partner_datum)}</span>}
+            {r.partner_onderdelen_besteld && <span className={styles.ondelBadge}>✓ Besteld</span>}
+            {updates.length > 0 && <span className={styles.updatesBadge}>💬 {updates.length}</span>}
+          </div>
+        </td>
+        <td className={styles.mobielVerbergen}>{r.klant || '—'}</td>
+        <td className={styles.mobielVerbergen}>
+          {r.type
+            ? <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>
+            : '—'}
+        </td>
+        <td className={styles.mobielVerbergen}>
+          {r.partner_binnen ? (() => {
+            const dagen = r.partner_binnen_op
+              ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000)
+              : null;
+            const tip = r.partner_binnen_op
+              ? `Binnen sinds ${new Date(r.partner_binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })} · ${dagen === 0 ? 'vandaag' : `${dagen} dag${dagen !== 1 ? 'en' : ''}`}`
+              : undefined;
+            return <span className={styles.binnenBadge} title={tip}>📍 {dagen !== null ? (dagen === 0 ? 'vandaag' : `${dagen}d`) : 'Ja'}</span>;
+          })()
+            : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
+        </td>
+        <td className={styles.mobielVerbergen} style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+          {r.partner_datum ? <span style={{ color: 'var(--green)', fontWeight: 600 }}>{datumFmt(r.partner_datum)}</span> : <span style={{ color: 'var(--muted)' }}>—</span>}
+        </td>
+        <td className={styles.mobielVerbergen}>
+          {r.partner_onderdelen_besteld
+            ? <span className={styles.ondelBadge}>✓ Besteld</span>
+            : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
+        </td>
+        <td className={styles.mobielVerbergen}>
+          {updates.length > 0
+            ? <span className={styles.updatesBadge}>{updates.length} update{updates.length !== 1 ? 's' : ''}</span>
+            : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
+        </td>
+      </tr>
+    );
+  }
+
+  function autoTabel(list: AfterSalesAuto[]) {
+    return (
+      <div className={styles.tabelWrapper}>
+        <table className={styles.tabel}>
+          <thead>
+            <tr>
+              <th>Kenteken</th>
+              <th>Merk / Model</th>
+              <th className={styles.mobielVerbergen}>Klant</th>
+              <th className={styles.mobielVerbergen}>Type</th>
+              <th className={styles.mobielVerbergen}>Staat hier</th>
+              <th className={styles.mobielVerbergen}>Ingepland</th>
+              <th className={styles.mobielVerbergen}>Onderdelen</th>
+              <th className={styles.mobielVerbergen}>Updates</th>
+            </tr>
+          </thead>
+          <tbody>{list.map(autoRij)}</tbody>
+        </table>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.pagina}>
@@ -138,152 +220,31 @@ export default function PartnerPage({ wie }: { wie: string }) {
           Archief — klaar gemeld
           <span className={styles.tabBadge}>{klareAutos.length}</span>
         </button>
-        <button
-          className={`${styles.tab} ${tab === "werkzaamheden" ? styles.tabActief : ''}`}
-          onClick={() => setTab('werkzaamheden')}
-        >
-          Openstaand
-          {wdActieCount > 0 && <span className={styles.tabBadge}>{wdActieCount}</span>}
-        </button>
       </div>
 
-      {/* Auto-tabel — alleen voor actief/klaar tabs */}
-      {tab !== 'werkzaamheden' && (
-      <div className={styles.content}>
-        {wdActiefRijen.length > 0 && (
-          <div style={{
-            margin: '0 0 12px', padding: '10px 14px', borderRadius: 10,
-            background: 'rgba(234,179,8,0.10)', border: '1px solid rgba(234,179,8,0.35)',
-            color: '#92400e', fontWeight: 600, fontSize: 14,
-          }}>
-            🔔 {wdActiefRijen.length} openstaande acti{wdActiefRijen.length === 1 ? 'e' : 'es'} — bovenaan in de lijst
-            {teAccepterenRecords.length > 0 && ` (${teAccepterenRecords.length} te accepteren)`}
-          </div>
-        )}
-        {mijnAutos.length === 0 && wdActiefRijen.length === 0 ? (
-          <div className={styles.leeg}>
-            {tab === 'actief'
-              ? `Geen openstaande auto's voor ${wie}`
-              : `Nog geen klaar gemelde auto's voor ${wie}`}
-          </div>
-        ) : (
-          <div className={styles.tabelWrapper}>
-            <table className={styles.tabel}>
-              <thead>
-                <tr>
-                  <th>Kenteken</th>
-                  <th>Merk / Model</th>
-                  <th className={styles.mobielVerbergen}>Klant</th>
-                  <th className={styles.mobielVerbergen}>Type</th>
-                  <th className={styles.mobielVerbergen}>Staat hier</th>
-                  <th className={styles.mobielVerbergen}>Ingepland</th>
-                  <th className={styles.mobielVerbergen}>Onderdelen</th>
-                  <th className={styles.mobielVerbergen}>Updates</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Goedgekeurde kostenmeldingen — bovenin met knipperend bolletje */}
-                {wdActiefRijen.map((wd) => {
-                  const gezien = gezienIds.has(wd.id);
-                  const teAcc = wd.status === 'open';
-                  const kortLabel = teAcc ? '🔔 Te accepteren' : '✓ Goedgekeurd — klaar melden';
-                  const langLabel = teAcc ? '🔔 Te accepteren — klik om te accepteren' : '✓ Goedgekeurd — klik om klaar te melden';
-                  const labelClass = teAcc ? styles.stOpen : styles.stGoedgekeurd;
-                  return (
-                    <tr key={`wd-${wd.id}`} onClick={() => openDetail(wd)}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <KentekenPlaat kenteken={wd.kenteken ?? wd.meldcode ?? ''} />
-                          <span
-                            className={gezien ? styles.notificatieDotGezien : styles.notificatieDotBlink}
-                            title={teAcc ? 'Nieuwe opdracht — accepteren' : (gezien ? 'Goedgekeurd' : 'Nieuw goedgekeurd — klaar melden')}
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <span className={styles.merk}>{wd.merk}</span>{' '}
-                        <span className={styles.model}>{wd.model}</span>
-                        <div className={styles.mobielSub}>
-                          {wd.klant && <span>{wd.klant}</span>}
-                          <span className={labelClass}>{kortLabel}</span>
-                        </div>
-                      </td>
-                      <td className={styles.mobielVerbergen}>{wd.klant || '—'}</td>
-                      <td className={styles.mobielVerbergen} colSpan={5}>
-                        <span className={labelClass}>{langLabel}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {mijnAutos.map((r) => {
-                  const updates = r.partner_updates ?? [];
-                  const wieKlaar = (r.partners_klaar ?? []).some((p) => p.toUpperCase() === wieUpper);
-                  return (
-                    <tr
-                      key={r.id}
-                      className={wieKlaar ? styles.rijKlaar : ''}
-                      onClick={() => setModalAuto(r)}
-                    >
-                      <td><KentekenPlaat kenteken={r.kenteken} /></td>
-                      <td>
-                        <span className={styles.merk}>{r.merk}</span>{' '}
-                        <span className={styles.model}>{r.model}</span>
-                        {/* Mobiel: toon klant + status compact onder merk/model */}
-                        <div className={styles.mobielSub}>
-                          {r.klant && <span>{r.klant}</span>}
-                          {r.type && <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>}
-                          {r.partner_binnen && <span className={styles.binnenBadge}>📍 Staat hier</span>}
-                          {r.partner_datum && <span style={{ color: 'var(--green)', fontWeight: 600 }}>📅 {datumFmt(r.partner_datum)}</span>}
-                          {r.partner_onderdelen_besteld && <span className={styles.ondelBadge}>✓ Besteld</span>}
-                          {updates.length > 0 && <span className={styles.updatesBadge}>💬 {updates.length}</span>}
-                        </div>
-                      </td>
-                      <td className={styles.mobielVerbergen}>{r.klant || '—'}</td>
-                      <td className={styles.mobielVerbergen}>
-                        {r.type
-                          ? <span className={`${styles.badge} ${TYPE_CSS[r.type] ?? ''}`}>{TYPE_LABEL[r.type] ?? r.type}</span>
-                          : '—'}
-                      </td>
-                      <td className={styles.mobielVerbergen}>
-                        {r.partner_binnen ? (() => {
-                          const dagen = r.partner_binnen_op
-                            ? Math.floor((Date.now() - new Date(r.partner_binnen_op).getTime()) / 86400000)
-                            : null;
-                          const tip = r.partner_binnen_op
-                            ? `Binnen sinds ${new Date(r.partner_binnen_op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' })} · ${dagen === 0 ? 'vandaag' : `${dagen} dag${dagen !== 1 ? 'en' : ''}`}`
-                            : undefined;
-                          return <span className={styles.binnenBadge} title={tip}>📍 {dagen !== null ? (dagen === 0 ? 'vandaag' : `${dagen}d`) : 'Ja'}</span>;
-                        })()
-                          : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
-                      </td>
-                      <td className={styles.mobielVerbergen} style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
-                        {r.partner_datum ? <span style={{ color: 'var(--green)', fontWeight: 600 }}>{datumFmt(r.partner_datum)}</span> : <span style={{ color: 'var(--muted)' }}>—</span>}
-                      </td>
-                      <td className={styles.mobielVerbergen}>
-                        {r.partner_onderdelen_besteld
-                          ? <span className={styles.ondelBadge}>✓ Besteld</span>
-                          : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
-                      </td>
-                      <td className={styles.mobielVerbergen}>
-                        {updates.length > 0
-                          ? <span className={styles.updatesBadge}>{updates.length} update{updates.length !== 1 ? 's' : ''}</span>
-                          : <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      )}
-
-      {/* Werkzaamheden tab */}
-      {tab === 'werkzaamheden' && (
+      {/* ── Actief: auto's bovenaan, werkzaamheden/openstaand eronder ── */}
+      {tab === 'actief' && (
         <div className={styles.content}>
-          {wdRecords.length === 0 ? (
-            <div className={styles.leeg}>Nog geen meldingen ingediend.</div>
+          {teAccepterenRecords.length > 0 && (
+            <div style={{
+              margin: '0 0 14px', padding: '10px 14px', borderRadius: 10,
+              background: 'rgba(234,179,8,0.10)', border: '1px solid rgba(234,179,8,0.35)',
+              color: '#92400e', fontWeight: 600, fontSize: 14,
+            }}>
+              🔔 {teAccepterenRecords.length} nieuwe opdracht{teAccepterenRecords.length === 1 ? '' : 'en'} te accepteren — zie “Werkzaamheden &amp; kosten” onderaan
+            </div>
+          )}
+
+          {/* Auto's */}
+          <h3 className={styles.sectieKop}>Auto&apos;s</h3>
+          {actieveAutos.length === 0
+            ? <div className={styles.leeg}>Geen openstaande auto&apos;s voor {wie}</div>
+            : autoTabel(actieveAutos)}
+
+          {/* Werkzaamheden & kosten (incl. openstaande opdrachten) */}
+          <h3 className={styles.sectieKop} style={{ marginTop: 26 }}>Werkzaamheden &amp; kosten</h3>
+          {wdGesorteerd.length === 0 ? (
+            <div className={styles.leeg}>Nog geen meldingen — tik op + om een kostenmelding te maken.</div>
           ) : (
             <div className={styles.tabelWrapper}>
               <table className={styles.tabel}>
@@ -296,9 +257,10 @@ export default function PartnerPage({ wie }: { wie: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {wdRecords.map((r) => {
+                  {wdGesorteerd.map((r) => {
                     const voertuig = r.kenteken ?? r.meldcode ?? '—';
                     const isOpdracht = r.status === 'open' && isPepeOpdracht(r);
+                    const teAcc = isOpdracht && !gezienIds.has(r.id);
                     return (
                     <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => {
                       // PEPE-opdracht (open) → accepteren via detail; eigen open/afgekeurd → bewerken
@@ -307,8 +269,11 @@ export default function PartnerPage({ wie }: { wie: string }) {
                       else openDetail(r);
                     }}>
                       <td>
-                        <strong>{voertuig}</strong>
-                        {r.klant ? <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {r.klant}</span> : ''}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <strong>{voertuig}</strong>
+                          {teAcc && <span className={styles.notificatieDotBlink} title="Nieuwe opdracht — accepteren" />}
+                          {r.klant ? <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {r.klant}</span> : ''}
+                        </div>
                       </td>
                       <td style={{ fontSize: 12, color: 'var(--muted)' }}>
                         {r.created_at ? new Date(r.created_at).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
@@ -349,6 +314,15 @@ export default function PartnerPage({ wie }: { wie: string }) {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Archief: klaar gemelde auto's ── */}
+      {tab === 'klaar' && (
+        <div className={styles.content}>
+          {klareAutos.length === 0
+            ? <div className={styles.leeg}>Nog geen klaar gemelde auto&apos;s voor {wie}</div>
+            : autoTabel(klareAutos)}
         </div>
       )}
 
@@ -412,9 +386,3 @@ export default function PartnerPage({ wie }: { wie: string }) {
     </div>
   );
 }
-
-
-
-
-
-
