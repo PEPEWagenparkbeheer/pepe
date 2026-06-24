@@ -156,9 +156,13 @@ export function useAfterSales() {
 
   const updateAuto = useCallback(async (rec: AfterSalesAuto) => {
     updateAutos(autosRef.current.map((r) => (r.id === rec.id ? rec : r)));
-    const { error } = await supabase.from('after_sales').upsert(prepareForDb(rec));
+    // .update() i.p.v. .upsert(): een upsert is een INSERT…ON CONFLICT en toetst
+    // daarom altijd de INSERT-RLS-policy. Partners hebben op after_sales alleen
+    // SELECT+UPDATE (geen INSERT), dus een upsert van een bestaande rij faalde met
+    // "new row violates row-level security policy". Bestaande rij = puur .update().
+    const { error } = await supabase.from('after_sales').update(prepareForDb(rec)).eq('id', rec.id);
     if (error) {
-      console.error('after_sales upsert fout:', error.message, error.details);
+      console.error('after_sales update fout:', error.message, error.details);
       if (typeof window !== 'undefined') alert('Opslaan mislukt: ' + (error.message || 'onbekende fout'));
     }
   }, []);
