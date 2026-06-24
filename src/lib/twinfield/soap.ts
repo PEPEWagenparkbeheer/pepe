@@ -83,7 +83,7 @@ export async function finderSearch(
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: '"http://www.twinfield.com/Api/Search"',
+      SOAPAction: '"http://www.twinfield.com/Search"',
     },
     body: envelope,
     cache: 'no-store',
@@ -108,7 +108,7 @@ export async function listOffices(): Promise<TwinfieldOffice[]> {
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: '"http://www.twinfield.com/Api/Search"',
+      SOAPAction: '"http://www.twinfield.com/Search"',
     },
     body: envelope,
     cache: 'no-store',
