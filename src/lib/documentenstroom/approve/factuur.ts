@@ -9,6 +9,7 @@ import {
   uploadFile, createNoteOnDeal,
 } from '@/lib/hubspot';
 import { kvkOpzoeken } from '@/lib/kvk';
+import type { MatchKeuze } from '@/types/match';
 
 function mapBrandstof(rdwLabel?: string | null): string | undefined {
   if (!rdwLabel) return undefined;
@@ -24,6 +25,7 @@ function mapBrandstof(rdwLabel?: string | null): string | undefined {
 export async function approveFactuur(
   factuur: Record<string, unknown>,
   admin: SupabaseClient,
+  match?: MatchKeuze,
 ): Promise<{ companyId: string | null; contactId: string | null; dealId: string }> {
   if (!String(factuur.kenteken ?? '').trim()) throw new Error('Kenteken ontbreekt');
   const isBedrijf = factuur.is_bedrijf !== false;
@@ -39,9 +41,11 @@ export async function approveFactuur(
   let companyId: string | null = null;
   if (isBedrijf && factuur.bedrijfsnaam) {
     const naam = String(factuur.bedrijfsnaam);
-    if (factuur.kvk) companyId = await searchCompanyByKvk(String(factuur.kvk));
-    if (!companyId) {
-      companyId = await findCompany({
+    if (match?.bedrijfId !== undefined) {
+      companyId = match.bedrijfId;
+    } else {
+      if (factuur.kvk) companyId = await searchCompanyByKvk(String(factuur.kvk));
+      if (!companyId) companyId = await findCompany({
         name: naam,
         postcode: (factuur.postcode ?? kvkData?.postcode) as string | undefined,
         plaats: (factuur.plaats ?? kvkData?.plaats) as string | undefined,
@@ -70,12 +74,14 @@ export async function approveFactuur(
   }
 
   let contactId: string | null = null;
-  if (factuur.berijder_email) {
-    contactId = await searchContactByEmail(String(factuur.berijder_email));
-  }
-  if (!contactId && factuur.berijder_naam) {
-    const [voor, ...rest] = String(factuur.berijder_naam).trim().split(/\s+/);
-    if (voor && rest.length) contactId = await searchContactByName(voor, rest.join(' '));
+  if (match?.berijderId !== undefined) {
+    contactId = match.berijderId;
+  } else {
+    if (factuur.berijder_email) contactId = await searchContactByEmail(String(factuur.berijder_email));
+    if (!contactId && factuur.berijder_naam) {
+      const [voor, ...rest] = String(factuur.berijder_naam).trim().split(/\s+/);
+      if (voor && rest.length) contactId = await searchContactByName(voor, rest.join(' '));
+    }
   }
   if (!contactId && (factuur.berijder_email || factuur.berijder_naam)) {
     const [voor, ...rest] = String(factuur.berijder_naam ?? '').trim().split(/\s+/);

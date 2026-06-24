@@ -8,6 +8,7 @@ import { approveFactuur } from '@/lib/documentenstroom/approve/factuur';
 import { approveBestelbevestiging } from '@/lib/documentenstroom/approve/bestelbevestiging';
 import { approveInzetbevestiging } from '@/lib/documentenstroom/approve/inzetbevestiging';
 import { approveAutokosten } from '@/lib/documentenstroom/approve/autokosten';
+import type { MatchKeuze } from '@/types/match';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -37,16 +38,19 @@ export async function POST(
   try {
     const documenttype = (factuur.documenttype ?? 'factuur') as string;
 
+    let match: MatchKeuze | undefined;
+    try { const b = await req.json(); match = b?.match; } catch { /* geen body */ }
+
     let result: { companyId: string | null; contactId: string | null; dealId: string };
 
     if (documenttype === 'bestelbevestiging') {
-      result = await approveBestelbevestiging(factuur, admin);
+      result = await approveBestelbevestiging(factuur, admin, match);
     } else if (documenttype === 'inzetbevestiging') {
-      result = await approveInzetbevestiging(factuur, admin);
+      result = await approveInzetbevestiging(factuur, admin, match);
     } else if (documenttype === 'autokosten') {
       result = await approveAutokosten(factuur, admin);
     } else {
-      result = await approveFactuur(factuur, admin);
+      result = await approveFactuur(factuur, admin, match);
     }
 
     const { error: updateErr } = await admin.from('facturen').update({

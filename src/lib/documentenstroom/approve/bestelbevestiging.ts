@@ -11,6 +11,7 @@ import {
   DEALSTAGE_IN_BESTELLING,
 } from '@/lib/hubspot';
 import { kvkOpzoeken } from '@/lib/kvk';
+import type { MatchKeuze } from '@/types/match';
 
 // HubSpot-opties voor winterbanden_in_contract: Ja | Nee | 4-seizoenen | Onbekend
 function mapBanden(banden?: string | null): string | undefined {
@@ -25,6 +26,7 @@ function mapBanden(banden?: string | null): string | undefined {
 export async function approveBestelbevestiging(
   factuur: Record<string, unknown>,
   admin: SupabaseClient,
+  match?: MatchKeuze,
 ): Promise<{ companyId: string | null; contactId: string | null; dealId: string }> {
   const contractnummer = String(factuur.contractnummer ?? '').trim();
   if (!contractnummer) throw new Error('Contractnummer ontbreekt');
@@ -32,20 +34,22 @@ export async function approveBestelbevestiging(
   const kvkData = factuur.kvk ? await kvkOpzoeken(String(factuur.kvk)) : null;
   const ext = factuur.extracted_data as Record<string, unknown> | null;
 
-  // ── Company: eerst matchen (KVK → naam+adres), pas anders aanmaken ──
+  // ── Company: match via keuze (match.bedrijfId), anders zoeken ──
   let companyId: string | null = null;
   if (factuur.bedrijfsnaam) {
     const naam = String(factuur.bedrijfsnaam);
-    // Beste bekende NAW (KVK-verrijking heeft voorrang op het document)
     const adres = kvkData?.straat ?? (factuur.straat ? String(factuur.straat) : undefined);
     const zip = kvkData?.postcode ?? (factuur.postcode ? String(factuur.postcode) : undefined);
     const city = kvkData?.plaats ?? (factuur.plaats ? String(factuur.plaats) : undefined);
     const country = kvkData?.land ?? (factuur.land ? String(factuur.land) : undefined);
 
-    if (factuur.kvk) companyId = await searchCompanyByKvk(String(factuur.kvk));
-    if (!companyId) {
-      companyId = await findCompany({ name: naam, postcode: zip, plaats: city, adres });
+    if (match?.bedrijfId !== undefined) {
+      companyId = match.bedrijfId;
+    } else {
+      if (factuur.kvk) companyId = await searchCompanyByKvk(String(factuur.kvk));
+      if (!companyId) companyId = await findCompany({ name: naam, postcode: zip, plaats: city, adres });
     }
+
     if (!companyId) {
       companyId = await createCompany({
         name: naam,
@@ -53,7 +57,6 @@ export async function approveBestelbevestiging(
         address: adres, zip, city, country, domain: kvkData?.website,
       });
     } else {
-      // Bestaand bedrijf gematcht → bijwerken met de bekende (niet-lege) gegevens
       await updateCompany(companyId, {
         kvk: factuur.kvk ? String(factuur.kvk) : undefined,
         address: adres, zip, city, country, domain: kvkData?.website,
@@ -61,7 +64,7 @@ export async function approveBestelbevestiging(
     }
   }
 
-  // ── Contact (berijder): eerst matchen op email, dan naam ──
+  // ── Contact (berijder): match via keuze (match.berijderId), anders zoeken ──
   const [voor, ...rest] = String(factuur.berijder_naam ?? '').trim().split(/\s+/);
   const berijderInput = {
     email: factuur.berijder_email ? String(factuur.berijder_email) : undefined,
@@ -74,16 +77,15 @@ export async function approveBestelbevestiging(
   };
 
   let contactId: string | null = null;
-  if (factuur.berijder_email) {
-    contactId = await searchContactByEmail(String(factuur.berijder_email));
-  }
-  if (!contactId && voor && rest.length) {
-    contactId = await searchContactByName(voor, rest.join(' '));
+  if (match?.berijderId !== undefined) {
+    contactId = match.berijderId;
+  } else {
+    if (factuur.berijder_email) contactId = await searchContactByEmail(String(factuur.berijder_email));
+    if (!contactId && voor && rest.length) contactId = await searchContactByName(voor, rest.join(' '));
   }
   if (!contactId && (factuur.berijder_email || factuur.berijder_naam)) {
     contactId = await createContact(berijderInput);
   } else if (contactId) {
-    // Bestaande berijder gematcht → bijwerken met de bekende (niet-lege) gegevens
     await updateContact(contactId, berijderInput);
   }
 

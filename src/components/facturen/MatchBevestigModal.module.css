@@ -1,0 +1,152 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 10px;
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.header strong {
+  font-size: 15px;
+  color: #111827;
+}
+
+.subtitel {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.body {
+  padding: 16px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.entiteit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.entiteitLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+
+.optie {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+
+.optie:hover {
+  border-color: #3b82f6;
+  background: #f0f7ff;
+}
+
+.optie.actief {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.optie input[type='radio'] {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #3b82f6;
+}
+
+.kandidaatInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.kandidaatNaam {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.kandidaatDetail {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.kandidaatReden {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.footer {
+  padding: 14px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btnAnnuleer {
+  padding: 8px 16px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.btnAnnuleer:hover {
+  background: #f9fafb;
+}
+
+.btnBevestig {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.btnBevestig:hover {
+  background: #2563eb;
+}

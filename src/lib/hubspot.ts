@@ -3,6 +3,8 @@
 // met search+create voor Company, Contact en Deal zodat de facturen-inbox
 // klanten en auto's kan aanmaken die nog niet in HubSpot staan.
 
+import type { MatchKandidaat } from '@/types/match';
+
 const HS_BASE = 'https://api.hubapi.com';
 
 function getToken(): string {
@@ -788,5 +790,105 @@ export async function createNoteOnDeal(
     },
   );
   return data.id;
+}
+
+// ── Match-kandidaten voor documentenstroom deduplicatie ──────────────────────
+
+export async function searchContactCandidates(
+  achternaam: string,
+  voornaam?: string | null,
+  bedrijfId?: string | null,
+): Promise<MatchKandidaat[]> {
+  if (!achternaam?.trim()) return [];
+  let results: { id: string; properties: Record<string, string> }[] = [];
+  try {
+    const data = await hsFetch<{ results?: { id: string; properties: Record<string, string> }[] }>(
+      `${HS_BASE}/crm/v3/objects/contacts/search`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          limit: 10,
+          properties: ['firstname', 'lastname', 'email', 'associatedcompanyid'],
+          filterGroups: [{ filters: [{ propertyName: 'lastname', operator: 'CONTAINS_TOKEN', value: achternaam.trim() }] }],
+        }),
+      },
+    );
+    results = data.results ?? [];
+  } catch {
+    return [];
+  }
+
+  const kandidaten: MatchKandidaat[] = [];
+  for (const r of results) {
+    const p = r.properties ?? {};
+    let score = 50;
+    let reden = `Achternaam "${p.lastname ?? achternaam}"`;
+
+    if (voornaam && p.firstname) {
+      const vn = voornaam.trim().toLowerCase().replace(/\.$/, '');
+      const fn = p.firstname.trim().toLowerCase();
+      if (fn === vn || fn.startsWith(vn) || vn.startsWith(fn[0] ?? '')) {
+        score += 25;
+        reden += ` + voornaam "${p.firstname}"`;
+      }
+    }
+
+    if (bedrijfId && p.associatedcompanyid === bedrijfId) {
+      score += 25;
+      reden += ' + zelfde bedrijf';
+    }
+
+    const naam = [p.firstname, p.lastname].filter(Boolean).join(' ').trim();
+    kandidaten.push({ id: r.id, naam: naam || achternaam, email: p.email || undefined, reden, score });
+  }
+
+  return kandidaten.sort((a, b) => b.score - a.score).slice(0, 5);
+}
+
+export async function searchCompanyCandidates(
+  naam: string,
+  kvk?: string | null,
+  postcode?: string | null,
+  adres?: string | null,
+): Promise<MatchKandidaat[]> {
+  if (!naam?.trim()) return [];
+
+  if (kvk) {
+    const id = await searchCompanyByKvk(kvk);
+    if (id) return [{ id, naam, reden: `KVK ${kvk} exacte match`, score: 100 }];
+  }
+
+  const exactId = await searchCompanyByName(naam);
+  if (exactId) return [{ id: exactId, naam, reden: `Naam exact "${naam}"`, score: 90 }];
+
+  let results: { id: string; properties: Record<string, string> }[] = [];
+  try {
+    const data = await hsFetch<{ results?: { id: string; properties: Record<string, string> }[] }>(
+      `${HS_BASE}/crm/v3/objects/companies/search`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ limit: 10, query: naam.trim(), properties: ['name', 'zip', 'address'] }),
+      },
+    );
+    results = data.results ?? [];
+  } catch {
+    return [];
+  }
+
+  const zip = postcode ? normalizeZip(postcode) : '';
+  const nr = huisnummer(adres ?? undefined);
+  const kandidaten: MatchKandidaat[] = [];
+
+  for (const c of results) {
+    const p = c.properties ?? {};
+    if (!namesSimilar(p.name ?? '', naam)) continue;
+    let score = 60;
+    let reden = `Naam vergelijkbaar "${p.name ?? naam}"`;
+    if (zip && p.zip && normalizeZip(p.zip) === zip) { score += 20; reden += ` + postcode ${p.zip}`; }
+    else if (nr && p.address && huisnummer(p.address) === nr) { score += 10; reden += ' + huisnummer match'; }
+    kandidaten.push({ id: c.id, naam: p.name ?? naam, reden, score });
+  }
+
+  return kandidaten.sort((a, b) => b.score - a.score).slice(0, 5);
 }
 

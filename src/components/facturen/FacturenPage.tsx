@@ -320,8 +320,8 @@ export default function FacturenPage() {
         gebruiker={gebruiker}
         onSluiten={() => setModalOpen(false)}
         onOpslaan={save}
-        onAkkoord={async (r) => {
-          const res = await akkoord(r.id);
+        onAkkoord={async (r, match) => {
+          const res = await akkoord(r.id, match);
           if (!res.ok) alert('HubSpot-fout: ' + res.error);
           else setModalOpen(false);
         }}

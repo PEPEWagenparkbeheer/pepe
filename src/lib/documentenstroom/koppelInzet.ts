@@ -2,6 +2,7 @@
 // Gebruikt vanuit zowel brein/koppel/route.ts (mail-gebaseerd)
 // als documentenstroom approve/inzetbevestiging.ts (PDF-inbox).
 import type { InzetdocumentExtract } from '@/lib/brein/inzetdocument';
+import type { MatchKeuze } from '@/types/match';
 import {
   searchContactByEmail, searchContactByName, createContact, updateContact,
   findCompany, searchCompanyByKvk, createCompany, updateCompany,
@@ -27,6 +28,7 @@ function berekenEinddatum(inzetdatum: string, looptijdMaanden: number): string {
 export async function koppelInzet(
   ext: InzetdocumentExtract,
   options?: { pdfBuffer?: ArrayBuffer; pdfNaam?: string },
+  match?: MatchKeuze,
 ): Promise<KoppelInzetResult> {
   const log: string[] = [];
 
@@ -36,9 +38,13 @@ export async function koppelInzet(
   const voornaam = ext.berijder_voornaam?.trim() || null;
   const achternaam = ext.berijder_achternaam?.trim() || null;
 
-  if (email) contactId = await searchContactByEmail(email);
-  if (!contactId && voornaam && achternaam) {
-    contactId = await searchContactByName(voornaam, achternaam);
+  if (match?.berijderId !== undefined) {
+    contactId = match.berijderId;
+  } else {
+    if (email) contactId = await searchContactByEmail(email);
+    if (!contactId && voornaam && achternaam) {
+      contactId = await searchContactByName(voornaam, achternaam);
+    }
   }
 
   if (!contactId) {
@@ -73,14 +79,18 @@ export async function koppelInzet(
   // ── BEDRIJF (Company) ────────────────────────────────────────
   let companyId: string | null = null;
   if (ext.bedrijf_naam) {
-    if (ext.bedrijf_kvk) companyId = await searchCompanyByKvk(ext.bedrijf_kvk);
-    if (!companyId) {
-      companyId = await findCompany({
-        name: ext.bedrijf_naam,
-        postcode: ext.bedrijf_postcode,
-        plaats: ext.bedrijf_stad,
-        adres: ext.bedrijf_adres,
-      });
+    if (match?.bedrijfId !== undefined) {
+      companyId = match.bedrijfId;
+    } else {
+      if (ext.bedrijf_kvk) companyId = await searchCompanyByKvk(ext.bedrijf_kvk);
+      if (!companyId) {
+        companyId = await findCompany({
+          name: ext.bedrijf_naam,
+          postcode: ext.bedrijf_postcode,
+          plaats: ext.bedrijf_stad,
+          adres: ext.bedrijf_adres,
+        });
+      }
     }
     if (!companyId) {
       companyId = await createCompany({

@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Factuur, Documenttype } from '@/types';
+import type { MatchKeuze, MatchSuggesties } from '@/types/match';
 import { rdwOpzoeken } from '@/lib/rdw';
 import { authHeaders } from '@/lib/clientAuth';
 import { htmlNaarTekst, extractOrigineleSectie } from '@/lib/htmlNaarTekst';
+import MatchBevestigModal from './MatchBevestigModal';
 import styles from './FacturenModal.module.css';
 
 const DOCUMENTTYPE_LABEL: Record<Documenttype, string> = {
@@ -27,7 +29,7 @@ interface Props {
   gebruiker: string;
   onSluiten: () => void;
   onOpslaan: (rec: Factuur) => Promise<unknown>;
-  onAkkoord: (rec: Factuur) => Promise<unknown>;
+  onAkkoord: (rec: Factuur, match?: MatchKeuze) => Promise<unknown>;
   onPdfUrl: (path: string) => Promise<string | null>;
   onReExtract: (id: string) => Promise<Factuur | null>;
 }
@@ -245,6 +247,7 @@ export default function FacturenModal({
   const [form, setForm] = useState<Factuur | null>(factuur);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
+  const [matchSuggesties, setMatchSuggesties] = useState<MatchSuggesties | null>(null);
   const [rdwBezig, setRdwBezig] = useState(false);
   const [kvkBezig, setKvkBezig] = useState(false);
   const [extractBezig, setExtractBezig] = useState(false);
@@ -412,13 +415,42 @@ export default function FacturenModal({
     }
     setBezig(true);
     await onOpslaan(form);
-    await onAkkoord(form);
+
+    // Autokosten heeft geen berijder/bedrijf — direct doorgaan
+    if (dt !== 'autokosten') {
+      try {
+        const res = await fetch(`/api/facturen/${form.id}/match-suggesties`, {
+          headers: await authHeaders(),
+        });
+        if (res.ok) {
+          const sug: MatchSuggesties = await res.json();
+          if (sug.berijder.kandidaten.length > 0 || sug.bedrijf.kandidaten.length > 0) {
+            setMatchSuggesties(sug);
+            setBezig(false);
+            return;
+          }
+        }
+      } catch {
+        // best-effort: doorgaan zonder modal
+      }
+    }
+
+    await onAkkoord(form, undefined);
+    setBezig(false);
+  }
+
+  async function bevestigMatch(keuze: MatchKeuze) {
+    if (!form) return;
+    setMatchSuggesties(null);
+    setBezig(true);
+    await onAkkoord(form, keuze);
     setBezig(false);
   }
 
   const isKlaar = klaarVoorAkkoord();
 
   return (
+    <>
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
       <div className={styles.modal}>
         <div className={styles.header}>
@@ -630,5 +662,13 @@ export default function FacturenModal({
         </div>
       </div>
     </div>
+    {matchSuggesties && (
+      <MatchBevestigModal
+        suggesties={matchSuggesties}
+        onBevestig={bevestigMatch}
+        onAnnuleer={() => { setMatchSuggesties(null); setBezig(false); }}
+      />
+    )}
+    </>
   );
 }

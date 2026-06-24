@@ -3,10 +3,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { InzetdocumentExtract } from '@/lib/brein/inzetdocument';
 import { koppelInzet } from '@/lib/documentenstroom/koppelInzet';
+import type { MatchKeuze } from '@/types/match';
 
 export async function approveInzetbevestiging(
   factuur: Record<string, unknown>,
   admin: SupabaseClient,
+  match?: MatchKeuze,
 ): Promise<{ companyId: string | null; contactId: string | null; dealId: string }> {
   const kenteken = String(factuur.kenteken ?? '').trim();
   if (!kenteken) throw new Error('Kenteken ontbreekt bij inzetbevestiging');
@@ -64,7 +66,7 @@ export async function approveInzetbevestiging(
     }
   }
 
-  const result = await koppelInzet(ext, { pdfBuffer, pdfNaam });
+  const result = await koppelInzet(ext, { pdfBuffer, pdfNaam }, match);
 
   if (!result.dealId) {
     throw new Error(`Geen deal gevonden of aangemaakt voor kenteken ${kenteken}`);

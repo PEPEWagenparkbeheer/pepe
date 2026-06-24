@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { authHeaders } from '@/lib/clientAuth';
 import type { Factuur, FactuurStatus } from '@/types';
+import type { MatchKeuze } from '@/types/match';
 
 function deserialize(r: Record<string, unknown>): Factuur {
   return {
@@ -65,8 +66,12 @@ export function useFacturen() {
     if (error) console.error('facturen upsert fout:', error.message);
   }, []);
 
-  const akkoord = useCallback(async (id: string): Promise<{ ok: boolean; error?: string }> => {
-    const res = await fetch(`/api/facturen/${id}/approve`, { method: 'POST', headers: await authHeaders() });
+  const akkoord = useCallback(async (id: string, match?: MatchKeuze): Promise<{ ok: boolean; error?: string }> => {
+    const res = await fetch(`/api/facturen/${id}/approve`, {
+      method: 'POST',
+      headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match }),
+    });
     const json = await res.json();
     if (!res.ok) return { ok: false, error: json.error ?? 'Onbekende fout' };
     update(ref.current.map((r) =>
