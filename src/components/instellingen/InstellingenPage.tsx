@@ -612,7 +612,17 @@ function TwinfieldBeheer() {
     }
   }
 
-  const koppelUrl = '/api/twinfield/connect';
+  async function koppel() {
+    setBezig(true);
+    try {
+      const res = await fetch('/api/twinfield/connect', { headers: await authHeaders() });
+      const data = await res.json() as { url?: string; error?: string };
+      if (data.url) window.location.href = data.url;
+      else setMelding({ tekst: data.error ?? 'Koppelen mislukt', ok: false });
+    } finally {
+      setBezig(false);
+    }
+  }
 
   return (
     <div className={styles.kaart}>
@@ -636,10 +646,10 @@ function TwinfieldBeheer() {
       {status === null ? (
         <p style={{ color: 'var(--muted)', fontSize: 13 }}>Laden…</p>
       ) : !status.connected ? (
-        <a href={koppelUrl} className={styles.toevoegKnop}
-          style={{ display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }}>
+        <button onClick={koppel} disabled={bezig} className={styles.toevoegKnop}
+          style={{ padding: '9px 18px' }}>
           Koppel Twinfield
-        </a>
+        </button>
       ) : (
         <>
           <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
@@ -677,10 +687,10 @@ function TwinfieldBeheer() {
           )}
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <a href={koppelUrl} className={styles.annuleerKnop}
-              style={{ textDecoration: 'none', padding: '6px 12px' }}>
+            <button onClick={koppel} disabled={bezig} className={styles.annuleerKnop}
+              style={{ padding: '6px 12px' }}>
               Opnieuw koppelen
-            </a>
+            </button>
             <button className={styles.verwijderKnop} onClick={() => void ontkoppel()}
               disabled={bezig}>
               Ontkoppelen

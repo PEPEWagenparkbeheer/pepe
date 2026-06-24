@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const nonce = crypto.randomUUID();
   const url = buildAuthorizeUrl(state, nonce);
 
-  const res = NextResponse.redirect(url);
+  const res = NextResponse.json({ url });
   res.cookies.set('tf_state', state, {
     httpOnly: true,
     secure: true,
