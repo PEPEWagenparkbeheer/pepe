@@ -27,6 +27,8 @@ function isKlaarVoorPartner(r: AfterSalesAuto, wieUpper: string): boolean {
 const TYPE_LABEL: Record<string, string> = { import: 'Import', nl: 'NL', nieuw: 'Nieuw', voorraad: 'Voorraad' };
 const TYPE_CSS:   Record<string, string> = { import: styles.typeImport, nl: styles.typeNl, nieuw: styles.typeNieuw, voorraad: styles.typeVoorraad };
 
+const WD_ARCHIEF_STATUS = ['klaar_gemeld', 'afgekeurd', 'gefactureerd', 'afgerond'];
+
 function datumFmt(d?: string) {
   if (!d) return '—';
   try { return new Date(d).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }); } catch { return d; }
@@ -69,9 +71,6 @@ export default function PartnerPage({ wie }: { wie: string }) {
     setDetailRecord(r);
   }
 
-  // Records die actie van de partner vereisen (open PEPE-opdracht → accepteren)
-  const teAccepterenRecords = wdRecords.filter(r => r.status === 'open' && isPepeOpdracht(r));
-
   const [modalAuto, setModalAuto] = useState<AfterSalesAuto | null>(null);
   const [offerteAuto, setOfferteAuto] = useState<AfterSalesAuto | null>(null);
   const [tab, setTab] = useState<Tab>('actief');
@@ -101,20 +100,28 @@ export default function PartnerPage({ wie }: { wie: string }) {
       return aDatum > bDatum ? -1 : 1;
     });
 
-  // Werkzaamheden/openstaand: te accepteren bovenaan, daarna lopend, daarna afgehandeld.
-  const wdPrioriteit = (r: WerkDerdenRecord): number => {
-    if (r.status === 'open' && isPepeOpdracht(r)) return 0; // te accepteren (urgentst)
-    if (r.status === 'goedgekeurd') return 1;               // klaar te melden
-    if (r.status === 'klaar_gemeld') return 2;
-    if (r.status === 'open') return 3;                       // eigen indiening, wacht op PEPE
-    if (r.status === 'afgekeurd') return 4;
-    return 5;                                                // gefactureerd / afgerond
-  };
-  const wdGesorteerd = [...wdRecords].sort((a, b) => {
-    const p = wdPrioriteit(a) - wdPrioriteit(b);
-    if (p !== 0) return p;
-    return (b.created_at ?? '') < (a.created_at ?? '') ? -1 : 1;
-  });
+  // ── Werkzaamheden in drie bakken ────────────────────────────────────────
+  //  - wdActief  : geaccepteerd/goedgekeurd → lopende werkzaamheden (bij Actief)
+  //  - wdOpen    : status 'open' → moet door iemand geaccepteerd/goedgekeurd worden
+  //                (PEPE-opdracht → partner accepteert; eigen melding → wacht op PEPE)
+  //  - wdArchief : klaar gemeld / afgekeurd / gefactureerd / afgerond
+  const nieuwsteEerst = (a: WerkDerdenRecord, b: WerkDerdenRecord) =>
+    (b.created_at ?? '') < (a.created_at ?? '') ? -1 : 1;
+  const wdActief = wdRecords.filter(r => r.status === 'goedgekeurd').sort(nieuwsteEerst);
+  const wdOpen = wdRecords
+    .filter(r => r.status === 'open')
+    .sort((a, b) => {
+      // Te accepteren (PEPE-opdracht) bovenaan, daarna wachten-op-goedkeuren
+      const pa = isPepeOpdracht(a) ? 0 : 1;
+      const pb = isPepeOpdracht(b) ? 0 : 1;
+      return pa !== pb ? pa - pb : nieuwsteEerst(a, b);
+    });
+  const wdArchief = wdRecords
+    .filter(r => WD_ARCHIEF_STATUS.includes(r.status))
+    .sort(nieuwsteEerst);
+
+  // Nieuwe PEPE-opdrachten die de partner nog moet accepteren (voor banner)
+  const teAccepterenRecords = wdOpen.filter(r => isPepeOpdracht(r));
 
   // ── Gedeelde render-helpers ─────────────────────────────────────────────
   function autoRij(r: AfterSalesAuto) {
@@ -193,6 +200,79 @@ export default function PartnerPage({ wie }: { wie: string }) {
     );
   }
 
+  function wdRij(r: WerkDerdenRecord) {
+    const voertuig = r.kenteken ?? r.meldcode ?? '—';
+    const isOpdracht = r.status === 'open' && isPepeOpdracht(r);
+    const teAcc = isOpdracht && !gezienIds.has(r.id);
+    return (
+      <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => {
+        // PEPE-opdracht (open) → accepteren via detail; eigen open/afgekeurd → bewerken
+        if (r.status === 'open' && isPepeOpdracht(r)) openDetail(r);
+        else if (r.status === 'open' || r.status === 'afgekeurd') setEditRecord(r);
+        else openDetail(r);
+      }}>
+        <td>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <strong>{voertuig}</strong>
+            {teAcc && <span className={styles.notificatieDotBlink} title="Nieuwe opdracht — accepteren" />}
+            {r.klant ? <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {r.klant}</span> : ''}
+          </div>
+        </td>
+        <td style={{ fontSize: 12, color: 'var(--muted)' }}>
+          {r.created_at ? new Date(r.created_at).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
+        </td>
+        <td className={styles.mobielVerbergen}>
+          {r.inkoop_bedrag != null ? r.inkoop_bedrag.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' }) : '—'}
+        </td>
+        <td>
+          <span className={
+            r.status === 'gefactureerd' ? styles.stGefactureerd :
+            r.status === 'afgekeurd' ? styles.stAfgekeurd :
+            r.status === 'goedgekeurd' || r.status === 'klaar_gemeld' ? styles.stGoedgekeurd :
+            styles.stOpen
+          }>
+            {r.status === 'gefactureerd' ? '✓ Gefactureerd' :
+             r.status === 'afgekeurd' ? '✕ Afgekeurd' :
+             r.status === 'klaar_gemeld' ? '✓ Klaar gemeld' :
+             r.status === 'goedgekeurd' ? '✓ Goedgekeurd' :
+             isOpdracht ? '🔔 Te accepteren' :
+             '⏳ Wacht op goedkeuring'}
+          </span>
+          {r.status === 'afgekeurd' && r.afkeur_reden && (
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{r.afkeur_reden}</div>
+          )}
+          {(r.status === 'open' || r.status === 'afgekeurd') && (
+            <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>
+              {r.status === 'afgekeurd' ? 'Klik om aan te passen' : isOpdracht ? 'Klik om te accepteren' : 'Klik om te bewerken'}
+            </div>
+          )}
+          {r.status === 'goedgekeurd' && (
+            <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>Klik om klaar te melden</div>
+          )}
+        </td>
+      </tr>
+    );
+  }
+
+  function wdTabel(list: WerkDerdenRecord[], leegTekst: string) {
+    if (list.length === 0) return <div className={styles.leeg}>{leegTekst}</div>;
+    return (
+      <div className={styles.tabelWrapper}>
+        <table className={styles.tabel}>
+          <thead>
+            <tr>
+              <th>Kenteken</th>
+              <th>Datum</th>
+              <th className={styles.mobielVerbergen}>Bedrag (excl. BTW)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>{list.map(wdRij)}</tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.pagina}>
       {/* Header */}
@@ -211,18 +291,18 @@ export default function PartnerPage({ wie }: { wie: string }) {
           onClick={() => setTab('actief')}
         >
           Actief
-          <span className={styles.tabBadge}>{actieveAutos.length}</span>
+          <span className={styles.tabBadge}>{actieveAutos.length + wdActief.length}</span>
         </button>
         <button
           className={`${styles.tab} ${tab === 'klaar' ? styles.tabActief : ''}`}
           onClick={() => setTab('klaar')}
         >
-          Archief — klaar gemeld
-          <span className={styles.tabBadge}>{klareAutos.length}</span>
+          Archief
+          <span className={styles.tabBadge}>{klareAutos.length + wdArchief.length}</span>
         </button>
       </div>
 
-      {/* ── Actief: auto's bovenaan, werkzaamheden/openstaand eronder ── */}
+      {/* ── Actief: auto's + geaccepteerde werkzaamheden, daaronder te accepteren ── */}
       {tab === 'actief' && (
         <div className={styles.content}>
           {teAccepterenRecords.length > 0 && (
@@ -231,98 +311,44 @@ export default function PartnerPage({ wie }: { wie: string }) {
               background: 'rgba(234,179,8,0.10)', border: '1px solid rgba(234,179,8,0.35)',
               color: '#92400e', fontWeight: 600, fontSize: 14,
             }}>
-              🔔 {teAccepterenRecords.length} nieuwe opdracht{teAccepterenRecords.length === 1 ? '' : 'en'} te accepteren — zie “Werkzaamheden &amp; kosten” onderaan
+              🔔 {teAccepterenRecords.length} nieuwe opdracht{teAccepterenRecords.length === 1 ? '' : 'en'} te accepteren — zie “Te accepteren werkzaamheden” onderaan
             </div>
           )}
 
-          {/* Auto's */}
-          <h3 className={styles.sectieKop}>Auto&apos;s</h3>
+          {/* Actief — auto's */}
+          <h3 className={styles.sectieKop}>Actief — auto&apos;s</h3>
           {actieveAutos.length === 0
             ? <div className={styles.leeg}>Geen openstaande auto&apos;s voor {wie}</div>
             : autoTabel(actieveAutos)}
 
-          {/* Werkzaamheden & kosten (incl. openstaande opdrachten) */}
-          <h3 className={styles.sectieKop} style={{ marginTop: 26 }}>Werkzaamheden &amp; kosten</h3>
-          {wdGesorteerd.length === 0 ? (
-            <div className={styles.leeg}>Nog geen meldingen — tik op + om een kostenmelding te maken.</div>
-          ) : (
-            <div className={styles.tabelWrapper}>
-              <table className={styles.tabel}>
-                <thead>
-                  <tr>
-                    <th>Kenteken</th>
-                    <th>Datum</th>
-                    <th className={styles.mobielVerbergen}>Bedrag (excl. BTW)</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {wdGesorteerd.map((r) => {
-                    const voertuig = r.kenteken ?? r.meldcode ?? '—';
-                    const isOpdracht = r.status === 'open' && isPepeOpdracht(r);
-                    const teAcc = isOpdracht && !gezienIds.has(r.id);
-                    return (
-                    <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => {
-                      // PEPE-opdracht (open) → accepteren via detail; eigen open/afgekeurd → bewerken
-                      if (r.status === 'open' && isPepeOpdracht(r)) openDetail(r);
-                      else if (r.status === 'open' || r.status === 'afgekeurd') setEditRecord(r);
-                      else openDetail(r);
-                    }}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <strong>{voertuig}</strong>
-                          {teAcc && <span className={styles.notificatieDotBlink} title="Nieuwe opdracht — accepteren" />}
-                          {r.klant ? <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {r.klant}</span> : ''}
-                        </div>
-                      </td>
-                      <td style={{ fontSize: 12, color: 'var(--muted)' }}>
-                        {r.created_at ? new Date(r.created_at).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
-                      </td>
-                      <td className={styles.mobielVerbergen}>
-                        {r.inkoop_bedrag != null ? r.inkoop_bedrag.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' }) : '—'}
-                      </td>
-                      <td>
-                        <span className={
-                          r.status === 'gefactureerd' ? styles.stGefactureerd :
-                          r.status === 'afgekeurd' ? styles.stAfgekeurd :
-                          r.status === 'goedgekeurd' || r.status === 'klaar_gemeld' ? styles.stGoedgekeurd :
-                          styles.stOpen
-                        }>
-                          {r.status === 'gefactureerd' ? '✓ Gefactureerd' :
-                           r.status === 'afgekeurd' ? '✕ Afgekeurd' :
-                           r.status === 'klaar_gemeld' ? '✓ Klaar gemeld' :
-                           r.status === 'goedgekeurd' ? '✓ Goedgekeurd' :
-                           isOpdracht ? '🔔 Te accepteren' :
-                           '⏳ Openstaand'}
-                        </span>
-                        {r.status === 'afgekeurd' && r.afkeur_reden && (
-                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{r.afkeur_reden}</div>
-                        )}
-                        {(r.status === 'open' || r.status === 'afgekeurd') && (
-                          <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>
-                            {r.status === 'afgekeurd' ? 'Klik om aan te passen' : isOpdracht ? 'Klik om te accepteren' : 'Klik om te bewerken'}
-                          </div>
-                        )}
-                        {r.status === 'goedgekeurd' && (
-                          <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>Klik om klaar te melden</div>
-                        )}
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          {/* Geaccepteerde werkzaamheden (lopend) */}
+          {wdActief.length > 0 && (
+            <>
+              <h3 className={styles.sectieKop} style={{ marginTop: 26 }}>Geaccepteerde werkzaamheden</h3>
+              {wdTabel(wdActief, '')}
+            </>
           )}
+
+          {/* Te accepteren werkzaamheden (buiten after-sales, wachten op actie) */}
+          <h3 className={styles.sectieKop} style={{ marginTop: 26 }}>Te accepteren werkzaamheden</h3>
+          {wdTabel(wdOpen, 'Geen openstaande werkzaamheden — tik op + om een kostenmelding te maken.')}
         </div>
       )}
 
-      {/* ── Archief: klaar gemelde auto's ── */}
+      {/* ── Archief: klaar gemelde auto's + afgehandelde werkzaamheden ── */}
       {tab === 'klaar' && (
         <div className={styles.content}>
+          <h3 className={styles.sectieKop}>Auto&apos;s — klaar gemeld</h3>
           {klareAutos.length === 0
             ? <div className={styles.leeg}>Nog geen klaar gemelde auto&apos;s voor {wie}</div>
             : autoTabel(klareAutos)}
+
+          {wdArchief.length > 0 && (
+            <>
+              <h3 className={styles.sectieKop} style={{ marginTop: 26 }}>Afgehandelde werkzaamheden</h3>
+              {wdTabel(wdArchief, '')}
+            </>
+          )}
         </div>
       )}
 

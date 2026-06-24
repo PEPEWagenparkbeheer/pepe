@@ -252,8 +252,10 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
             </section>
           )}
 
-          {/* After Sales auto koppeling */}
-          {!isOfferte && afterSalesAutos.length > 0 && (
+          {/* After Sales auto koppeling — alleen PEPE bepaalt dit, niet de partner.
+              Partner-meldingen komen binnen als 'doorbelasten'; PEPE kiest later
+              losse doorbelasting of koppel-aan-auto in het PEPE-overzicht. */}
+          {!isOfferte && !wie && afterSalesAutos.length > 0 && (
             <section className={styles.sectie}>
               <label className={styles.sectieLabel}>Koppeling</label>
               <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
