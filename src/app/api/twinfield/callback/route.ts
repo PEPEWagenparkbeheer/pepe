@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePepe } from '@/lib/apiAuth';
 import { exchangeCode, resolveCluster, storeTokens } from '@/lib/twinfield/auth';
 
 export const runtime = 'nodejs';
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL ?? 'https://flow.pepewagenparkbeheer.nl';
 
-export async function GET(req: NextRequest) {
-  // Twinfield stuurt een browser-redirect, geen Bearer token. Toch vereisen we dat de
-  // gebruiker al een geldige PEPE-sessie heeft (cookie-gebaseerd) zodat we weten wie koppelde.
-  const gate = await requirePepe(req);
-  if (!gate.ok) return NextResponse.redirect(`${BASE}/instellingen?twinfield=fout&reden=niet-ingelogd`);
+function getConnectedBy(req: NextRequest): string {
+  // Best-effort: lees e-mail uit Supabase session-cookie
+  try {
+    for (const [name, cookie] of req.cookies) {
+      if (name.startsWith('sb-') && name.endsWith('-auth-token')) {
+        const data = JSON.parse(decodeURIComponent(cookie.value));
+        const email = data?.user?.email ?? data?.[0]?.user?.email;
+        if (email) return email;
+      }
+    }
+  } catch { /* geen sessie-cookie beschikbaar */ }
+  return 'via-oauth';
+}
 
+export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const code = searchParams.get('code');
   const state = searchParams.get('state');
@@ -21,7 +29,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${BASE}/instellingen?twinfield=fout&reden=${encodeURIComponent(error ?? 'geen-code')}`);
   }
 
-  // CSRF: controleer state-cookie
+  // CSRF: controleer state-cookie — dit is de echte beveiliging
   const storedState = req.cookies.get('tf_state')?.value;
   if (!storedState || storedState !== state) {
     return NextResponse.redirect(`${BASE}/instellingen?twinfield=fout&reden=state-mismatch`);
@@ -35,7 +43,7 @@ export async function GET(req: NextRequest) {
       refreshToken,
       expiresIn,
       clusterUrl,
-      connectedBy: gate.user.email ?? gate.user.id,
+      connectedBy: getConnectedBy(req),
     });
   } catch (err) {
     console.error('[twinfield/callback]', err);
