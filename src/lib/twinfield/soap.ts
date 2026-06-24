@@ -5,19 +5,31 @@ export interface TwinfieldOffice {
   name: string;
 }
 
+// Twinfield SOAP-namespaces (WSDL-geverifieerd):
+//  - operations + Header-element zitten in http://www.twinfield.com/
+//  - SOAPAction = http://www.twinfield.com/<Operation>
+const TWF_NS = 'http://www.twinfield.com/';
+
+/**
+ * Bouwt de SOAP-envelope met de OAuth-authenticatieheader.
+ * De Twinfield-services verwachten één <Header>-element (in de TWF-namespace)
+ * dat AccessToken + CompanyCode omvat — NIET losse elementen in een /Auth-namespace.
+ */
 function buildSoapEnvelope(accessToken: string, companyCode: string, body: string): string {
+  const companyEl = companyCode ? `<CompanyCode>${companyCode}</CompanyCode>` : '';
   return `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Header>
-    <AccessToken xmlns="https://accounting.twinfield.com/Auth">${accessToken}</AccessToken>
-    <CompanyCode xmlns="https://accounting.twinfield.com/Auth">${companyCode}</CompanyCode>
+    <Header xmlns="${TWF_NS}">
+      <AccessToken>${accessToken}</AccessToken>${companyEl}
+    </Header>
   </soap:Header>
   <soap:Body>${body}</soap:Body>
 </soap:Envelope>`;
 }
 
 function buildFinderSoapBody(type: string, pattern: string, maxRows = 100): string {
-  return `<Search xmlns="http://www.twinfield.com/Api">
+  return `<Search xmlns="${TWF_NS}">
   <query>
     <type>${type}</type>
     <pattern>${pattern}</pattern>
@@ -47,77 +59,103 @@ function parseFinderItems(xml: string): Array<{ code: string; name: string }> {
   return items;
 }
 
-export async function callProcessXml(xml: string): Promise<string> {
-  const token = await getValidAccessToken();
-  const companyCode = token.companyCode ?? '';
-  const body = `<ProcessXmlString xmlns="http://www.twinfield.com/Api"><xmlRequest><![CDATA[${xml}]]></xmlRequest></ProcessXmlString>`;
-  const envelope = buildSoapEnvelope(token.accessToken, companyCode, body);
+/** Haalt een SOAP-faultstring uit het antwoord, indien aanwezig. */
+function extractFault(xml: string): string | null {
+  const m = /<faultstring>([\s\S]*?)<\/faultstring>/.exec(xml);
+  return m ? m[1].trim() : null;
+}
 
-  const res = await fetch(`${token.clusterUrl}/webservices/ProcessXmlService.asmx`, {
+/**
+ * Verstuurt een SOAP-call naar een Twinfield-service en geeft de ruwe XML terug.
+ * Gooit een leesbare fout bij een HTTP-fout of een SOAP-fault.
+ */
+async function postSoap(
+  serviceUrl: string,
+  soapAction: string,
+  envelope: string,
+  label: string,
+): Promise<string> {
+  const res = await fetch(serviceUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: '"http://www.twinfield.com/ProcessXmlString"',
+      SOAPAction: `"${soapAction}"`,
     },
     body: envelope,
     cache: 'no-store',
   });
 
-  if (!res.ok) throw new Error(`ProcessXml mislukt (${res.status})`);
-  return res.text();
+  const xml = await res.text();
+
+  const fault = extractFault(xml);
+  if (fault) {
+    throw new Error(`Twinfield ${label} fault: ${fault}`);
+  }
+  if (!res.ok) {
+    throw new Error(`Twinfield ${label} mislukt (${res.status}): ${xml.slice(0, 300)}`);
+  }
+  return xml;
 }
 
+/**
+ * Roept de ProcessXml-service aan (debiteuren, dimensies, facturen aanmaken).
+ * @param xml  het Twinfield-XML-bericht (zonder envelope)
+ * @param companyCode  optioneel: overschrijf de administratie voor deze call
+ */
+export async function callProcessXml(xml: string, companyCode?: string): Promise<string> {
+  const token = await getValidAccessToken();
+  const company = companyCode ?? token.companyCode ?? '';
+  const body = `<ProcessXmlString xmlns="${TWF_NS}"><xmlRequest><![CDATA[${xml}]]></xmlRequest></ProcessXmlString>`;
+  const envelope = buildSoapEnvelope(token.accessToken, company, body);
+
+  return postSoap(
+    `${token.clusterUrl}/webservices/processxml.asmx`,
+    `${TWF_NS}ProcessXmlString`,
+    envelope,
+    'ProcessXml',
+  );
+}
+
+/**
+ * Zoekt via de finder-service (debiteuren, crediteuren, grootboek, ...).
+ * @param companyCode  optioneel: overschrijf de administratie voor deze call
+ */
 export async function finderSearch(
   type: string,
   pattern: string,
   maxRows = 200,
+  companyCode?: string,
 ): Promise<Array<{ code: string; name: string }>> {
   const token = await getValidAccessToken();
-  const companyCode = token.companyCode ?? '';
+  const company = companyCode ?? token.companyCode ?? '';
   const envelope = buildSoapEnvelope(
     token.accessToken,
-    companyCode,
+    company,
     buildFinderSoapBody(type, pattern, maxRows),
   );
-  const res = await fetch(`${token.clusterUrl}/webservices/finder.asmx`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: '"http://www.twinfield.com/Search"',
-    },
-    body: envelope,
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`Finder mislukt (${res.status})`);
-  return parseFinderItems(await res.text());
+  const xml = await postSoap(
+    `${token.clusterUrl}/webservices/finder.asmx`,
+    `${TWF_NS}Search`,
+    envelope,
+    'Finder',
+  );
+  return parseFinderItems(xml);
 }
 
+/** Lijst van administraties (offices) waartoe de gekoppelde gebruiker toegang heeft. */
 export async function listOffices(): Promise<TwinfieldOffice[]> {
   const token = await getValidAccessToken();
-  // Finder requires a company code for auth, but for office listing we use a wildcard
-  // and any valid company code (or empty) — use '*' as dummy if none selected yet
-  const companyCode = token.companyCode ?? '';
-
+  const company = token.companyCode ?? '';
   const envelope = buildSoapEnvelope(
     token.accessToken,
-    companyCode,
+    company,
     buildFinderSoapBody('OFF', '*'),
   );
-
-  const res = await fetch(`${token.clusterUrl}/webservices/finder.asmx`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: '"http://www.twinfield.com/Search"',
-    },
-    body: envelope,
-    cache: 'no-store',
-  });
-
-  if (!res.ok) {
-    throw new Error(`Finder-aanroep mislukt (${res.status})`);
-  }
-
-  const xml = await res.text();
+  const xml = await postSoap(
+    `${token.clusterUrl}/webservices/finder.asmx`,
+    `${TWF_NS}Search`,
+    envelope,
+    'Finder (offices)',
+  );
   return parseFinderItems(xml);
 }
