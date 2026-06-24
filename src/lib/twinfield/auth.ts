@@ -1,6 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import {
-  basicAuthHeader,
   readTwinfieldConfig,
   TWINFIELD_AUTHORIZE_URL,
   TWINFIELD_SCOPES,
@@ -54,13 +53,14 @@ export async function exchangeCode(
   const res = await fetch(TWINFIELD_TOKEN_URL, {
     method: 'POST',
     headers: {
-      Authorization: basicAuthHeader(config),
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       redirect_uri: config.redirectUri,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
     }),
   });
 
@@ -103,12 +103,13 @@ async function refreshAccessToken(): Promise<{ accessToken: string; expiresIn: n
   const res = await fetch(TWINFIELD_TOKEN_URL, {
     method: 'POST',
     headers: {
-      Authorization: basicAuthHeader(config),
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: row.refresh_token,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
     }),
   });
 
