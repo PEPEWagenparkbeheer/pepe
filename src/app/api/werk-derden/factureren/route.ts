@@ -86,7 +86,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Berekend verkoopbedrag is niet geldig' }, { status: 400 });
   }
 
-  // Twinfield aanroepen (stub)
   const twResult = await createTwinfieldInvoice({
     werk_derden_id: rec.id,
     kenteken: rec.kenteken ?? rec.meldcode ?? '',
@@ -96,6 +95,7 @@ export async function POST(req: NextRequest) {
     btw_pct: rec.btw_pct ?? 21,
     verkoop_bedrag,
     notitie: rec.notitie,
+    hubspot_deal_id: rec.hubspot_deal_id ?? undefined,
   });
 
   if (!twResult.ok) {

@@ -1,19 +1,47 @@
 import { callProcessXml, finderSearch } from './soap';
+import { getDealCompanyId, getCompanyFields, updateCompany } from '../hubspot';
 import type { TwinfieldFactuurInput, TwinfieldFactuurResult } from '../twinfield';
 
 const DEBITEUR_REGEX = /^1\d{4}$/;
 const DEBITEUR_START = 10001;
+const HS_PROP = 'twinfield_debiteur_code';
 
-export async function findOrCreateDebtor(klant: string): Promise<string> {
+export async function findOrCreateDebtor(
+  klant: string,
+  hubspotDealId?: string,
+): Promise<string> {
+  let companyId: string | null = null;
+  let naamVoorZoeken = klant;
+
+  // HubSpot ophalen als we een deal-ID hebben
+  if (hubspotDealId) {
+    try {
+      companyId = await getDealCompanyId(hubspotDealId);
+      if (companyId) {
+        const fields = await getCompanyFields(companyId, ['name', HS_PROP]);
+        // Snel pad: code staat al in HubSpot
+        if (fields?.[HS_PROP]) return fields[HS_PROP] as string;
+        // Gebruik HubSpot-naam als die beschikbaar is
+        if (fields?.name) naamVoorZoeken = fields.name as string;
+      }
+    } catch {
+      // HubSpot-fout is niet fataal — ga door met de klant-naam
+    }
+  }
+
+  // Zoek in Twinfield op naam
   const items = await finderSearch('DEB', '*', 200);
-
-  // Zoek op exacte naam (case-insensitive)
   const gevonden = items.find(
-    (i) => i.name.trim().toLowerCase() === klant.trim().toLowerCase(),
+    (i) => i.name.trim().toLowerCase() === naamVoorZoeken.trim().toLowerCase(),
   );
-  if (gevonden) return gevonden.code;
 
-  // Bepaal volgend vrij nummer (formaat 1XXXX)
+  if (gevonden) {
+    // Schrijf code terug naar HubSpot (fire-and-forget)
+    if (companyId) void writeDebiteurNaarHubSpot(companyId, gevonden.code);
+    return gevonden.code;
+  }
+
+  // Nieuw debiteurnummer (formaat 1XXXX)
   const nummers = items
     .map((i) => i.code)
     .filter((c) => DEBITEUR_REGEX.test(c))
@@ -26,8 +54,8 @@ export async function findOrCreateDebtor(klant: string): Promise<string> {
   <dimension>
     <type>DEB</type>
     <code>${code}</code>
-    <name>${escapeXml(klant)}</name>
-    <shortname>${escapeXml(klant.slice(0, 20))}</shortname>
+    <name>${escapeXml(naamVoorZoeken)}</name>
+    <shortname>${escapeXml(naamVoorZoeken.slice(0, 20))}</shortname>
   </dimension>
 </dimensions>`.trim();
 
@@ -35,7 +63,18 @@ export async function findOrCreateDebtor(klant: string): Promise<string> {
   if (!response.includes('result="1"') && !response.includes("result='1'")) {
     throw new Error(`Debiteur aanmaken mislukt: ${response.slice(0, 300)}`);
   }
+
+  // Schrijf code terug naar HubSpot (fire-and-forget)
+  if (companyId) void writeDebiteurNaarHubSpot(companyId, code);
   return code;
+}
+
+async function writeDebiteurNaarHubSpot(companyId: string, code: string): Promise<void> {
+  try {
+    await updateCompany(companyId, { [HS_PROP]: code } as never);
+  } catch {
+    // Niet fataal
+  }
 }
 
 export async function createSalesInvoice(

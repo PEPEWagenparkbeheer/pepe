@@ -10,6 +10,7 @@ export interface TwinfieldFactuurInput {
   btw_pct: number;
   verkoop_bedrag: number;   // incl. marge, ex BTW
   notitie?: string;
+  hubspot_deal_id?: string;
 }
 
 export interface TwinfieldFactuurResult {
@@ -23,7 +24,7 @@ export async function createTwinfieldInvoice(
 ): Promise<TwinfieldFactuurResult> {
   try {
     const naam = input.klant?.trim() || input.partner;
-    const debiteurCode = await findOrCreateDebtor(naam);
+    const debiteurCode = await findOrCreateDebtor(naam, input.hubspot_deal_id);
     return await createSalesInvoice(input, debiteurCode);
   } catch (err) {
     if (err instanceof TwinfieldAuthError) {
