@@ -1,6 +1,5 @@
-﻿// src/lib/twinfield.ts
-// Twinfield-integratie stub — klaar voor live koppeling zodra credentials beschikbaar zijn.
-// PEPE kan in de tussentijd meldingen handmatig verwerken.
+﻿import { TwinfieldAuthError } from './twinfield/auth';
+import { findOrCreateDebtor, createSalesInvoice } from './twinfield/invoices';
 
 export interface TwinfieldFactuurInput {
   werk_derden_id: string;
@@ -19,19 +18,18 @@ export interface TwinfieldFactuurResult {
   error?: string;
 }
 
-/**
- * Maak een verkoopfactuur aan in Twinfield.
- * Nu een stub — logt de gegevens en geeft een nep-ID terug.
- * Vervang de body door de echte Twinfield SOAP/REST aanroep.
- */
 export async function createTwinfieldInvoice(
   input: TwinfieldFactuurInput,
 ): Promise<TwinfieldFactuurResult> {
-  // TODO: implementeer Twinfield SOAP XML factuurcreatie.
-  // Zie: https://accounting.twinfield.com/webservices/documentation
-  console.log('[Twinfield STUB] factuur aanmaken:', JSON.stringify(input, null, 2));
-
-  // Simuleer een succesvolle aanmaak:
-  const fakeId = `TW-STUB-${Date.now()}`;
-  return { ok: true, invoice_id: fakeId };
+  try {
+    const naam = input.klant?.trim() || input.partner;
+    const debiteurCode = await findOrCreateDebtor(naam);
+    return await createSalesInvoice(input, debiteurCode);
+  } catch (err) {
+    if (err instanceof TwinfieldAuthError) {
+      return { ok: false, error: `Twinfield niet gekoppeld (${err.code})` };
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
 }

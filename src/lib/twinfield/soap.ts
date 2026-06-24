@@ -47,6 +47,51 @@ function parseFinderItems(xml: string): Array<{ code: string; name: string }> {
   return items;
 }
 
+export async function callProcessXml(xml: string): Promise<string> {
+  const token = await getValidAccessToken();
+  const companyCode = token.companyCode ?? '';
+  const body = `<ProcessXmlString xmlns="http://www.twinfield.com/Api"><xmlRequest><![CDATA[${xml}]]></xmlRequest></ProcessXmlString>`;
+  const envelope = buildSoapEnvelope(token.accessToken, companyCode, body);
+
+  const res = await fetch(`${token.clusterUrl}/webservices/ProcessXmlService.asmx`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: '"http://www.twinfield.com/Api/ProcessXmlString"',
+    },
+    body: envelope,
+    cache: 'no-store',
+  });
+
+  if (!res.ok) throw new Error(`ProcessXml mislukt (${res.status})`);
+  return res.text();
+}
+
+export async function finderSearch(
+  type: string,
+  pattern: string,
+  maxRows = 200,
+): Promise<Array<{ code: string; name: string }>> {
+  const token = await getValidAccessToken();
+  const companyCode = token.companyCode ?? '';
+  const envelope = buildSoapEnvelope(
+    token.accessToken,
+    companyCode,
+    buildFinderSoapBody(type, pattern, maxRows),
+  );
+  const res = await fetch(`${token.clusterUrl}/webservices/finder.asmx`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: '"http://www.twinfield.com/Api/Search"',
+    },
+    body: envelope,
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`Finder mislukt (${res.status})`);
+  return parseFinderItems(await res.text());
+}
+
 export async function listOffices(): Promise<TwinfieldOffice[]> {
   const token = await getValidAccessToken();
   // Finder requires a company code for auth, but for office listing we use a wildcard
