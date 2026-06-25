@@ -1457,12 +1457,16 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
 
   async function handleOpslaan() {
     if (!klachtForm.kenteken || !klachtForm.omschrijving) { alert('Vul kenteken en omschrijving in.'); return; }
-    if (editKlacht) {
-      await onUpdateKlacht({ ...editKlacht, ...klachtForm });
-    } else {
-      await onAddKlacht({ ...klachtForm, auto_id: '' });
+    try {
+      if (editKlacht) {
+        await onUpdateKlacht({ ...editKlacht, ...klachtForm });
+      } else {
+        await onAddKlacht({ ...klachtForm, auto_id: '' });
+      }
+      setKlachtModal(false);
+    } catch (e) {
+      alert('Opslaan mislukt: ' + (e as Error).message);
     }
-    setKlachtModal(false);
   }
 
   function handleAddUpdate() {

@@ -206,21 +206,42 @@ export function useAfterSales() {
   }, [updateAuto]);
 
   // ── Klachten ──────────────────────────────────────────────
+  // auto_id is een uuid-kolom: lege string moet null worden, anders verwerpt
+  // PostgreSQL de hele insert/update ('invalid input syntax for type uuid').
+  const klachtForDb = (r: ASKlacht) => ({ ...r, auto_id: r.auto_id || null });
+
   const addKlacht = useCallback(async (rec: Omit<ASKlacht, 'id' | 'created_at'>) => {
     const nieuw: ASKlacht = { ...rec, id: crypto.randomUUID(), created_at: new Date().toISOString() };
     updateKlachten([nieuw, ...klachtenRef.current]);
-    try { await supabase.from('as_klachten').insert(nieuw); } catch { /* leeg */ }
+    const { error } = await supabase.from('as_klachten').insert(klachtForDb(nieuw));
+    if (error) {
+      console.error('as_klachten insert', error.message);
+      updateKlachten(klachtenRef.current.filter((r) => r.id !== nieuw.id)); // rollback optimistic
+      throw error;
+    }
     return nieuw;
   }, []);
 
   const updateKlacht = useCallback(async (rec: ASKlacht) => {
-    updateKlachten(klachtenRef.current.map((r) => (r.id === rec.id ? rec : r)));
-    try { await supabase.from('as_klachten').upsert(rec); } catch { /* leeg */ }
+    const vorige = klachtenRef.current;
+    updateKlachten(vorige.map((r) => (r.id === rec.id ? rec : r)));
+    const { error } = await supabase.from('as_klachten').update(klachtForDb(rec)).eq('id', rec.id);
+    if (error) {
+      console.error('as_klachten update', error.message);
+      updateKlachten(vorige); // rollback optimistic
+      throw error;
+    }
   }, []);
 
   const removeKlacht = useCallback(async (id: string) => {
-    updateKlachten(klachtenRef.current.filter((r) => r.id !== id));
-    try { await supabase.from('as_klachten').delete().eq('id', id); } catch { /* leeg */ }
+    const vorige = klachtenRef.current;
+    updateKlachten(vorige.filter((r) => r.id !== id));
+    const { error } = await supabase.from('as_klachten').delete().eq('id', id);
+    if (error) {
+      console.error('as_klachten delete', error.message);
+      updateKlachten(vorige); // rollback optimistic
+      throw error;
+    }
   }, []);
 
   return {
