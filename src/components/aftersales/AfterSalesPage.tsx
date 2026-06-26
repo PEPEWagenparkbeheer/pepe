@@ -465,14 +465,26 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
   const [binPopup, setBinPopup] = useState<AfterSalesAuto | null>(null);
   const [kentekentje, setKentekentje] = useState('');
 
+  // Sorteer-rang: binnen bovenaan, dan TransConnect-status (gepland →
+  // planning in uitvoering → aangevraagd → geen status), geïmporteerd onderaan.
+  function importRang(r: AfterSalesAuto): number {
+    if (r.bin_ontvangen) return 5;            // geïmporteerd → onderaan
+    if (r.binnen) return 0;                   // binnen → bovenaan
+    const ts = (r.transport_status ?? '').toLowerCase();
+    if (ts.includes('gepland')) return 1;
+    if (ts.includes('uitvoering')) return 2;
+    if (r.aangevraagd) return 3;              // aangevraagd
+    return 4;                                 // geen status
+  }
+
   const rijen = useMemo(() => {
     const gefilterd = autos.filter((r) => r.type === 'import' && !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
     return [...gefilterd].sort((a, b) => {
-      // BIN ontvangen → onderaan
-      if (!!a.bin_ontvangen !== !!b.bin_ontvangen) return a.bin_ontvangen ? 1 : -1;
-      // Daarna oudste binnen_op bovenaan
-      const dA = a.binnen_op ?? '';
-      const dB = b.binnen_op ?? '';
+      const rA = importRang(a), rB = importRang(b);
+      if (rA !== rB) return rA - rB;
+      // Binnen elke groep: eerstvolgende leverdatum bovenaan, lege achteraan
+      const dA = a.transportdatum || '9999-99-99';
+      const dB = b.transportdatum || '9999-99-99';
       return dA < dB ? -1 : dA > dB ? 1 : 0;
     });
   }, [autos, zoek]);
