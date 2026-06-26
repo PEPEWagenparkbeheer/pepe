@@ -582,3 +582,25 @@
   padding: 8px 12px;
   border-radius: 6px;
 }
+
+/* Autocomplete-suggesties */
+.sugList {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin: 4px 0 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.sugItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  font-size: 14px;
+  color: #14181f;
+}
+.sugItem:hover { background: #faf7f8; }

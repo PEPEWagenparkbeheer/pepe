@@ -536,6 +536,44 @@ export async function getRijdendeDealsForCompany(
   return { kentekens, aantal: kentekens.length };
 }
 
+/** Live bedrijf-zoeken op (deel van) naam — voor autocomplete. */
+export async function searchCompaniesByNameLike(
+  q: string,
+  limit = 8,
+): Promise<{ id: string; naam: string }[]> {
+  if (!q || q.trim().length < 2) return [];
+  const data = await hsFetch<{ results?: { id: string; properties?: Record<string, string> }[] }>(
+    `${HS_BASE}/crm/v3/objects/companies/search`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        limit,
+        properties: ['name'],
+        filterGroups: [{ filters: [{ propertyName: 'name', operator: 'CONTAINS_TOKEN', value: `*${q.trim()}*` }] }],
+      }),
+    },
+  ).catch(() => ({ results: [] as { id: string; properties?: Record<string, string> }[] }));
+  return (data.results ?? [])
+    .map((c) => ({ id: c.id, naam: c.properties?.name ?? '' }))
+    .filter((c) => c.naam);
+}
+
+/** Gekoppelde (dochter)ondernemingen van een company — voor wagenparkbeheer-config. */
+export async function getChildCompanies(parentId: string): Promise<{ id: string; naam: string }[]> {
+  const id = String(parentId ?? '').trim();
+  if (!id) return [];
+  const assoc = await hsFetch<{ results?: { toObjectId: string | number }[] }>(
+    `${HS_BASE}/crm/v4/objects/companies/${id}/associations/companies?limit=100`,
+  ).catch(() => ({ results: [] as { toObjectId: string | number }[] }));
+  const ids = (assoc.results ?? []).map((r) => String(r.toObjectId)).filter((x) => x && x !== id);
+  if (!ids.length) return [];
+  const batch = await hsFetch<{ results?: { id: string; properties?: Record<string, string> }[] }>(
+    `${HS_BASE}/crm/v3/objects/companies/batch/read`,
+    { method: 'POST', body: JSON.stringify({ properties: ['name'], inputs: ids.map((x) => ({ id: x })) }) },
+  ).catch(() => ({ results: [] as { id: string; properties?: Record<string, string> }[] }));
+  return (batch.results ?? []).map((c) => ({ id: c.id, naam: c.properties?.name ?? c.id }));
+}
+
 /** Haalt specifieke velden van een deal (= voertuig/contract) op. */
 export async function getDealFields(
   dealId: string,
