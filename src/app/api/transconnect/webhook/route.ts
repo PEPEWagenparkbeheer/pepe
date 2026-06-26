@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { mapTcOrderToPatch } from '@/lib/transconnect';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,14 +35,6 @@ export async function POST(req: NextRequest) {
   const chassis: string = String(
     body.vehicle_chassis_number ?? body.chassis_number ?? body.vin ?? body.chassis ?? ''
   ).toUpperCase().replace(/\s/g, '');
-  // status normaliseren: spaties → underscore, lowercase ("Picked Up" → "picked_up")
-  const status: string  = String(body.order_status ?? body.status ?? body.state ?? '')
-    .toLowerCase().replace(/\s+/g, '_');
-  const geplandeDatum: string | undefined =
-    body.planned_arrival_date ?? body.planned_pickup_date ?? body.planned_date ?? body.pickup_date;
-  const aankomstDatum: string | undefined =
-    body.arrival_date ?? body.delivery_date ?? body.delivered_date;
-
   if (!orderId) return NextResponse.json({ error: 'Geen order_id' }, { status: 400 });
 
   // ── Stap 1: zoek via transport_order_id (na eerste koppeling het snelste pad) ──
@@ -83,24 +76,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Record niet gevonden' }, { status: 404 });
   }
 
-  // Status vertalen naar PEPE-veldwijzigingen
-  const update: Record<string, unknown> = {
-    transport_status: body.order_status ?? status,
-    transport_status_updated_at: new Date().toISOString(),
-    aangevraagd: true,
-  };
-
-  const isGepland = status.includes('planned') || status.includes('gepland') ||
-    status.includes('confirmed') || status.includes('created') || status.includes('uitvoering');
-  if (geplandeDatum && isGepland) {
-    update.transportdatum = geplandeDatum.slice(0, 10);
-  }
-
-  if (status.includes('delivered') || status.includes('afgeleverd') ||
-      status.includes('aangekomen') || aankomstDatum) {
-    update.binnen      = true;
-    update.binnen_op   = (aankomstDatum ?? new Date().toISOString()).slice(0, 10);
-  }
+  // Status + datums vertalen naar PEPE-veldwijzigingen (gedeelde mapping met /sync).
+  // transportdatum = geplande leverdatum, geplande_afhaaldatum = ophaaldatum (betaal-trigger).
+  const update = mapTcOrderToPatch(body);
 
   const { error } = await supabase.from('after_sales').update(update).eq('id', recordId);
   if (error) {

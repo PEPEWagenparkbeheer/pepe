@@ -58,7 +58,9 @@ export interface AfterSalesAuto {
 
   // Import checklist
   aangevraagd?: boolean;
-  transportdatum?: string;
+  transportdatum?: string;          // geplande LEVERdatum/aankomst (TC planned_arrival_date)
+  geplande_afhaaldatum?: string;    // geplande AFHAALdatum/ophalen (TC planned_pickup_date) — betaal-trigger
+  afhaal_reminder_sent_at?: string; // ISO timestamp: betaal-reminder naar administratie verstuurd
   transport_order_id?: string;
   transport_status?: string;
   transport_status_updated_at?: string;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requirePepe } from '@/lib/apiAuth';
-import { getOrderStatus } from '@/lib/transconnect';
+import { getOrderStatus, mapTcOrderToPatch } from '@/lib/transconnect';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,30 +35,9 @@ export async function POST(req: NextRequest) {
         const order = await getOrderStatus(rec.transport_order_id!);
         if (!order) { skipped++; return; }
 
-        const oo = order as Record<string, unknown>;
-        const rawStatus: string = String(oo.order_status ?? oo.status ?? '');
-        const status = rawStatus.toLowerCase().replace(/\s+/g, '_');
-        const o = order as Record<string, unknown>;
-        const geplandeDatum = String(o.planned_arrival_date ?? o.planned_pickup_date ?? o.planned_date ?? '').slice(0, 10) || undefined;
-        const aankomstDatum = String(o.arrival_date ?? o.delivery_date ?? o.delivered_date ?? '').slice(0, 10) || undefined;
-
-        const patch: Record<string, unknown> = {
-          transport_status: rawStatus || status,
-          transport_status_updated_at: new Date().toISOString(),
-          aangevraagd: true,
-        };
-
-        const isGepland = status.includes('planned') || status.includes('gepland') ||
-          status.includes('confirmed') || status.includes('created') || status.includes('uitvoering');
-        if (geplandeDatum && isGepland) {
-          patch.transportdatum = geplandeDatum.slice(0, 10);
-        }
-
-        if (status.includes('delivered') || status.includes('afgeleverd') ||
-            status.includes('aangekomen') || aankomstDatum) {
-          patch.binnen = true;
-          patch.binnen_op = (aankomstDatum ?? new Date().toISOString()).slice(0, 10);
-        }
+        // Gedeelde mapping met de webhook: transportdatum = geplande leverdatum,
+        // geplande_afhaaldatum = ophaaldatum (betaal-trigger), binnen bij aankomst.
+        const patch = mapTcOrderToPatch(order as Record<string, unknown>);
 
         await supabase.from('after_sales').update(patch).eq('id', rec.id);
         updated++;

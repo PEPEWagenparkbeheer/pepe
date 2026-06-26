@@ -522,7 +522,8 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
             <th>Merk / Model</th>
             <th>Klant</th>
             <th>Aangevr.</th>
-            <th>Transportdatum</th>
+            <th>Afhaaldatum</th>
+            <th>Leverdatum</th>
             <th>TC Status</th>
             <th className={styles.chk}>Betaald</th>
             <th className={styles.chk}>Binnen</th>
@@ -540,6 +541,11 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
                   <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
                   <td>{r.klant}</td>
                   <td className={styles.chk}><CbMeta aan={!!r.aangevraagd} onClick={() => onToggle(r.id, 'aangevraagd')} meta={r.veld_meta?.['aangevraagd']} /></td>
+                  <td>
+                    <span style={{ fontSize: 12, whiteSpace: 'nowrap', color: r.geplande_afhaaldatum ? 'inherit' : 'var(--muted)' }}>
+                      {datumFmt(r.geplande_afhaaldatum)}
+                    </span>
+                  </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <input
                       type="date"
