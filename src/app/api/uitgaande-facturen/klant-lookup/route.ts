@@ -42,11 +42,21 @@ export async function GET(req: NextRequest) {
   try {
     if (kvk) {
       const kvkSchoon = kvk.replace(/\D/g, '');
-      // 1) Eerst HubSpot (geeft company-id + debiteurcode als de klant al bestaat)
+      // HubSpot (company-id + debiteurcode) én KVK-register (NAW) — gemerged.
       const id = await searchCompanyByKvk(kvkSchoon);
-      if (id) return NextResponse.json({ gevonden: true, bron: 'hubspot', ...(await companyNaw(id)) });
-      // 2) Niet in HubSpot → echte KVK-register-API
       const kvkData = await kvkOpzoeken(kvkSchoon);
+      if (id) {
+        const hs = await companyNaw(id);
+        return NextResponse.json({
+          gevonden: true,
+          bron: 'hubspot',
+          ...hs,
+          klant_naam: hs.klant_naam || kvkData?.naam || null,
+          adres: hs.adres || kvkData?.straat || null,
+          postcode: hs.postcode || kvkData?.postcode || null,
+          plaats: hs.plaats || kvkData?.plaats || null,
+        });
+      }
       if (kvkData) {
         return NextResponse.json({
           gevonden: true,

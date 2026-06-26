@@ -51,6 +51,7 @@ export interface FactuurVoertuig {
   rest_bpm?: number;
   bpm_methode?: string;      // 'handmatig' | 'koerslijst' | 'forfaitair' | 'taxatie'
   btw_soort?: 'btw' | 'marge';
+  toe_te_betalen?: number | null;  // BTW-auto: vast incl.-bedrag; bij BPM-wijziging herrekent de voertuigprijs
 }
 
 export interface UitgaandeFactuur {

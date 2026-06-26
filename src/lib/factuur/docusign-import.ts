@@ -73,9 +73,20 @@ export async function importeerAutoUitEnvelope(envelopeId: string): Promise<Impo
   const kleur = match(/(?:^|[^e])\bKleur\s+([A-Za-z\-]+)/i, tekst);
   const kmStand = nlGetal(match(/Kilometerstand\s+([\d.,]+)/i, tekst));
   const bouwjaar = match(/Bouwjaar\s+(\d{2}\/\d{4})/i, tekst);
+  const autoNetto = nlGetal(match(/Totaal\s*€\s*([\d.,]+)/i, tekst));        // subtotaal auto excl. btw/bpm
+  const btwBedrag = nlGetal(match(/(?:\s)BTW\s*€\s*([\d.,]+)/i, tekst));      // alleen met €-teken (niet footer "BTW:")
+  const bpmBedrag = nlGetal(match(/(?:\s)BPM\s*€\s*([\d.,]+)/i, tekst));
   const toeTeBetalen = nlGetal(match(/Toe te betalen\s*€?\s*([\d.,]+)/i, tekst));
   const bedrijfsinvestering = nlGetal(match(/Bedrijfsinvestering\s*€?\s*([\d.,]+)/i, tekst));
   const tav = klantNaam || match(/T\.a\.v\.\s+(.+?)\s+Verkoper:/i, tekst) || '';
+
+  // BTW-auto vs marge-auto. BTW-auto als: er een BTW-bedrag staat, OF de bedrijfsinvestering
+  // afwijkt van het toe-te-betalen bedrag (dan zit er btw/marge in → standaard met btw factureren,
+  // ook bij privéverkoop). Anders marge.
+  const investeringWijkt = bedrijfsinvestering != null && toeTeBetalen != null
+    && Math.abs(bedrijfsinvestering - toeTeBetalen) > 0.5;
+  const isBtwAuto = (btwBedrag ?? 0) > 0 || investeringWijkt;
+  const bpm = bpmBedrag ?? 0;
 
   // Optionele HubSpot-NAW van de klant
   let companyId: string | null = null;
@@ -93,19 +104,30 @@ export async function importeerAutoUitEnvelope(envelopeId: string): Promise<Impo
     } catch { /* niet fataal */ }
   }
 
-  const regels: FactuurRegel[] = [{
-    omschrijving: `Levering ${merk} ${model}`.trim(),
-    aantal: 1,
-    prijs_excl: toeTeBetalen ?? 0,
-    btw_code: 'marge', // import-auto's meestal margeregeling; PEPE kan wijzigen
-  }];
+  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+  const leverNaam = `Levering ${merk} ${model}`.trim();
+  let regels: FactuurRegel[];
+  if (isBtwAuto) {
+    // Voertuigprijs excl. btw:
+    //  - met expliciete BTW-regel → "Totaal €" is al de netto-subtotaal
+    //  - anders (btw zit in toe te betalen) → afleiden: (toe te betalen − BPM) / 1,21
+    const heeftExplicieteBtw = (btwBedrag ?? 0) > 0 && autoNetto != null;
+    const netto = heeftExplicieteBtw
+      ? (autoNetto as number)
+      : (toeTeBetalen != null ? round2((toeTeBetalen - bpm) / 1.21) : (autoNetto ?? 0));
+    regels = [{ omschrijving: leverNaam, aantal: 1, prijs_excl: round2(netto), btw_code: 'hoog' }];
+    if (bpm > 0) regels.push({ omschrijving: 'BPM', aantal: 1, prijs_excl: bpm, btw_code: 'geen' });
+  } else {
+    regels = [{ omschrijving: leverNaam, aantal: 1, prijs_excl: toeTeBetalen ?? 0, btw_code: 'marge' }];
+  }
   const totalen = berekenTotalen(regels);
 
   const notitie = [
     `Geïmporteerd uit DocuSign (${env}).`,
-    toeTeBetalen != null ? `Toe te betalen: € ${toeTeBetalen.toFixed(2)}.` : '',
+    isBtwAuto ? 'BTW-auto met BPM.' : 'Marge-auto.',
+    toeTeBetalen != null ? `Toe te betalen: € ${toeTeBetalen.toFixed(2)} (blijft vast).` : '',
     bedrijfsinvestering != null ? `Bedrijfsinvestering: € ${bedrijfsinvestering.toFixed(2)}.` : '',
-    'Kenteken, rest-BPM en chassisnummer nog aanvullen.',
+    'Kenteken, definitieve BPM en chassisnummer nog aanvullen.',
   ].filter(Boolean).join(' ');
 
   const { data, error } = await supabaseAdmin.from('uitgaande_facturen').insert({
@@ -130,7 +152,9 @@ export async function importeerAutoUitEnvelope(envelopeId: string): Promise<Impo
       kleur: kleur || null,
       km_stand: kmStand,
       datum_deel1a: bouwjaar || null,
-      btw_soort: 'marge',
+      btw_soort: isBtwAuto ? 'btw' : 'marge',
+      rest_bpm: isBtwAuto ? bpm : null,
+      toe_te_betalen: toeTeBetalen ?? null,
     },
     notitie,
   }).select('id').single();

@@ -16,7 +16,7 @@ interface Props {
 }
 
 const TYPE_OPTIES: { value: FactuurType; label: string }[] = [
-  { value: 'auto', label: '🚗 Auto (margeregeling)' },
+  { value: 'auto', label: '🚗 Auto (BTW of marge)' },
   { value: 'wagenparkbeheer', label: '🏢 Wagenparkbeheer fee' },
   { value: 'shortlease', label: '📋 Shortlease doorbelasting' },
   { value: 'werk_derden', label: '🔨 Werk derden' },
@@ -68,6 +68,8 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [kmStand, setKmStand] = useState(factuur?.voertuig?.km_stand?.toString() ?? '');
   const [datumDeel1a, setDatumDeel1a] = useState(factuur?.voertuig?.datum_deel1a ?? '');
   const [restBpm, setRestBpm] = useState(factuur?.voertuig?.rest_bpm?.toString() ?? '');
+  const [btwSoort, setBtwSoort] = useState<'btw' | 'marge'>((factuur?.voertuig?.btw_soort as 'btw' | 'marge') ?? 'btw');
+  const [toeTeBetalen, setToeTeBetalen] = useState(factuur?.voertuig?.toe_te_betalen?.toString() ?? '');
   const [rdwBezig, setRdwBezig] = useState(false);
 
   // Regels
@@ -85,12 +87,24 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [geboektNummer, setGeboektNummer] = useState<string | null>(factuur?.factuurnummer ?? null);
   const [werkId, setWerkId] = useState<string | null>(factuur?.id ?? null);
 
-  // Auto-BTW instellen als type=auto
+  // Auto: regels automatisch afleiden uit Toe te betalen + BPM. Het toe-te-betalen-bedrag
+  // blijft VAST; als de BPM wijzigt, herrekent de voertuigprijs (en btw) automatisch.
+  //  - BTW-auto:  voertuigprijs excl = (toe te betalen − BPM) / 1,21 @21%, + BPM @0%
+  //  - Marge-auto: geen btw-uitsplitsing → één regel @marge = toe te betalen
   useEffect(() => {
-    if (isAuto && regels.length > 0 && regels[0].btw_code !== 'marge') {
-      setRegels((rs) => rs.map((r) => ({ ...r, btw_code: 'marge' as BtwCode })));
+    if (!isAuto) return;
+    const ttb = Number(toeTeBetalen) || 0;
+    const bpm = Number(restBpm) || 0;
+    const naam = `Levering ${merk} ${model}`.trim() || 'Levering voertuig';
+    if (btwSoort === 'btw') {
+      const netto = ttb > 0 ? Math.round(((ttb - bpm) / 1.21) * 100) / 100 : 0;
+      const nieuw: FactuurRegel[] = [{ omschrijving: naam, aantal: 1, prijs_excl: netto, btw_code: 'hoog' }];
+      if (bpm > 0) nieuw.push({ omschrijving: 'BPM', aantal: 1, prijs_excl: bpm, btw_code: 'geen' });
+      setRegels(nieuw);
+    } else {
+      setRegels([{ omschrijving: naam, aantal: 1, prijs_excl: ttb, btw_code: 'marge' }]);
     }
-  }, [isAuto]);
+  }, [isAuto, btwSoort, toeTeBetalen, restBpm, merk, model]);
 
   const totalen = berekenTotalen(regels);
 
@@ -167,7 +181,8 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
         datum_deel1a: datumDeel1a || null,
         rest_bpm: restBpm ? Number(restBpm) : null,
         bpm_methode: 'handmatig',
-        btw_soort: 'marge',
+        btw_soort: btwSoort,
+        toe_te_betalen: toeTeBetalen ? Number(toeTeBetalen) : null,
       } : null,
       status: isAuto && !kenteken ? 'aanvullen' : 'concept',
       notitie: notitie || null,
@@ -341,13 +356,44 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                   ['Kleur', kleur, setKleur],
                   ['Km-stand', kmStand, setKmStand],
                   ['Datum deel 1A', datumDeel1a, setDatumDeel1a],
-                  ['Rest BPM (€)', restBpm, setRestBpm],
                 ].map(([label, value, setter]) => (
                   <div key={label as string} className={styles.veld}>
                     <label className={styles.label}>{label as string}</label>
                     <input className={styles.input} value={value as string} onChange={e => (setter as (v: string) => void)(e.target.value)} readOnly={!kanAanpassen} />
                   </div>
                 ))}
+              </div>
+
+              <div className={styles.sectieKop}>BTW / prijsopbouw</div>
+              <div className={styles.formGrid}>
+                <div className={styles.veld}>
+                  <label className={styles.label}>BTW-soort</label>
+                  <select className={styles.select} value={btwSoort} onChange={e => setBtwSoort(e.target.value as 'btw' | 'marge')} disabled={!kanAanpassen}>
+                    <option value="btw">BTW-auto (21%)</option>
+                    <option value="marge">Marge-auto (geen btw)</option>
+                  </select>
+                </div>
+                <div className={styles.veld}>
+                  <label className={styles.label}>Toe te betalen (incl. btw) — blijft vast</label>
+                  <input className={styles.input} value={toeTeBetalen} onChange={e => setToeTeBetalen(e.target.value)} readOnly={!kanAanpassen} />
+                </div>
+                <div className={styles.veld}>
+                  <label className={styles.label}>Rest BPM (€)</label>
+                  <input className={styles.input} value={restBpm} onChange={e => setRestBpm(e.target.value)} readOnly={!kanAanpassen} />
+                </div>
+              </div>
+              <div className={styles.infoBox}>
+                {btwSoort === 'btw' ? (
+                  <>
+                    Voertuigprijs excl.: <strong>{euro((Number(toeTeBetalen || 0) - Number(restBpm || 0)) / 1.21)}</strong>
+                    {' · '}BTW 21%: <strong>{euro(((Number(toeTeBetalen || 0) - Number(restBpm || 0)) / 1.21) * 0.21)}</strong>
+                    {' · '}BPM: <strong>{euro(Number(restBpm || 0))}</strong>
+                    {' · '}Toe te betalen: <strong>{euro(Number(toeTeBetalen || 0))}</strong>.
+                    {' '}Pas de BPM aan → voertuigprijs en btw herrekenen automatisch; toe te betalen blijft gelijk.
+                  </>
+                ) : (
+                  <>Marge-auto: alleen de verkoopprijs op de factuur, geen btw-uitsplitsing.</>
+                )}
               </div>
             </>
           )}
@@ -357,7 +403,8 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
             <>
               {isAuto && (
                 <div className={styles.infoBox}>
-                  Auto-verkoop = margeregeling: geen BTW-uitsplitsing op factuur. Alle regels krijgen BTW-code <strong>Marge</strong>.
+                  Auto-regels worden automatisch berekend uit <strong>Toe te betalen</strong> + <strong>BPM</strong> (zie tab Voertuig).
+                  {btwSoort === 'btw' ? ' BTW-auto: voertuigprijs @21% + BPM @0%.' : ' Marge-auto: één regel zonder btw.'}
                 </div>
               )}
               <table className={styles.regelTable}>
