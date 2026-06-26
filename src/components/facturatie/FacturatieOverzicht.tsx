@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { authHeaders } from '@/lib/clientAuth';
 import type { UitgaandeFactuur, FactuurStatus, FactuurType } from '@/types/factuur';
 import FactuurModal from './FactuurModal';
@@ -67,7 +68,10 @@ export default function FacturatieOverzicht() {
           <h1 className={styles.title}>Facturatie</h1>
           <p className={styles.sub}>Uitgaande facturen — auto&apos;s &amp; diensten · gekoppeld aan Twinfield</p>
         </div>
-        <button className={styles.primary} onClick={() => setNieuwOpen(true)}>+ Nieuwe factuur</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link className={styles.secondary} href="/facturatie/wagenparkbeheer">Wagenparkbeheer-config</Link>
+          <button className={styles.primary} onClick={() => setNieuwOpen(true)}>+ Nieuwe factuur</button>
+        </div>
       </header>
 
       <nav className={styles.tabs}>

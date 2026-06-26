@@ -462,6 +462,33 @@ export async function getRijdendeDeals(contactId: string): Promise<RijdendeDeal[
   return out;
 }
 
+/**
+ * Rijdende deals (= voertuigen) die aan een COMPANY zijn gekoppeld, met hun kenteken.
+ * Voor wagenparkbeheer-facturatie: tel/groepeer voertuigen per (dochter)onderneming.
+ */
+export async function getRijdendeDealsForCompany(
+  companyId: string,
+): Promise<{ kentekens: string[]; aantal: number }> {
+  const id = String(companyId ?? '').trim();
+  if (!id) return { kentekens: [], aantal: 0 };
+
+  const assoc = await hsFetch<{ results?: { toObjectId: string | number }[] }>(
+    `${HS_BASE}/crm/v4/objects/companies/${id}/associations/deals?limit=500`,
+  ).catch(() => ({ results: [] as { toObjectId: string | number }[] }));
+
+  const ids = (assoc.results ?? []).map((r) => String(r.toObjectId));
+  const kentekens: string[] = [];
+  for (const dealId of ids) {
+    const f = await getDealFields(dealId, ['dealname', 'dealstage']).catch(
+      () => ({} as Record<string, string>),
+    );
+    if (f.dealstage !== DEALSTAGE_RIJDEND) continue;
+    if (f.dealname) kentekens.push(f.dealname.toUpperCase());
+  }
+  kentekens.sort();
+  return { kentekens, aantal: kentekens.length };
+}
+
 /** Haalt specifieke velden van een deal (= voertuig/contract) op. */
 export async function getDealFields(
   dealId: string,
