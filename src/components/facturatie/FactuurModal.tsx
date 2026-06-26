@@ -67,9 +67,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [kleur, setKleur] = useState(factuur?.voertuig?.kleur ?? '');
   const [kmStand, setKmStand] = useState(factuur?.voertuig?.km_stand?.toString() ?? '');
   const [datumDeel1a, setDatumDeel1a] = useState(factuur?.voertuig?.datum_deel1a ?? '');
-  const [brutoBpm, setBrutoBpm] = useState(factuur?.voertuig?.bruto_bpm?.toString() ?? '');
   const [restBpm, setRestBpm] = useState(factuur?.voertuig?.rest_bpm?.toString() ?? '');
-  const [bpmMethode, setBpmMethode] = useState(factuur?.voertuig?.bpm_methode ?? 'handmatig');
   const [rdwBezig, setRdwBezig] = useState(false);
 
   // Regels
@@ -167,9 +165,8 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
         kleur: kleur || null,
         km_stand: kmStand ? Number(kmStand) : null,
         datum_deel1a: datumDeel1a || null,
-        bruto_bpm: brutoBpm ? Number(brutoBpm) : null,
         rest_bpm: restBpm ? Number(restBpm) : null,
-        bpm_methode: bpmMethode,
+        bpm_methode: 'handmatig',
         btw_soort: 'marge',
       } : null,
       status: isAuto && !kenteken ? 'aanvullen' : 'concept',
@@ -344,7 +341,6 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                   ['Kleur', kleur, setKleur],
                   ['Km-stand', kmStand, setKmStand],
                   ['Datum deel 1A', datumDeel1a, setDatumDeel1a],
-                  ['Bruto BPM (€)', brutoBpm, setBrutoBpm],
                   ['Rest BPM (€)', restBpm, setRestBpm],
                 ].map(([label, value, setter]) => (
                   <div key={label as string} className={styles.veld}>
@@ -352,14 +348,6 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                     <input className={styles.input} value={value as string} onChange={e => (setter as (v: string) => void)(e.target.value)} readOnly={!kanAanpassen} />
                   </div>
                 ))}
-                <div className={styles.veld}>
-                  <label className={styles.label}>BPM-methode</label>
-                  <select className={styles.select} value={bpmMethode} onChange={e => setBpmMethode(e.target.value)}>
-                    <option value="handmatig">Handmatig (VWE-website)</option>
-                    <option value="autotelex">AutotelexPRO (toekomst)</option>
-                    <option value="vwe">VWE-API (toekomst)</option>
-                  </select>
-                </div>
               </div>
             </>
           )}

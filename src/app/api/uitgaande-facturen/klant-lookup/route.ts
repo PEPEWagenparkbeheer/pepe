@@ -8,6 +8,7 @@ import {
   getCompanyFields,
   getInkoopNawByKenteken,
 } from '@/lib/hubspot';
+import { kvkOpzoeken } from '@/lib/kvk';
 
 export const runtime = 'nodejs';
 
@@ -40,8 +41,23 @@ export async function GET(req: NextRequest) {
 
   try {
     if (kvk) {
-      const id = await searchCompanyByKvk(kvk.replace(/\D/g, ''));
-      if (id) return NextResponse.json({ gevonden: true, ...(await companyNaw(id)) });
+      const kvkSchoon = kvk.replace(/\D/g, '');
+      // 1) Eerst HubSpot (geeft company-id + debiteurcode als de klant al bestaat)
+      const id = await searchCompanyByKvk(kvkSchoon);
+      if (id) return NextResponse.json({ gevonden: true, bron: 'hubspot', ...(await companyNaw(id)) });
+      // 2) Niet in HubSpot → echte KVK-register-API
+      const kvkData = await kvkOpzoeken(kvkSchoon);
+      if (kvkData) {
+        return NextResponse.json({
+          gevonden: true,
+          bron: 'kvk',
+          klant_naam: kvkData.naam || null,
+          adres: kvkData.straat || null,
+          postcode: kvkData.postcode || null,
+          plaats: kvkData.plaats || null,
+          kvk: kvkData.kvkNummer || kvkSchoon,
+        });
+      }
     }
     if (naam) {
       const id = await searchCompanyByName(naam);
