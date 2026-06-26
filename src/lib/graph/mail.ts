@@ -222,10 +222,16 @@ export async function sendMail(
   bijlagen: MailBijlage[] = [],
 ): Promise<void> {
   const url = `${GRAPH_BASE}/users/${encodeURIComponent(from)}/sendMail`;
+  // `to` mag een komma-gescheiden lijst zijn → meerdere ontvangers.
+  const ontvangers = to
+    .split(',')
+    .map((adres) => adres.trim())
+    .filter(Boolean)
+    .map((adres) => ({ emailAddress: { address: adres } }));
   const message: Record<string, unknown> = {
     subject,
     body: { contentType: 'HTML', content: bodyHtml },
-    toRecipients: [{ emailAddress: { address: to } }],
+    toRecipients: ontvangers,
   };
   if (bijlagen.length > 0) {
     message.attachments = bijlagen.map((b) => ({

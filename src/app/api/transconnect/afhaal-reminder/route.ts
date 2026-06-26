@@ -5,7 +5,8 @@
 // ?secret=<CRON_SECRET> of ?secret=<BREIN_SYNC_SECRET>.
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verstuurMail } from '@/lib/mail/send';
+import { sendMail } from '@/lib/graph/mail';
+import { getAccessToken, readAzureConfig } from '@/lib/graph/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,8 +17,10 @@ const supabase = createClient(
 );
 
 const CRON_SECRET = process.env.CRON_SECRET ?? '';
-// Administratie-ontvanger; overschrijfbaar via env zonder code-wijziging.
-const REMINDER_TO = process.env.AFHAAL_REMINDER_TO ?? 'joelle@pepewagenparkbeheer.nl';
+// Administratie-ontvangers (komma-gescheiden; sendMail splitst zelf);
+// overschrijfbaar via env zonder code-wijziging.
+const REMINDER_TO = process.env.AFHAAL_REMINDER_TO
+  ?? 'joelle@pepewagenparkbeheer.nl, kevin@pepewagenparkbeheer.nl';
 
 function geautoriseerd(req: NextRequest): boolean {
   const auth = req.headers.get('authorization');
@@ -63,6 +66,15 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!records?.length) return NextResponse.json({ ok: true, verstuurd: 0 });
 
+  // Verzenden via Microsoft Graph vanuit de gekoppelde info@-mailbox (geen Postmark).
+  const from = process.env.LEADS_MAILBOX || 'info@pepewagenparkbeheer.nl';
+  let accessToken: string;
+  try {
+    accessToken = (await getAccessToken(readAzureConfig())).accessToken;
+  } catch (e) {
+    return NextResponse.json({ error: `Graph-token mislukt: ${String(e)}` }, { status: 500 });
+  }
+
   let verstuurd = 0;
   const fouten: string[] = [];
 
@@ -88,7 +100,7 @@ export async function GET(req: NextRequest) {
     `;
 
     try {
-      await verstuurMail({ to: REMINDER_TO, subject, html });
+      await sendMail(accessToken, from, REMINDER_TO, subject, html);
       // Markeer als verstuurd zodat de reminder maar één keer per auto gaat.
       await supabase
         .from('after_sales')
