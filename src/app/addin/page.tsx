@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 /**
  * src/app/addin/page.tsx
  *
@@ -30,6 +30,10 @@ export default function AddinPage() {
   const [replyHtml, setReplyHtml] = useState('');
   const [category, setCategory] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [fbOpen, setFbOpen] = useState(false);
+  const [fbTekst, setFbTekst] = useState('');
+  const [fbBezig, setFbBezig] = useState(false);
+  const [fbOpgeslagen, setFbOpgeslagen] = useState(false);
   const officeReady = useRef(false);
 
   // Office.js laden via CDN — doet niets als Office al aanwezig is
@@ -137,6 +141,58 @@ export default function AddinPage() {
     }
   }, [replyHtml]);
 
+  /**
+   * "Maak BREIN slimmer": slaat een leerpunt op (scope 'brein') zodat toekomstige
+   * concepten dit meenemen. Stuurt de originele mail + dit concept als context mee,
+   * zodat de feedback later in te zien is bij het juiste antwoord.
+   */
+  const verstuurFeedback = useCallback(async () => {
+    const tekst = fbTekst.trim();
+    if (tekst.length < 3) return;
+    setFbBezig(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Niet ingelogd — open de app en log eerst in.');
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const item = (window as any)?.Office?.context?.mailbox?.item;
+      const bodyText = await getBodyText();
+      const origineel = [
+        item?.subject ? `Onderwerp: ${item.subject}` : '',
+        bodyText,
+      ].filter(Boolean).join('\n\n');
+
+      const resp = await fetch('/api/brein/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          scope: 'brein',
+          feedback: tekst,
+          originalContext: origineel || null,
+          conceptResponse: replyHtml || null,
+        }),
+      });
+
+      if (!resp.ok) {
+        const err = (await resp.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? `Serverfout ${resp.status}`);
+      }
+
+      setFbTekst('');
+      setFbOpen(false);
+      setFbOpgeslagen(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(msg);
+    } finally {
+      setFbBezig(false);
+    }
+  }, [fbTekst, getBodyText, replyHtml]);
+
   /* ── Render ─────────────────────────────────────────────────────────── */
 
   return (
@@ -184,10 +240,58 @@ export default function AddinPage() {
             </button>
             <button
               style={btnSecondaryStyle}
-              onClick={() => { setStatus('ready'); setReplyHtml(''); setCategory(''); }}
+              onClick={() => {
+                setStatus('ready');
+                setReplyHtml('');
+                setCategory('');
+                setFbOpen(false);
+                setFbTekst('');
+                setFbOpgeslagen(false);
+              }}
             >
               ↩ Opnieuw
             </button>
+          </div>
+
+          <div style={feedbackWrapStyle}>
+            <button
+              type="button"
+              style={btnGhostStyle}
+              onClick={() => { setFbOpen((v) => !v); setFbOpgeslagen(false); }}
+            >
+              💡 Maak BREIN slimmer
+            </button>
+            {fbOpgeslagen && (
+              <p style={fbSuccesStyle}>✓ Onthouden voor volgende antwoorden</p>
+            )}
+            {fbOpen && (
+              <div style={fbPaneelStyle}>
+                <label htmlFor="brein-fb" style={mutedStyle}>
+                  Waar moet BREIN voortaan op letten?
+                </label>
+                <textarea
+                  id="brein-fb"
+                  style={fbTextareaStyle}
+                  value={fbTekst}
+                  onChange={(e) => setFbTekst(e.target.value)}
+                  placeholder="Bijv. noem altijd eerst de levertijd, of gebruik een informelere toon…"
+                  maxLength={1000}
+                  rows={3}
+                  autoFocus
+                />
+                <div style={fbVoetStyle}>
+                  <span style={mutedStyle}>{fbTekst.length}/1000</span>
+                  <button
+                    type="button"
+                    style={{ ...btnPrimaryStyle, width: 'auto', padding: '7px 14px', opacity: fbBezig || fbTekst.trim().length < 3 ? 0.6 : 1 }}
+                    disabled={fbBezig || fbTekst.trim().length < 3}
+                    onClick={() => void verstuurFeedback()}
+                  >
+                    {fbBezig ? 'Opslaan…' : 'Feedback opslaan'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -298,4 +402,55 @@ const btnSecondaryStyle: React.CSSProperties = {
   background: '#f5f0f3',
   color: '#401837',
   border: '1px solid #c8b4c1',
+};
+
+const feedbackWrapStyle: React.CSSProperties = {
+  marginTop: 12,
+  paddingTop: 10,
+  borderTop: '1px solid #eee',
+};
+
+const btnGhostStyle: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  padding: '8px 12px',
+  border: '1px dashed #c8b4c1',
+  borderRadius: 5,
+  background: '#fff',
+  color: '#401837',
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+  textAlign: 'center',
+};
+
+const fbSuccesStyle: React.CSSProperties = {
+  color: '#2e7d32',
+  fontSize: 12,
+  margin: '6px 0 0',
+};
+
+const fbPaneelStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+  marginTop: 8,
+};
+
+const fbTextareaStyle: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: '8px',
+  border: '1px solid #ddd',
+  borderRadius: 4,
+  fontFamily: 'inherit',
+  fontSize: 13,
+  resize: 'vertical',
+};
+
+const fbVoetStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
 };
