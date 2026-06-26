@@ -25,6 +25,7 @@ export interface ImportResult {
   ok: boolean;
   id?: string;
   bestond?: boolean;
+  genegeerd?: boolean;
   error?: string;
 }
 
@@ -57,6 +58,14 @@ export async function importeerAutoUitEnvelope(envelopeId: string): Promise<Impo
     return { ok: false, error: `PDF lezen mislukt: ${String(e)}` };
   }
   tekst = tekst.replace(/\s+/g, ' ');
+
+  // Veiligheidsfilter: alleen ECHTE verkoop-offertes verwerken. Een Connect-webhook vuurt bij
+  // élke voltooide envelope (ook consignatie-inkoopverklaringen) — die mogen geen auto-order worden.
+  const isVerkoopOfferte = /Basisgegevens/i.test(tekst) && /Toe te betalen/i.test(tekst);
+  const isInkoopverklaring = /inkoopverklaring|margeregeling verklaar/i.test(tekst);
+  if (!isVerkoopOfferte || isInkoopverklaring) {
+    return { ok: true, genegeerd: true, error: 'Geen verkoop-offerte — genegeerd.' };
+  }
 
   const titel = match(/Datum:\s*\d{2}-\d{2}-\d{4}\s+(.+?)\s+Basisgegevens/i, tekst) ?? '';
   const [merk, ...rest] = titel.split(' ');

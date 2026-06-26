@@ -14,5 +14,6 @@ export async function POST(req: NextRequest) {
 
   const res = await importeerAutoUitEnvelope(String(envelopeId));
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: 502 });
+  if (res.genegeerd) return NextResponse.json({ error: res.error ?? 'Geen verkoop-offerte' }, { status: 422 });
   return NextResponse.json({ ok: true, id: res.id, bestond: res.bestond ?? false });
 }
