@@ -463,7 +463,7 @@ export async function getRijdendeDeals(contactId: string): Promise<RijdendeDeal[
 }
 
 // Shortlease die PEPE doorbelast: deals met deze type_aanschaf-waarde (in HubSpot toe te voegen).
-export const SHORTLEASE_TYPE_AANSCHAF = 'Shortlease via PEPE';
+export const SHORTLEASE_TYPE_AANSCHAF = 'Short Lease via PEPE';
 // Maandhuur-property: probeer meerdere namen (eerste niet-lege telt). BEVESTIGEN welke bestaat.
 const SHORTLEASE_MAANDHUUR_PROPS = ['shortlease_maandbedrag', 'maandhuur', 'leasebedrag'];
 
