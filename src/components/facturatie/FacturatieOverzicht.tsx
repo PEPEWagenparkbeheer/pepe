@@ -54,6 +54,17 @@ export default function FacturatieOverzicht() {
 
   useEffect(() => { void laad(); }, [laad]);
 
+  async function genereerShortlease() {
+    if (!confirm('Shortlease-concepten voor deze maand klaarzetten?')) return;
+    const res = await fetch('/api/facturatie/shortlease-cron', { headers: await authHeaders() });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) {
+      const r = (j.resultaat ?? []).map((x: { company: string; status: string; regels?: number }) => `${x.company}: ${x.status}${x.regels ? ` (${x.regels})` : ''}`).join(' · ');
+      await laad(); setTab('ter_controle');
+      alert(`Periode ${j.periode} — ${j.gevonden_deals} shortlease-deals.\n${r || 'Niets klaargezet.'}`);
+    } else alert(j.error ?? 'Mislukt');
+  }
+
   async function importDocusign() {
     const env = window.prompt('DocuSign Envelope-ID van de getekende offerte:');
     if (!env) return;
@@ -83,6 +94,7 @@ export default function FacturatieOverzicht() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link className={styles.secondary} href="/facturatie/wagenparkbeheer">Wagenparkbeheer-config</Link>
+          <button className={styles.secondary} onClick={genereerShortlease}>Shortlease nu</button>
           <button className={styles.secondary} onClick={importDocusign}>Importeer DocuSign</button>
           <button className={styles.primary} onClick={() => setNieuwOpen(true)}>+ Nieuwe factuur</button>
         </div>
