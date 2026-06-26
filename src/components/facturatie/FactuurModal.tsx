@@ -270,7 +270,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   ];
 
   return (
-    <div className={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className={styles.overlay}>
       <div className={styles.modal}>
         {/* Header */}
         <div className={styles.modalHeader}>

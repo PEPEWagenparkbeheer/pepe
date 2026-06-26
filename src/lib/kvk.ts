@@ -27,14 +27,18 @@ type KvkAdres = {
   indAfgeschermd?: string;
 };
 
+type KvkHoofdvestiging = {
+  eersteHandelsnaam?: string;
+  adressen?: KvkAdres[];
+  websites?: string[];
+};
+
 type KvkResponse = {
   kvkNummer?: string;
   naam?: string;
-  hoofdvestiging?: {
-    eersteHandelsnaam?: string;
-    adressen?: KvkAdres[];
-    websites?: string[];
-  };
+  // De KVK-basisprofiel-API levert de hoofdvestiging onder _embedded (niet top-level).
+  _embedded?: { hoofdvestiging?: KvkHoofdvestiging };
+  hoofdvestiging?: KvkHoofdvestiging;
 };
 
 export async function kvkOpzoeken(kvkNummer: string): Promise<KvkBedrijf | null> {
@@ -52,9 +56,10 @@ export async function kvkOpzoeken(kvkNummer: string): Promise<KvkBedrijf | null>
     if (!res.ok) return null;
 
     const d = (await res.json()) as KvkResponse;
+    const hv = d._embedded?.hoofdvestiging ?? d.hoofdvestiging;
 
     // Bezoekadres heeft prioriteit, afgeschermde adressen overslaan
-    const adressen = d.hoofdvestiging?.adressen ?? [];
+    const adressen = hv?.adressen ?? [];
     const adres =
       adressen.find((a) => a.type === 'bezoekadres' && a.indAfgeschermd !== 'Ja') ??
       adressen.find((a) => a.indAfgeschermd !== 'Ja') ??
@@ -73,7 +78,7 @@ export async function kvkOpzoeken(kvkNummer: string): Promise<KvkBedrijf | null>
         .trim();
     }
 
-    const rawSite = d.hoofdvestiging?.websites?.[0];
+    const rawSite = hv?.websites?.[0];
     let website: string | undefined;
     if (rawSite) {
       try {
@@ -86,7 +91,7 @@ export async function kvkOpzoeken(kvkNummer: string): Promise<KvkBedrijf | null>
 
     return {
       kvkNummer: d.kvkNummer ?? kvk,
-      naam: d.naam ?? d.hoofdvestiging?.eersteHandelsnaam ?? '',
+      naam: d.naam ?? hv?.eersteHandelsnaam ?? '',
       website,
       straat,
       postcode: adres?.postcode,

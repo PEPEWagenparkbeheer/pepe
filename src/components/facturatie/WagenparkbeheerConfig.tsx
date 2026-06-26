@@ -177,8 +177,8 @@ function ConfigModal({
   const totaalVoertuigen = cfg.child_company_ids.filter((c) => c.checked !== false).reduce((s, c) => s + (c.aantal ?? 0), 0);
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.overlay}>
+      <div className={styles.modal}>
         <header className={styles.modalHeader}>
           <span className={styles.modalTitle}>{cfg.id ? 'Klant bewerken' : 'Nieuwe klant'}</span>
           <button className={styles.closeBtn} onClick={onClose}>×</button>
