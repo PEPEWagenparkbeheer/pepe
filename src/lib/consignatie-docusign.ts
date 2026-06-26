@@ -81,3 +81,28 @@ export async function getEnvelopeStatus(envelopeId: string): Promise<EnvelopeSta
   if (!res.ok) throw new Error(`DocuSign status mislukt (${res.status})`);
   return { status: j.status ?? 'unknown', completedDateTime: j.completedDateTime, sentDateTime: j.sentDateTime };
 }
+
+export interface EnvelopeRecipient { name: string; email: string; routingOrder?: string }
+
+/** Ondertekenaars van een envelope (eerste signer = meestal de klant/koper). */
+export async function getEnvelopeRecipients(envelopeId: string): Promise<EnvelopeRecipient[]> {
+  const token = await getAccessToken();
+  const res = await fetch(
+    `${DOCUSIGN_BASE}/restapi/v2.1/accounts/${DOCUSIGN_ACCOUNT}/envelopes/${envelopeId}/recipients`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const j = (await res.json()) as { signers?: { name?: string; email?: string; routingOrder?: string }[] };
+  if (!res.ok) throw new Error(`DocuSign recipients mislukt (${res.status})`);
+  return (j.signers ?? []).map((s) => ({ name: s.name ?? '', email: s.email ?? '', routingOrder: s.routingOrder }));
+}
+
+/** Downloadt het samengevoegde (getekende) PDF van een envelope als bytes. */
+export async function getEnvelopeCombinedPdf(envelopeId: string): Promise<Uint8Array> {
+  const token = await getAccessToken();
+  const res = await fetch(
+    `${DOCUSIGN_BASE}/restapi/v2.1/accounts/${DOCUSIGN_ACCOUNT}/envelopes/${envelopeId}/documents/combined`,
+    { headers: { Authorization: `Bearer ${token}`, Accept: 'application/pdf' } },
+  );
+  if (!res.ok) throw new Error(`DocuSign document ophalen mislukt (${res.status})`);
+  return new Uint8Array(await res.arrayBuffer());
+}

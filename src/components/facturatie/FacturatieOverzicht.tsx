@@ -54,6 +54,19 @@ export default function FacturatieOverzicht() {
 
   useEffect(() => { void laad(); }, [laad]);
 
+  async function importDocusign() {
+    const env = window.prompt('DocuSign Envelope-ID van de getekende offerte:');
+    if (!env) return;
+    const res = await fetch('/api/uitgaande-facturen/docusign-import', {
+      method: 'POST',
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ envelopeId: env.trim() }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) { await laad(); setTab('open'); alert(j.bestond ? 'Was al geïmporteerd.' : 'Geïmporteerd — staat onder “Aanvullen”.'); }
+    else alert(j.error ?? 'Import mislukt');
+  }
+
   const zichtbaar = useMemo(() => {
     if (tab === 'open') {
       return facturen.filter((f) => ['concept', 'aanvullen', 'ter_controle'].includes(f.status));
@@ -70,6 +83,7 @@ export default function FacturatieOverzicht() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link className={styles.secondary} href="/facturatie/wagenparkbeheer">Wagenparkbeheer-config</Link>
+          <button className={styles.secondary} onClick={importDocusign}>Importeer DocuSign</button>
           <button className={styles.primary} onClick={() => setNieuwOpen(true)}>+ Nieuwe factuur</button>
         </div>
       </header>
