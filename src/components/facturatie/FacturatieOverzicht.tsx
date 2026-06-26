@@ -43,10 +43,12 @@ export default function FacturatieOverzicht() {
   const [tab, setTab] = useState<'open' | FactuurStatus>('open');
   const [actief, setActief] = useState<UitgaandeFactuur | null>(null);
   const [nieuwOpen, setNieuwOpen] = useState(false);
+  const [geenToegang, setGeenToegang] = useState(false);
 
   const laad = useCallback(async () => {
     setLoading(true);
     const res = await fetch('/api/uitgaande-facturen', { headers: await authHeaders() });
+    if (res.status === 403) { setGeenToegang(true); setLoading(false); return; }
     const json = await res.json().catch(() => ({}));
     setFacturen(Array.isArray(json.facturen) ? json.facturen : []);
     setLoading(false);
@@ -84,6 +86,15 @@ export default function FacturatieOverzicht() {
     }
     return facturen.filter((f) => f.status === tab);
   }, [facturen, tab]);
+
+  if (geenToegang) {
+    return (
+      <div className={styles.wrap}>
+        <h1 className={styles.title}>Facturatie</h1>
+        <p className={styles.empty}>Je hebt geen toegang tot de Facturatie-module. Vraag Joep om toegang.</p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.wrap}>

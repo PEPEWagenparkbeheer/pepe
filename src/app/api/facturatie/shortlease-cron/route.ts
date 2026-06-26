@@ -9,7 +9,7 @@
 // Auth: Bearer/?secret=CRON_SECRET of ingelogde PEPE. Optioneel ?periode=YYYY-MM.
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { requirePepe } from '@/lib/apiAuth';
+import { requireFacturatie } from '@/lib/apiAuth';
 import { getShortleaseDeals, getDealCompanyId, getCompanyFields } from '@/lib/hubspot';
 import { berekenTotalen } from '@/lib/factuur/btw';
 import type { FactuurRegel } from '@/types/factuur';
@@ -45,7 +45,7 @@ async function geautoriseerd(req: NextRequest): Promise<boolean> {
   const secret = url.searchParams.get('secret');
   const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   if (CRON_SECRET && (secret === CRON_SECRET || bearer === CRON_SECRET)) return true;
-  const gate = await requirePepe(req);
+  const gate = await requireFacturatie(req);
   return gate.ok;
 }
 

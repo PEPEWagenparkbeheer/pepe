@@ -1,7 +1,7 @@
 // GET /api/uitgaande-facturen/klant-lookup?kvk=  | ?naam=  | ?kenteken=
 // Haalt NAW van de debiteur uit HubSpot voor het "Factuur aan"-blok.
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePepe } from '@/lib/apiAuth';
+import { requireFacturatie } from '@/lib/apiAuth';
 import {
   searchCompanyByKvk,
   searchCompanyByName,
@@ -30,7 +30,7 @@ async function companyNaw(companyId: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const gate = await requirePepe(req);
+  const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
 
   const url = new URL(req.url);

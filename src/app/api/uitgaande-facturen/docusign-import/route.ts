@@ -1,13 +1,13 @@
 // POST /api/uitgaande-facturen/docusign-import  — Body: { envelopeId }
 // Handmatig een getekende DocuSign-offerte ophalen en als auto-order (status 'aanvullen') klaarzetten.
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePepe } from '@/lib/apiAuth';
+import { requireFacturatie } from '@/lib/apiAuth';
 import { importeerAutoUitEnvelope } from '@/lib/factuur/docusign-import';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  const gate = await requirePepe(req);
+  const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
   const { envelopeId } = await req.json().catch(() => ({}));
   if (!envelopeId) return NextResponse.json({ error: 'envelopeId vereist' }, { status: 400 });

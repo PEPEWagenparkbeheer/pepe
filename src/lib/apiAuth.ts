@@ -73,6 +73,26 @@ export async function requirePepe(req: Request): Promise<Gate> {
   return gate;
 }
 
+/** True als deze medewerker toegang heeft tot de Facturatie-module (kolom mag_facturatie). */
+export async function magFacturatie(user: User): Promise<boolean> {
+  const email = (user.email ?? '').toLowerCase();
+  if (!email) return false;
+  const { data } = await supabaseAdmin
+    .from('medewerkers')
+    .select('mag_facturatie, actief')
+    .ilike('email', email)
+    .maybeSingle();
+  return !!data && data.actief !== false && data.mag_facturatie === true;
+}
+
+/** Valideer het token én eis Facturatie-toegang (subset van PEPE-medewerkers). */
+export async function requireFacturatie(req: Request): Promise<Gate> {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate;
+  if (!(await magFacturatie(gate.user))) return forbidden('Geen toegang tot Facturatie');
+  return gate;
+}
+
 /**
  * Webhook-auth voor externe bronnen (Postmark e.d.). Accepteert het gedeelde secret
  * via `Authorization: Bearer <secret>` of `x-webhook-secret` (aanbevolen) én via

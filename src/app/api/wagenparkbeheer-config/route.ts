@@ -2,12 +2,12 @@
 // POST /api/wagenparkbeheer-config  — nieuwe config (parent + childs + fee)
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { requirePepe } from '@/lib/apiAuth';
+import { requireFacturatie } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
-  const gate = await requirePepe(req);
+  const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
   const { data, error } = await supabaseAdmin
     .from('wagenparkbeheer_config').select('*').order('created_at', { ascending: false });
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const gate = await requirePepe(req);
+  const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
   const b = await req.json().catch(() => ({}));
   if (!b.parent_hubspot_company_id) {

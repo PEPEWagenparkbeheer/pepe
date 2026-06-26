@@ -2,14 +2,14 @@
 // POST /api/uitgaande-facturen         — nieuwe (concept) factuur aanmaken
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { requirePepe } from '@/lib/apiAuth';
+import { requireFacturatie } from '@/lib/apiAuth';
 import { berekenTotalen } from '@/lib/factuur/btw';
 import type { FactuurRegel } from '@/types/factuur';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
-  const gate = await requirePepe(req);
+  const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
 
   const url = new URL(req.url);
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const gate = await requirePepe(req);
+  const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
 
   const body = await req.json().catch(() => ({}));

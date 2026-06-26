@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
+import { authHeaders } from '@/lib/clientAuth';
 import styles from './Sidebar.module.css';
 
 const NAV_ITEMS = [
@@ -40,6 +42,20 @@ export default function Sidebar() {
   const initials = user?.email?.charAt(0).toUpperCase() ?? '?';
   const naam = user?.email?.split('@')[0] ?? '–';
 
+  // Facturatie-module is beperkt tot enkele medewerkers (server bepaalt dit).
+  const [magFacturatie, setMagFacturatie] = useState(false);
+  useEffect(() => {
+    let actief = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/facturatie/toegang', { headers: await authHeaders() });
+        const j = await res.json().catch(() => ({}));
+        if (actief) setMagFacturatie(!!j.allowed);
+      } catch { /* stil */ }
+    })();
+    return () => { actief = false; };
+  }, [user?.email]);
+
   return (
     <aside className={styles.sidebar}>
       <div className={styles.logoArea}>
@@ -50,7 +66,7 @@ export default function Sidebar() {
         {NAV_ITEMS.map(({ section, items }) => (
           <div key={section}>
             <div className={styles.section}>{section}</div>
-            {items.map(({ href, label, icon }) => {
+            {items.filter(({ href }) => href !== '/facturatie' || magFacturatie).map(({ href, label, icon }) => {
               const badge = href === '/werk-derden' ? wdActieCount : 0;
               return (
                 <Link

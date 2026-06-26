@@ -2,7 +2,7 @@
 // DELETE /api/wagenparkbeheer-config/[id]  — verwijderen
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { requirePepe } from '@/lib/apiAuth';
+import { requireFacturatie } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 
@@ -12,7 +12,7 @@ const VELDEN = [
 ] as const;
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const gate = await requirePepe(req);
+  const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
   const { id } = await ctx.params;
   const b = await req.json().catch(() => ({}));
@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 }
 
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const gate = await requirePepe(req);
+  const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
   const { id } = await ctx.params;
   const { error } = await supabaseAdmin.from('wagenparkbeheer_config').delete().eq('id', id);
