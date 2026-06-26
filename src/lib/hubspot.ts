@@ -462,6 +462,53 @@ export async function getRijdendeDeals(contactId: string): Promise<RijdendeDeal[
   return out;
 }
 
+// Shortlease die PEPE doorbelast: deals met deze type_aanschaf-waarde (in HubSpot toe te voegen).
+export const SHORTLEASE_TYPE_AANSCHAF = 'Shortlease via PEPE';
+// Maandhuur-property: probeer meerdere namen (eerste niet-lege telt). BEVESTIGEN welke bestaat.
+const SHORTLEASE_MAANDHUUR_PROPS = ['shortlease_maandbedrag', 'maandhuur', 'leasebedrag'];
+
+export interface ShortleaseDeal {
+  id: string;
+  kenteken: string;
+  maandhuur: number | null;
+  inzetdatum: string | null;        // ISO yyyy-mm-dd
+  verwachte_einddatum: string | null;
+}
+
+/** Alle shortlease-deals (type_aanschaf = "Shortlease via PEPE") met huurgegevens. */
+export async function getShortleaseDeals(): Promise<ShortleaseDeal[]> {
+  const props = ['dealname', 'type_aanschaf', 'inzetdatum', 'verwachte_einddatum', ...SHORTLEASE_MAANDHUUR_PROPS];
+  const data = await hsFetch<{ results?: { id: string; properties: Record<string, string> }[] }>(
+    `${HS_BASE}/crm/v3/objects/deals/search`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        limit: 100,
+        properties: props,
+        filterGroups: [{
+          filters: [{ propertyName: 'type_aanschaf', operator: 'EQ', value: SHORTLEASE_TYPE_AANSCHAF }],
+        }],
+      }),
+    },
+  ).catch(() => ({ results: [] as { id: string; properties: Record<string, string> }[] }));
+
+  return (data.results ?? []).map((d) => {
+    const p = d.properties ?? {};
+    let maandhuur: number | null = null;
+    for (const key of SHORTLEASE_MAANDHUUR_PROPS) {
+      const v = Number(p[key]);
+      if (p[key] && !isNaN(v)) { maandhuur = v; break; }
+    }
+    return {
+      id: d.id,
+      kenteken: (p.dealname ?? '').toUpperCase(),
+      maandhuur,
+      inzetdatum: p.inzetdatum ?? null,
+      verwachte_einddatum: p.verwachte_einddatum ?? null,
+    };
+  });
+}
+
 /**
  * Rijdende deals (= voertuigen) die aan een COMPANY zijn gekoppeld, met hun kenteken.
  * Voor wagenparkbeheer-facturatie: tel/groepeer voertuigen per (dochter)onderneming.

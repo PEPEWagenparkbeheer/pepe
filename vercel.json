@@ -11,6 +11,10 @@
     {
       "path": "/api/facturatie/wagenparkbeheer-cron",
       "schedule": "0 7 1 * *"
+    },
+    {
+      "path": "/api/facturatie/shortlease-cron",
+      "schedule": "0 8 1 * *"
     }
   ]
 }
