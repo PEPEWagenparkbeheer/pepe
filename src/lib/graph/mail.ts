@@ -75,11 +75,12 @@ export async function getRecentMessages(
 }
 
 /**
- * Haalt berichten van één afzender uit het Postvak IN, nieuwste eerst (deterministisch op datum).
- * `$filter` op het afzender-adres + `$orderby receivedDateTime desc` — vindt ook oudere mails die
- * buiten de "laatste N van alles" vallen, zonder afhankelijk te zijn van relevantie-ordening.
+ * Zoekt berichten van één afzender in het Postvak IN via Graph KQL-`$search` (`from:<adres>`).
+ * `$search` heeft veel betere recall dan een exact `$filter eq` (het exacte From-adres varieert per
+ * CarCollect-maitype), en vindt ook oudere mails. `$search` mag niet samen met `$orderby`; vereist
+ * ConsistencyLevel: eventual. Client-side sorteren op datum (nieuwste eerst).
  *
- * @param sender  exact afzender-adres, bv. `noreply@carcollect.com`
+ * @param sender  afzender-adres voor de KQL `from:`-operator, bv. `noreply@carcollect.com`
  */
 export async function getMessagesFromSender(
   accessToken: string,
@@ -88,21 +89,18 @@ export async function getMessagesFromSender(
   top = 50,
 ): Promise<GraphMessage[]> {
   const select = 'id,subject,from,receivedDateTime,bodyPreview,body,isRead,conversationId'
-  // NB: $filter op from-adres samen met $orderby op receivedDateTime geeft "restriction too complex".
-  // Daarom alleen $filter; client-side sorteren op datum (nieuwste eerst).
-  const filter = `from/emailAddress/address eq '${sender.replace(/'/g, "''")}'`
   const url =
     `${GRAPH_BASE}/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages` +
-    `?$filter=${encodeURIComponent(filter)}&$top=${top}&$select=${select}`
+    `?$search=${encodeURIComponent(`"from:${sender}"`)}&$top=${top}&$select=${select}`
 
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' },
   })
   const data = (await response.json()) as GraphListResponse
 
   if (!response.ok) {
     const detail = data?.error?.message ?? 'onbekende fout'
-    throw new Error(`Mailbox filteren mislukt (HTTP ${response.status}): ${detail}`)
+    throw new Error(`Mailbox doorzoeken mislukt (HTTP ${response.status}): ${detail}`)
   }
 
   return (data.value ?? [])
