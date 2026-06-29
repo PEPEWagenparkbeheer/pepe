@@ -131,6 +131,18 @@ export default function FacturatieOverzicht() {
     else alert(j.error ?? 'Import mislukt');
   }
 
+  const [ccStatus, setCcStatus] = useState('');
+  async function importCarCollect() {
+    setCcStatus('CarCollect ophalen…');
+    const res = await fetch('/api/facturatie/carcollect-import', { headers: await authHeaders() });
+    const j = await res.json().catch(() => ({}));
+    setCcStatus('');
+    if (res.ok) {
+      await laad(); setTab('open');
+      alert(`CarCollect: ${j.nieuw ?? 0} nieuw, ${j.bestond ?? 0} bestond al, ${j.fouten ?? 0} fout(en) — ${j.gescand ?? 0} verzoeken gescand.`);
+    } else alert(j.error ?? 'CarCollect-import mislukt');
+  }
+
   const zichtbaar = useMemo(() => {
     if (tab === 'open') {
       return facturen.filter((f) => ['concept', 'aanvullen', 'ter_controle'].includes(f.status));
@@ -195,6 +207,7 @@ export default function FacturatieOverzicht() {
           <button className={styles.secondary} onClick={syncDebiteuren}>{syncStatus || 'Sync debiteuren'}</button>
           <button className={styles.secondary} onClick={genereerShortlease}>Shortlease nu</button>
           <button className={styles.secondary} onClick={importDocusign}>Importeer DocuSign</button>
+          <button className={styles.secondary} onClick={importCarCollect}>{ccStatus || 'Importeer CarCollect'}</button>
           <button className={styles.primary} onClick={() => setNieuwOpen(true)}>+ Nieuwe factuur</button>
         </div>
       </header>
