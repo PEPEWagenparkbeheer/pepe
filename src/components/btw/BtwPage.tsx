@@ -4,9 +4,42 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useBtw } from '@/hooks/useBtw';
 import { schietConfetti } from '@/lib/confetti';
+import { authHeaders } from '@/lib/clientAuth';
 import type { BtwAutoType, BtwRecord } from '@/types';
+import type { FactuurRegel } from '@/types/factuur';
 import BtwModal from './BtwModal';
 import styles from './BtwPage.module.css';
+
+// Bouwt de factuurregels voor een credit. Eén regel per gevuld credit-bedrag
+// (leasemaatschappij / dealer); valt terug op het algemene bedrag als die leeg zijn.
+// BTW staat default op 'hoog' (21%) — controleer/pas aan in de factuur vóór akkoord.
+function bouwCreditRegels(r: BtwRecord): FactuurRegel[] {
+  const auto = [r.auto, r.kenteken ? `(${r.kenteken})` : ''].filter(Boolean).join(' ').trim();
+  const heeftLm = (r.lm_bedrag ?? 0) > 0;
+  const heeftDealer = (r.dealer_bedrag ?? 0) > 0;
+  const regels: FactuurRegel[] = [];
+  if (heeftLm) regels.push({ omschrijving: `Credit leasemaatschappij — ${auto}`.trim(), aantal: 1, prijs_excl: r.lm_bedrag!, btw_code: 'hoog' });
+  if (heeftDealer) regels.push({ omschrijving: `Credit dealer — ${auto}`.trim(), aantal: 1, prijs_excl: r.dealer_bedrag!, btw_code: 'hoog' });
+  if (!heeftLm && !heeftDealer) regels.push({ omschrijving: `Credit — ${auto}`.trim(), aantal: 1, prijs_excl: r.bedrag ?? 0, btw_code: 'hoog' });
+  return regels;
+}
+
+function bouwFactuurBody(r: BtwRecord) {
+  return {
+    type: 'diensten_overig',
+    soort: 'factuur',
+    status: 'concept',
+    bron: 'btw_credit',
+    klant_naam: r.dealer_verkoper || r.klant || null,
+    regels: bouwCreditRegels(r),
+    notitie: [
+      'Doorgezet vanuit BTW/credit-lijst.',
+      r.klant ? `Klant: ${r.klant}.` : '',
+      r.kenteken ? `Kenteken: ${r.kenteken}.` : '',
+      r.opmerkingen ? `Opm.: ${r.opmerkingen}` : '',
+    ].filter(Boolean).join(' '),
+  };
+}
 
 type Tab = 'lopend' | 'archief';
 
@@ -187,13 +220,15 @@ function KpiStrip({ records, onTab }: { records: BtwRecord[]; onTab: (t: Tab) =>
 }
 
 // ── Tab: Lopend ───────────────────────────────────────────────
-function TabLopend({ records, zoek, binnenOpMap, onEdit, onToggle, onArchiveer }: {
+function TabLopend({ records, zoek, binnenOpMap, onEdit, onToggle, onArchiveer, onNaarFacturatie, bezigId }: {
   records: BtwRecord[];
   zoek: string;
   binnenOpMap: Record<string, string>;
   onEdit: (r: BtwRecord) => void;
   onToggle: (id: string, veld: keyof BtwRecord) => Promise<boolean>;
   onArchiveer: (r: BtwRecord) => void;
+  onNaarFacturatie: (r: BtwRecord) => void;
+  bezigId: string | null;
 }) {
   const rijen = records.filter((r) => !r.gearchiveerd && (!zoek || zoekMatch(r, zoek)));
   if (!rijen.length) return <div className={styles.leeg}>Geen lopende BTW / credit records</div>;
@@ -289,7 +324,17 @@ function TabLopend({ records, zoek, binnenOpMap, onEdit, onToggle, onArchiveer }
                   )}
                 </td>
                 <td style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 160 }}>{r.opmerkingen || '—'}</td>
-                <td onClick={(e) => e.stopPropagation()}>
+                <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
+                  {isCredit && (
+                    <button
+                      className="btn btn-a"
+                      style={{ fontSize: 11, padding: '4px 10px', marginRight: 6 }}
+                      disabled={bezigId === r.id}
+                      onClick={() => onNaarFacturatie(r)}
+                    >
+                      {bezigId === r.id ? '…' : '→ Facturatie'}
+                    </button>
+                  )}
                   <button className={styles.archiefKnop} onClick={() => onArchiveer(r)}>✓ Archief</button>
                 </td>
               </tr>
@@ -355,9 +400,33 @@ export default function BtwPage() {
   const [zoek, setZoek] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<BtwRecord | null>(null);
+  const [bezigId, setBezigId] = useState<string | null>(null);
 
   function openEdit(r: BtwRecord) { setEditRecord(r); setModalOpen(true); }
   function openNieuw() { setEditRecord(null); setModalOpen(true); }
+
+  // Zet een credit door naar de facturatie-module (concept-factuur) en archiveer 'm.
+  async function handleNaarFacturatie(r: BtwRecord) {
+    if (bezigId) return;
+    if (!confirm(`Credit "${r.auto}" doorzetten naar facturatie?\n\nEr wordt een concept-factuur aangemaakt en de credit gaat naar het archief.`)) return;
+    setBezigId(r.id);
+    try {
+      const res = await fetch('/api/uitgaande-facturen', {
+        method: 'POST',
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(bouwFactuurBody(r)),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(j.error ?? 'Aanmaken concept-factuur mislukt'); return; }
+      await save({ ...r, gearchiveerd: true });
+      schietConfetti();
+      alert('✅ Concept-factuur aangemaakt in Facturatie. De credit staat nu in het archief — werk de factuur daar verder af.');
+    } catch (e) {
+      alert(`Aanmaken concept-factuur mislukt: ${String(e)}`);
+    } finally {
+      setBezigId(null);
+    }
+  }
 
   async function handleOpslaan(rec: BtwRecord | Omit<BtwRecord, 'id' | 'created_at'>) {
     if ('id' in rec) await save(rec as BtwRecord);
@@ -391,7 +460,7 @@ export default function BtwPage() {
         <div className={styles.leeg}>Laden...</div>
       ) : (
         <>
-          {tab === 'lopend'  && <TabLopend  records={records} zoek={zoek} binnenOpMap={binnenOpMap} onEdit={openEdit} onToggle={handleToggle} onArchiveer={handleArchiveer} />}
+          {tab === 'lopend'  && <TabLopend  records={records} zoek={zoek} binnenOpMap={binnenOpMap} onEdit={openEdit} onToggle={handleToggle} onArchiveer={handleArchiveer} onNaarFacturatie={handleNaarFacturatie} bezigId={bezigId} />}
           {tab === 'archief' && <TabArchief records={records} zoek={zoek} onEdit={openEdit} onTerugzetten={(r) => save({ ...r, gearchiveerd: false })} />}
         </>
       )}
