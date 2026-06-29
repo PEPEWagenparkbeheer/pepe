@@ -292,6 +292,12 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   // "Akkoord & verstuur": eerst debiteur matchen (geen blinde creatie). Credit → bron-debiteur, geen modal.
   async function startAkkoord() {
     if (!klantNaam.trim()) { setFout('Vul de klantnaam in.'); return; }
+    // Guard: een auto-factuur zonder kenteken levert GEEN HubSpot-deal op (sync hangt op kenteken).
+    // Bevestigen zodat niemand per ongeluk een auto-verkoop boekt die niet in HubSpot belandt.
+    if (isAuto && !kenteken.trim() && !window.confirm(
+      'Geen kenteken ingevuld. Er wordt dan GEEN HubSpot-deal aangemaakt voor deze auto ' +
+      '(de Twinfield-debiteur wordt wel teruggeschreven). Toch boeken en versturen?'
+    )) { return; }
     setBezig('Opslaan…'); setFout(null);
     const saved = await slaOp();
     if (!saved) { setBezig(null); return; }
