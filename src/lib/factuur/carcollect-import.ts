@@ -134,9 +134,12 @@ export async function importeerCarCollectMail(msg: GraphMessage): Promise<CarCol
   return { ok: true, id: row.id, kenteken: d.kenteken ?? null, klant: d.koper?.bedrijf ?? null };
 }
 
-/** Haalt de info@-inbox op, filtert CarCollect-facturatieverzoeken en importeert ze (idempotent). */
-export async function verwerkCarCollectInbox(token: string, mailbox: string, top = 40): Promise<{
-  gescand: number; nieuw: number; bestond: number; genegeerd: number; fouten: number;
+/** Haalt de info@-inbox op, filtert CarCollect-facturatieverzoeken en importeert ze (idempotent).
+ *  Per run worden max `maxNieuw` NIEUWE facturen aangemaakt (AI-parsing is traag; Hobby cap = 60s) —
+ *  de 15-min-cron werkt een eventuele achterstand vanzelf bij. Reeds geïmporteerde mails worden
+ *  alleen (snel) overgeslagen en tellen niet mee voor de cap. */
+export async function verwerkCarCollectInbox(token: string, mailbox: string, top = 25, maxNieuw = 6): Promise<{
+  gescand: number; nieuw: number; bestond: number; genegeerd: number; fouten: number; resterend: number;
   resultaten: CarCollectImportResult[];
 }> {
   // Server-side zoeken op afzender + onderwerp — vindt ook oudere mails in een drukke info@-inbox.
@@ -147,8 +150,9 @@ export async function verwerkCarCollectInbox(token: string, mailbox: string, top
   );
 
   const resultaten: CarCollectImportResult[] = [];
-  let nieuw = 0, bestond = 0, genegeerd = 0, fouten = 0;
+  let nieuw = 0, bestond = 0, genegeerd = 0, fouten = 0, resterend = 0;
   for (const m of verzoeken) {
+    if (nieuw >= maxNieuw) { resterend++; continue; } // cap bereikt → laat de rest voor de volgende cron
     const r = await importeerCarCollectMail(m).catch((e) => ({ ok: false, error: String(e) } as CarCollectImportResult));
     resultaten.push(r);
     if (!r.ok) fouten++;
@@ -156,5 +160,5 @@ export async function verwerkCarCollectInbox(token: string, mailbox: string, top
     else if (r.genegeerd) genegeerd++;
     else nieuw++;
   }
-  return { gescand: verzoeken.length, nieuw, bestond, genegeerd, fouten, resultaten };
+  return { gescand: verzoeken.length, nieuw, bestond, genegeerd, fouten, resterend, resultaten };
 }
