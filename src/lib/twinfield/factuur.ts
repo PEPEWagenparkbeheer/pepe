@@ -292,7 +292,10 @@ export async function createTwinfieldFactuur(
   const response = await callProcessXml(xml);
   const isSuccess = response.includes('result="1"') || response.includes("result='1'");
   if (!isSuccess) {
-    return { ok: false, error: `Twinfield: ${response.slice(0, 400)}` };
+    // Twinfield zet de fout-reden in msg="..."-attributen op het falende element.
+    const msgs = [...response.matchAll(/msg="([^"]+)"/g)].map((m) => m[1]);
+    const detail = msgs.length ? msgs.join(' · ') : response.slice(0, 500);
+    return { ok: false, error: `Twinfield weigert de factuur: ${detail}` };
   }
   const invoicenumber = extractXmlTag(response, 'invoicenumber');
   return { ok: true, invoice_id: invoicenumber ?? undefined };

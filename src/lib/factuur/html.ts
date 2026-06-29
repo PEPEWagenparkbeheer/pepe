@@ -50,7 +50,7 @@ export function buildFactuurHtml(factuur: UitgaandeFactuur, totalen: FactuurTota
       </div>
       <div class="chips">
         <div class="chip"><span class="cl">Kenteken</span><span class="cv">${esc(v.kenteken || '—')}</span></div>
-        <div class="chip"><span class="cl">Chassisnummer</span><span class="cv">${esc(v.chassis || '—')}</span></div>
+        <div class="chip"><span class="cl">Chassisnummer</span><span class="cv" style="font-size:9px;letter-spacing:-.2px;">${esc(v.chassis || '—')}</span></div>
         <div class="chip"><span class="cl">Datum deel 1A</span><span class="cv">${esc(v.datum_deel1a || '—')}</span></div>
         <div class="chip"><span class="cl">Km-stand</span><span class="cv">${esc(v.km_stand != null ? v.km_stand.toLocaleString('nl-NL') : '—')}</span></div>
         <div class="chip"><span class="cl">Kleur</span><span class="cv">${esc(v.kleur || '—')}</span></div>
@@ -75,8 +75,9 @@ export function buildFactuurHtml(factuur: UitgaandeFactuur, totalen: FactuurTota
       <td>${euro(sign * s.btw)}</td>
     </tr>`).join('');
 
+  const mc = (v?.chassis ?? '').replace(/\s/g, '').slice(-4); // meldcode = laatste 4 van chassisnummer
   const paynote = isAuto
-    ? `Gelieve het voertuig${v?.kenteken ? ` (<b>${esc(v.kenteken)}</b>)` : ''} te verzekeren en te betalen <b>vóór levering</b> op rekeningnummer <span class="iban">NL02INGB0106922696</span> onder vermelding van het factuurnummer.`
+    ? `Gelieve te verzekeren (<b>${esc(v?.kenteken || '—')}</b>${mc ? `, mc. <b>${esc(mc)}</b>` : ''}) en te betalen <b>vóór levering</b> op rekeningnummer <span class="iban">NL02INGB0106922696</span> onder vermelding van het factuurnummer.`
     : `Gelieve te betalen binnen <b>${factuur.betaaltermijn_dagen ?? 14} dagen</b> na factuurdatum op rekeningnummer <span class="iban">NL02INGB0106922696</span> onder vermelding van het factuurnummer.`;
 
   const bijlage = (factuur.type === 'wagenparkbeheer' && factuur.bijlage?.entiteiten?.length)
