@@ -43,13 +43,39 @@ const col = (doc: jsPDF, c: [number, number, number]) => doc.setTextColor(c[0], 
 const fill = (doc: jsPDF, c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
 const draw = (doc: jsPDF, c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
 
+// ── Lettertypes uit het design: Manrope (body) + Archivo (display). Statisch gesubset in /public/fonts. ──
+const fontCache: Record<string, string> = {};
+async function ttfBase64(url: string): Promise<string> {
+  const buf = await (await fetch(url)).arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...Array.from(bytes.subarray(i, i + chunk)));
+  }
+  return btoa(bin);
+}
+async function registerFonts(doc: jsPDF): Promise<void> {
+  const defs: [string, string, string][] = [
+    ['Manrope-Regular.ttf', 'Manrope', 'normal'],
+    ['Manrope-Bold.ttf', 'Manrope', 'bold'],
+    ['Archivo-Bold.ttf', 'Archivo', 'bold'],
+    ['Archivo-ExtraBold.ttf', 'Archivo', 'extrabold'],
+  ];
+  for (const [file, fam, style] of defs) {
+    if (!fontCache[file]) fontCache[file] = await ttfBase64(`/fonts/${file}`);
+    doc.addFileToVFS(file, fontCache[file]);
+    doc.addFont(file, fam, style);
+  }
+}
+
 /** Label (klein, uppercase) boven een waarde met onderlijn — zoals .field in het design. */
 function veld(doc: jsPDF, label: string, waarde: string, x: number, y: number, breedte: number): void {
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('Manrope', 'normal');
   doc.setFontSize(6);
   col(doc, SOFT);
   doc.text(label.toUpperCase(), x, y);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('Manrope', 'bold');
   doc.setFontSize(8.5);
   col(doc, INK);
   const tekst = waarde || '';
@@ -66,7 +92,7 @@ function kenteken(doc: jsPDF, k: string, x: number, y: number): void {
   fill(doc, [10, 45, 180]);
   doc.roundedRect(x, y, 4.5, h, 1.2, 1.2, 'F');
   doc.rect(x + 2.5, y, 2, h, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); col(doc, WIT);
+  doc.setFont('Manrope', 'bold'); doc.setFontSize(4.5); col(doc, WIT);
   doc.text('NL', x + 2.2, y + h - 2.6, { align: 'center' });
   doc.setFontSize(11); col(doc, INK);
   doc.text((k || '').toUpperCase(), x + 5 + (w - 5) / 2, y + h - 2.4, { align: 'center' });
@@ -74,6 +100,7 @@ function kenteken(doc: jsPDF, k: string, x: number, y: number): void {
 
 export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  try { await registerFonts(doc); } catch { /* fallback: helvetica */ }
   const logo = await loadRgbLogoAsPng();
   const totalen: FactuurTotalen = berekenTotalen(factuur.regels);
   const isAuto = factuur.type === 'auto';
@@ -86,17 +113,17 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
   if (logo) {
     const h = 12; doc.addImage(logo.data, 'PNG', M, y, h * logo.aspect, h);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); col(doc, INK); doc.text('PEPE®', M, y + 9);
+    doc.setFont('Manrope', 'bold'); doc.setFontSize(18); col(doc, INK); doc.text('PEPE®', M, y + 9);
   }
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); col(doc, BURG);
+  doc.setFont('Manrope', 'bold'); doc.setFontSize(8.5); col(doc, BURG);
   doc.text(BEDRIJF.naam, R, y + 4, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); col(doc, MUTED);
+  doc.setFont('Manrope', 'normal'); doc.setFontSize(6.8); col(doc, MUTED);
   doc.text(BEDRIJF.adres1, R, y + 8, { align: 'right' });
   doc.text(BEDRIJF.adres2, R, y + 11.2, { align: 'right' });
 
   y += 20;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); col(doc, INK);
-  doc.text(titel, W / 2, y, { align: 'center', charSpace: 1.4 });
+  doc.setFont('Archivo', 'extrabold'); doc.setFontSize(15); col(doc, INK);
+  doc.text(titel, W / 2, y, { align: 'center', charSpace: 2.6 });
   y += 3;
   fill(doc, BURG); doc.rect(M, y, CW, 0.8, 'F');
   y += 7;
@@ -107,7 +134,7 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
   const subW = (linkerW - 8) / 2;                // 2 sub-kolommen
   const topY = y;
 
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); col(doc, BURG);
+  doc.setFont('Manrope', 'bold'); doc.setFontSize(7); col(doc, BURG);
   doc.text(isCredit ? 'CREDITNOTA AAN' : 'FACTUUR AAN', M, topY, { charSpace: 0.6 });
 
   let fy = topY + 7;
@@ -123,20 +150,26 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
   if (factuur.btw_nummer) rij('BTW-nummer', factuur.btw_nummer, '', '');
 
   // Metacard (tinted box)
+  // In een concept-preview (nog niet geboekt) tonen we alvast factuurdatum/vervaldatum + "CONCEPT".
+  const nlDat = (d: Date) => d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const fdat = factuur.factuurdatum ? new Date(factuur.factuurdatum) : new Date();
+  const vdat = factuur.vervaldatum
+    ? new Date(factuur.vervaldatum)
+    : new Date(fdat.getTime() + (factuur.betaaltermijn_dagen ?? 14) * 86400000);
   const metaRows: [string, string, boolean][] = [
-    ['Factuurnummer', factuur.factuurnummer ?? '—', false],
+    ['Factuurnummer', factuur.factuurnummer ?? 'CONCEPT', false],
     ['Debiteurnummer', factuur.twinfield_debiteur_code ?? '—', false],
-    ['Factuurdatum', fmtDatum(factuur.factuurdatum), false],
-    ['Vervaldatum', fmtDatum(factuur.vervaldatum), true],
+    ['Factuurdatum', nlDat(fdat), false],
+    ['Vervaldatum', nlDat(vdat), true],
   ];
   const metaH = metaRows.length * 7 + 4;
   fill(doc, TINT); doc.rect(metaX, topY, metaW, metaH, 'F');
   draw(doc, LINE); doc.setLineWidth(0.2); doc.rect(metaX, topY, metaW, metaH, 'S');
   let my = topY + 6;
   metaRows.forEach(([k, v, hl], i) => {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); col(doc, hl ? BURG : MUTED);
+    doc.setFont('Manrope', 'normal'); doc.setFontSize(8); col(doc, hl ? BURG : MUTED);
     doc.text(k, metaX + 4, my);
-    doc.setFont('helvetica', 'bold'); col(doc, hl ? BURG : INK);
+    doc.setFont('Manrope', 'bold'); col(doc, hl ? BURG : INK);
     doc.text(v, R - 4, my, { align: 'right' });
     if (i < metaRows.length - 1) { draw(doc, LINE); doc.setLineWidth(0.1); doc.line(metaX + 4, my + 2.5, R - 4, my + 2.5); }
     my += 7;
@@ -150,7 +183,7 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
     const bandH = 30;
     fill(doc, TINT); doc.rect(M, y, CW, bandH, 'F');
     draw(doc, LINE); doc.setLineWidth(0.2); doc.rect(M, y, CW, bandH, 'S');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(17); col(doc, INK);
+    doc.setFont('Archivo', 'extrabold'); doc.setFontSize(18); col(doc, INK);
     doc.text(`${v.merk ?? ''} ${v.model ?? ''}`.trim(), M + 5, y + 9);
     // chips-rij (5 kolommen) onder de naam
     const chips: [string, string][] = [
@@ -165,16 +198,16 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
     chips.forEach(([cl, cv], i) => {
       const cx = M + 5 + i * chipW;
       fill(doc, BURG); doc.rect(cx, cy, 0.7, 9, 'F');
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); col(doc, SOFT);
+      doc.setFont('Manrope', 'normal'); doc.setFontSize(5.5); col(doc, SOFT);
       doc.text(cl.toUpperCase(), cx + 2.5, cy + 2.5);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); col(doc, INK);
+      doc.setFont('Manrope', 'bold'); doc.setFontSize(8); col(doc, INK);
       doc.text(doc.splitTextToSize(cv, chipW - 4)[0] ?? '', cx + 2.5, cy + 7);
     });
     y += bandH + 6;
   }
 
   // ── SECTIEKOP "Specificatie" (gecentreerd met lijnen) ──
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); col(doc, INK);
+  doc.setFont('Archivo', 'bold'); doc.setFontSize(8); col(doc, INK);
   const secT = 'SPECIFICATIE';
   const tw = doc.getTextWidth(secT);
   draw(doc, LINE); doc.setLineWidth(0.2);
@@ -186,7 +219,7 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
   // ── ITEMS-TABEL ──
   const cAantal = M + 2, cOms = M + 16, cPrijs = 150, cBtw = 166, cTot = R - 1;
   fill(doc, INK); doc.rect(M, y, CW, 7, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); col(doc, WIT);
+  doc.setFont('Manrope', 'bold'); doc.setFontSize(6); col(doc, WIT);
   doc.text('AANTAL', cAantal, y + 4.6);
   doc.text('OMSCHRIJVING', cOms, y + 4.6);
   doc.text('PRIJS', cPrijs, y + 4.6, { align: 'right' });
@@ -199,15 +232,15 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
   factuur.regels.forEach((r) => {
     const omsLines = doc.splitTextToSize(r.omschrijving, cPrijs - cOms - 6);
     const rowH = Math.max(8, omsLines.length * 4 + 4);
-    doc.setFont('helvetica', 'bold'); col(doc, MUTED);
+    doc.setFont('Manrope', 'bold'); col(doc, MUTED);
     doc.text(String(r.aantal), cAantal, y + 5);
-    doc.setFont('helvetica', 'normal'); col(doc, INK);
+    doc.setFont('Manrope', 'normal'); col(doc, INK);
     doc.text(omsLines, cOms, y + 5);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('Manrope', 'bold');
     doc.text(euro(sign * r.prijs_excl), cPrijs, y + 5, { align: 'right' });
-    doc.setFont('helvetica', 'normal'); col(doc, MUTED);
+    doc.setFont('Manrope', 'normal'); col(doc, MUTED);
     doc.text(btwLabel(r), cBtw, y + 5, { align: 'center' });
-    doc.setFont('helvetica', 'bold'); col(doc, INK);
+    doc.setFont('Manrope', 'bold'); col(doc, INK);
     doc.text(euro(sign * regelExcl(r)), cTot, y + 5, { align: 'right' });
     draw(doc, LINE); doc.setLineWidth(0.2); doc.line(M, y + rowH, R, y + rowH);
     y += rowH;
@@ -223,17 +256,17 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
   // btw-specificatie
   draw(doc, LINE); doc.setLineWidth(0.2); doc.rect(M, bottomY, leftW, 8 + totalen.btw_spec.length * 6 + 2, 'S');
   fill(doc, TINT); doc.rect(M, bottomY, leftW, 7, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); col(doc, BURG);
+  doc.setFont('Manrope', 'bold'); doc.setFontSize(6.5); col(doc, BURG);
   doc.text('BTW-SPECIFICATIE', M + 3, bottomY + 4.6, { charSpace: 0.4 });
   let by = bottomY + 11;
-  doc.setFontSize(6); col(doc, SOFT); doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6); col(doc, SOFT); doc.setFont('Manrope', 'bold');
   doc.text('BTW-NAAM', M + 3, by);
   doc.text('BTW %', M + leftW * 0.42, by, { align: 'right' });
   doc.text('BASISBEDRAG', M + leftW * 0.7, by, { align: 'right' });
   doc.text('BTW-BEDRAG', M + leftW - 3, by, { align: 'right' });
   by += 5;
   totalen.btw_spec.forEach((s) => {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); col(doc, MUTED);
+    doc.setFont('Manrope', 'normal'); doc.setFontSize(8); col(doc, MUTED);
     doc.text(s.naam, M + 3, by);
     col(doc, INK);
     doc.text(s.pct ? `${s.pct},00` : '—', M + leftW * 0.42, by, { align: 'right' });
@@ -244,14 +277,14 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
 
   // totalen-box
   fill(doc, INK); doc.rect(totX, bottomY, totW, 7, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); col(doc, WIT);
+  doc.setFont('Manrope', 'bold'); doc.setFontSize(6.5); col(doc, WIT);
   doc.text('TOTAALOVERZICHT', totX + 3, bottomY + 4.6, { charSpace: 0.4 });
   draw(doc, LINE); doc.setLineWidth(0.2);
   let ty = bottomY + 12;
   const tline = (k: string, val: number) => {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); col(doc, MUTED);
+    doc.setFont('Manrope', 'normal'); doc.setFontSize(8.5); col(doc, MUTED);
     doc.text(k, totX + 3, ty);
-    doc.setFont('helvetica', 'bold'); col(doc, INK);
+    doc.setFont('Manrope', 'bold'); col(doc, INK);
     doc.text(euro(sign * val), R - 3, ty, { align: 'right' });
     ty += 6;
   };
@@ -259,24 +292,26 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
   if (totalen.totaal_btw !== 0) tline('Btw', totalen.totaal_btw);
   draw(doc, INK); doc.setLineWidth(0.5); doc.line(totX + 3, ty - 1, R - 3, ty - 1);
   ty += 3;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); col(doc, INK);
+  doc.setFont('Archivo', 'bold'); doc.setFontSize(11); col(doc, INK);
   doc.text('TOTAAL', totX + 3, ty, { charSpace: 0.4 });
-  doc.setFontSize(14); col(doc, BURG);
+  doc.setFont('Archivo', 'extrabold'); doc.setFontSize(15); col(doc, BURG);
   doc.text(euro(sign * totalen.totaal_incl), R - 3, ty, { align: 'right' });
   doc.rect(totX, bottomY, totW, (ty - bottomY) + 4, 'S');
 
-  y = Math.max(by, ty) + 8;
+  const naBottom = Math.max(by, ty) + 8;
 
-  // ── PAYNOTE (bordeaux linkerrand, tinted) ──
+  // ── PAYNOTE (bordeaux linkerrand, tinted) — tegen de footer geplakt (zoals het design) ──
   const betaaltekst = isAuto
     ? `Gelieve het voertuig${factuur.voertuig?.kenteken ? ` (${factuur.voertuig.kenteken})` : ''} te verzekeren en te betalen vóór levering op ${BEDRIJF.iban} o.v.v. het factuurnummer.`
     : `Gelieve te betalen binnen ${factuur.betaaltermijn_dagen ?? 14} dagen na factuurdatum op ${BEDRIJF.iban} o.v.v. het factuurnummer.`;
-  const ptLines = doc.splitTextToSize(betaaltekst, CW - 10);
-  const ptH = ptLines.length * 4.5 + 6;
-  fill(doc, TINT); doc.rect(M, y, CW, ptH, 'F');
-  fill(doc, BURG); doc.rect(M, y, 1.2, ptH, 'F');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); col(doc, INK);
-  doc.text(ptLines, W / 2, y + 5, { align: 'center' });
+  const ptLines = doc.splitTextToSize(betaaltekst, CW - 12);
+  const ptH = ptLines.length * 4.6 + 7;
+  const FOOT_Y = 280;
+  const ptY = Math.max(naBottom, FOOT_Y - 6 - ptH); // direct boven de footer
+  fill(doc, TINT); doc.rect(M, ptY, CW, ptH, 'F');
+  fill(doc, BURG); doc.rect(M, ptY, 1.4, ptH, 'F');
+  doc.setFont('Manrope', 'normal'); doc.setFontSize(8.5); col(doc, INK);
+  doc.text(ptLines, W / 2, ptY + 5.5, { align: 'center' });
 
   // ── FOOTER ──
   drawFooter(doc);
@@ -291,7 +326,7 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
 function drawFooter(doc: jsPDF): void {
   const y = 280;
   draw(doc, BURG); doc.setLineWidth(0.5); doc.line(M, y, R, y);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); col(doc, MUTED);
+  doc.setFont('Manrope', 'normal'); doc.setFontSize(6.8); col(doc, MUTED);
   doc.text(`T ${BEDRIJF.tel}    E ${BEDRIJF.email}    W ${BEDRIJF.web}`, M, y + 5);
   doc.text(`KVK ${BEDRIJF.kvk}    BTW ${BEDRIJF.btw}    IBAN ${BEDRIJF.iban}    BIC ${BEDRIJF.bic}`, M, y + 9);
 }
@@ -300,19 +335,19 @@ function tekenBijlage(doc: jsPDF, factuur: UitgaandeFactuur, logo: { data: strin
   doc.addPage();
   let y = 14;
   if (logo) { const h = 11; doc.addImage(logo.data, 'PNG', M, y, h * logo.aspect, h); }
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); col(doc, BURG);
+  doc.setFont('Manrope', 'bold'); doc.setFontSize(12); col(doc, BURG);
   doc.text('BIJLAGE — BEHEERDE VOERTUIGEN', R, y + 6, { align: 'right' });
   y += 16;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); col(doc, MUTED);
+  doc.setFont('Manrope', 'normal'); doc.setFontSize(8); col(doc, MUTED);
   doc.text(`Behorend bij factuur ${factuur.factuurnummer ?? ''} · periode ${factuur.periode ?? ''}`, M, y);
   y += 8;
   const colW = CW / 6;
   for (const ent of factuur.bijlage!.entiteiten) {
     if (y > 265) { drawFooter(doc); doc.addPage(); y = 18; }
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); col(doc, INK);
+    doc.setFont('Manrope', 'bold'); doc.setFontSize(8.5); col(doc, INK);
     doc.text(`${ent.naam}   ${ent.aantal} voertuigen — ${euro(ent.bedrag)}`, M, y);
     y += 5;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); col(doc, MUTED);
+    doc.setFont('Manrope', 'normal'); doc.setFontSize(7.5); col(doc, MUTED);
     let cI = 0;
     for (const k of ent.kentekens) {
       if (y > 270) { drawFooter(doc); doc.addPage(); y = 18; cI = 0; }
