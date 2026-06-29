@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { authHeaders } from '@/lib/clientAuth';
 import { berekenTotalen } from '@/lib/factuur/btw';
 import { createFactuurPdfBase64 } from '@/lib/factuur/pdf';
@@ -74,10 +74,15 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [toeTeBetalen, setToeTeBetalen] = useState(factuur?.voertuig?.toe_te_betalen?.toString() ?? '');
   const [rdwBezig, setRdwBezig] = useState(false);
 
-  // Regels
-  const [regels, setRegels] = useState<FactuurRegel[]>(
-    factuur?.regels?.length ? (factuur.regels as FactuurRegel[]) : [leegRegel()],
-  );
+  // Regels. Voor auto bevat `regels` ALLEEN de EXTRA regels (poetsen/transport/inbouw); de auto-regels
+  // (Levering + BPM) worden afgeleid (derivedRegels). Voor andere types is `regels` de volledige lijst.
+  const [regels, setRegels] = useState<FactuurRegel[]>(() => {
+    const r = (factuur?.regels as FactuurRegel[]) ?? [];
+    if ((factuur?.type ?? 'diensten_overig') === 'auto') {
+      return r.filter((x) => x.omschrijving !== 'BPM' && !x.omschrijving.startsWith('Levering '));
+    }
+    return r.length ? r : [leegRegel()];
+  });
 
   // Misc
   const [betaaltermijn, setBetaaltermijn] = useState(factuur?.betaaltermijn_dagen ?? 14);
@@ -91,26 +96,25 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [matchOpen, setMatchOpen] = useState(false);
   const [matchKandidaten, setMatchKandidaten] = useState<MatchKandidaat[]>([]);
 
-  // Auto: regels automatisch afleiden uit Toe te betalen + BPM. Het toe-te-betalen-bedrag
-  // blijft VAST; als de BPM wijzigt, herrekent de voertuigprijs (en btw) automatisch.
+  // Auto: de auto-regels (Levering + BPM) worden AFGELEID uit Toe te betalen + BPM. Het toe-te-betalen
+  // bedrag blijft VAST; bij BPM-wijziging herrekent de voertuigprijs (en btw) automatisch.
   //  - BTW-auto:  voertuigprijs excl = (toe te betalen − BPM) / 1,21 @21%, + BPM @0%
   //  - Marge-auto: geen btw-uitsplitsing → één regel @marge = toe te betalen
-  useEffect(() => {
-    if (!isAuto) return;
+  const derivedRegels = useMemo<FactuurRegel[]>(() => {
+    if (!isAuto) return [];
     const ttb = Number(toeTeBetalen) || 0;
     const bpm = Number(restBpm) || 0;
     const naam = `Levering ${merk} ${model}`.trim() || 'Levering voertuig';
-    if (btwSoort === 'btw') {
-      const netto = ttb > 0 ? Math.round(((ttb - bpm) / 1.21) * 100) / 100 : 0;
-      const nieuw: FactuurRegel[] = [{ omschrijving: naam, aantal: 1, prijs_excl: netto, btw_code: 'hoog' }];
-      if (bpm > 0) nieuw.push({ omschrijving: 'BPM', aantal: 1, prijs_excl: bpm, btw_code: 'geen' });
-      setRegels(nieuw);
-    } else {
-      setRegels([{ omschrijving: naam, aantal: 1, prijs_excl: ttb, btw_code: 'marge' }]);
-    }
+    if (btwSoort === 'marge') return [{ omschrijving: naam, aantal: 1, prijs_excl: ttb, btw_code: 'marge' }];
+    const netto = ttb > 0 ? Math.round(((ttb - bpm) / 1.21) * 100) / 100 : 0;
+    const arr: FactuurRegel[] = [{ omschrijving: naam, aantal: 1, prijs_excl: netto, btw_code: 'hoog' }];
+    if (bpm > 0) arr.push({ omschrijving: 'BPM', aantal: 1, prijs_excl: bpm, btw_code: 'geen' });
+    return arr;
   }, [isAuto, btwSoort, toeTeBetalen, restBpm, merk, model]);
 
-  const totalen = berekenTotalen(regels);
+  // Volledige regelset = auto-regels + extra regels (voor auto), anders gewoon `regels`.
+  const alleRegels = isAuto ? [...derivedRegels, ...regels] : regels;
+  const totalen = berekenTotalen(alleRegels);
 
   // ── Klant zoeken ──
   async function zoekKlant(veld: 'kvk' | 'naam') {
@@ -174,7 +178,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
       kvk: kvk || null,
       btw_nummer: btwNummer || null,
       betaaltermijn_dagen: betaaltermijn,
-      regels,
+      regels: alleRegels,
       voertuig: isAuto ? {
         kenteken: kenteken || null,
         chassis: chassis || null,
@@ -436,8 +440,9 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
             <>
               {isAuto && (
                 <div className={styles.infoBox}>
-                  Auto-regels worden automatisch berekend uit <strong>Toe te betalen</strong> + <strong>BPM</strong> (zie tab Voertuig).
-                  {btwSoort === 'btw' ? ' BTW-auto: voertuigprijs @21% + BPM @0%.' : ' Marge-auto: één regel zonder btw.'}
+                  De auto-regels (Levering{btwSoort === 'btw' ? ' + BPM' : ''}) worden automatisch berekend uit
+                  <strong> Toe te betalen</strong> + <strong>BPM</strong> (tab Voertuig) en blijven vast. Hieronder
+                  kun je <strong>extra regels</strong> toevoegen (poetsen, transport, inbouw) met eigen btw.
                 </div>
               )}
               <table className={styles.regelTable}>
@@ -452,6 +457,22 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Auto-regels: automatisch berekend, niet bewerkbaar */}
+                  {isAuto && derivedRegels.map((r, i) => (
+                    <tr key={`d${i}`} style={{ opacity: 0.7 }}>
+                      <td><input value={r.omschrijving} readOnly /></td>
+                      <td><input value={r.aantal} readOnly /></td>
+                      <td><input value={r.prijs_excl} readOnly /></td>
+                      <td>
+                        <select value={r.btw_code} disabled>
+                          {BTW_OPTIES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ textAlign: 'right', paddingRight: 8 }}>{euro(Math.round(r.aantal * r.prijs_excl * 100) / 100)}</td>
+                      <td></td>
+                    </tr>
+                  ))}
+                  {/* Extra / overige regels: bewerkbaar incl. BTW-keuze */}
                   {regels.map((r, i) => {
                     const totaal = Math.round(r.aantal * r.prijs_excl * 100) / 100;
                     return (
@@ -460,7 +481,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                         <td><input type="number" value={r.aantal} onChange={e => setRegels(rs => rs.map((x, j) => j === i ? { ...x, aantal: Number(e.target.value) } : x))} readOnly={!kanAanpassen} /></td>
                         <td><input type="number" step="0.01" value={r.prijs_excl} onChange={e => setRegels(rs => rs.map((x, j) => j === i ? { ...x, prijs_excl: Number(e.target.value) } : x))} readOnly={!kanAanpassen} /></td>
                         <td>
-                          <select value={r.btw_code} onChange={e => setRegels(rs => rs.map((x, j) => j === i ? { ...x, btw_code: e.target.value as BtwCode } : x))} disabled={isAuto || !kanAanpassen}>
+                          <select value={r.btw_code} onChange={e => setRegels(rs => rs.map((x, j) => j === i ? { ...x, btw_code: e.target.value as BtwCode } : x))} disabled={!kanAanpassen}>
                             {BTW_OPTIES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>
                         </td>
@@ -472,8 +493,8 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                 </tbody>
               </table>
               {kanAanpassen && (
-                <button className={styles.addBtn} onClick={() => setRegels(rs => [...rs, { ...leegRegel(), btw_code: isAuto ? 'marge' : 'hoog' }])}>
-                  + Regel toevoegen
+                <button className={styles.addBtn} onClick={() => setRegels(rs => [...rs, { ...leegRegel(), btw_code: 'hoog' }])}>
+                  + {isAuto ? 'Extra regel' : 'Regel'} toevoegen
                 </button>
               )}
             </>
@@ -500,7 +521,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
               </div>
               {isAuto && (
                 <div className={styles.infoBox} style={{ marginTop: 16 }}>
-                  ⚠️ Betaaltekst: <em>&quot;Gelieve te verzekeren {kenteken ? `(${kenteken})` : '(kenteken nog onbekend)'} en te betalen alvorens levering.&quot;</em>
+                  Betaaltekst op de factuur: <em>&quot;Gelieve het voertuig{kenteken ? ` (${kenteken})` : ''} te verzekeren en te betalen vóór levering.&quot;</em>
                 </div>
               )}
             </>

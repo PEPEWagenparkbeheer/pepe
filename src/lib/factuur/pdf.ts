@@ -302,7 +302,7 @@ export async function createFactuurPdf(factuur: UitgaandeFactuur): Promise<jsPDF
   doc.setFontSize(8);
   doc.setTextColor(90, 94, 100);
   const betaaltekst = isAuto
-    ? `Gelieve te verzekeren${factuur.voertuig?.kenteken ? ` ( ${factuur.voertuig.kenteken} )` : ''} en te betalen alvorens levering op rekeningnummer ${BEDRIJF.iban} onder vermelding van het factuurnummer.`
+    ? `Gelieve het voertuig${factuur.voertuig?.kenteken ? ` (${factuur.voertuig.kenteken})` : ''} te verzekeren en te betalen vóór levering op rekeningnummer ${BEDRIJF.iban} onder vermelding van het factuurnummer.`
     : `Gelieve te betalen binnen ${factuur.betaaltermijn_dagen ?? 14} dagen na factuurdatum op rekeningnummer ${BEDRIJF.iban} onder vermelding van het factuurnummer.`;
   doc.text(doc.splitTextToSize(betaaltekst, W - 2 * M), M, y);
 
