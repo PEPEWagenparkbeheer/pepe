@@ -326,7 +326,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
 
   return (
     <div className={styles.overlay}>
-      <div className={styles.modal}>
+      <div className={`${styles.modal} ${styles.modalTabbed}`}>
         {/* Header */}
         <div className={styles.modalHeader}>
           <div>

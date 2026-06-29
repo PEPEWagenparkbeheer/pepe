@@ -49,14 +49,17 @@ export const VATCODE: Record<BtwCode, string> = {
   marge: MARGE_VATCODE,
 };
 
-// Grootboekrekeningen (dim1) per type. 8054 = doorbelasting (werk-derden, bestaand/bewezen).
-// De overige zijn PLACEHOLDERS — bevestigen met boekhouder voordat productiefacturen draaien.
+// Grootboekrekeningen (dim1) per type.
+// LET OP: dit is de TEST-mapping voor administratie 202500005 (PEPE Wagenparkbeheer test). Die admin
+// dwingt codes [0-3]999 af en had geen omzetrekeningen → we hebben 3500/3510/3520/3540 aangemaakt.
+// Voor PRODUCTIE (202500006 = PEPE Wagenparkbeheer B.V.) levert de boekhouder de echte omzet-grootboeken
+// + vatcodes; dan deze mapping omzetten (evt. per administratie). NIET aan 202500006 komen tijdens testen.
 export const GROOTBOEK: Record<FactuurType, string> = {
-  werk_derden: '8054',
-  auto: '8000',            // TODO bevestigen: omzet auto's
-  wagenparkbeheer: '8010', // TODO bevestigen: omzet wagenparkbeheer-fee
-  shortlease: '8020',      // TODO bevestigen: omzet shortlease-doorbelasting
-  diensten_overig: '8054',
+  auto: '3500',            // Omzet auto-verkoop (test 202500005)
+  wagenparkbeheer: '3510', // Omzet wagenparkbeheer (test 202500005)
+  shortlease: '3520',      // Omzet shortlease (test 202500005)
+  werk_derden: '3540',     // Doorbelasting/diensten (test 202500005)
+  diensten_overig: '3540',
 };
 
 export interface TwinfieldFactuurRegelInput {

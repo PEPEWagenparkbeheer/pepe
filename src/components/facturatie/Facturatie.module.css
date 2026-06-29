@@ -165,6 +165,12 @@
   overflow: hidden;
 }
 
+/* Getabde FactuurModal: vaste hoogte zodat 'ie niet verspringt bij het wisselen van
+   tab (Klant/Regels/Samenvatting). De body vult de rest en scrollt intern. */
+.modalTabbed {
+  height: min(760px, 92vh);
+}
+
 .modalHeader {
   display: flex;
   align-items: center;
