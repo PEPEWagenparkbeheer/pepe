@@ -2,12 +2,12 @@
 // afzender = info@pepewagenparkbeheer.nl). HTML-fragment om onder de mailtekst te plakken.
 
 export const PEPE_HANDTEKENING = `
-<p style="font-size:11pt;margin:0 0 14pt 0;color:#18122B;">Met vriendelijke groet / Kind regards / Mit freundlichen Grüβen,</p>
+<p style="font-family:Arial,sans-serif;font-size:11pt;margin:0 0 14pt 0;color:#18122B;">Met vriendelijke groet / Kind regards / Mit freundlichen Grüβen,</p>
 <table border="0" cellpadding="0" cellspacing="0" role="presentation">
   <tr>
-    <td valign="middle">
-      <p style="font-weight:bold;font-size:11pt;margin:0 0 5px 0;color:#18122B;">PEPE Wagenparkbeheer B.V.</p>
-      <p style="margin:0;color:#18122B;font-size:11pt;line-height:16pt;">
+    <td valign="middle" style="font-family:Arial,sans-serif;">
+      <p style="font-family:Arial,sans-serif;font-weight:bold;font-size:11pt;margin:0 0 5px 0;color:#18122B;">PEPE Wagenparkbeheer B.V.</p>
+      <p style="font-family:Arial,sans-serif;margin:0;color:#18122B;font-size:11pt;line-height:16pt;">
         <a href="tel:0165794100" style="color:#18122B;text-decoration:none;"><b>T:</b> +31 (0)165 794 100</a> |
         <a href="mailto:info@pepewagenparkbeheer.nl" style="color:#18122B;text-decoration:none;"><b>E:</b> info@pepewagenparkbeheer.nl</a>
         <br>
@@ -26,7 +26,7 @@ export const PEPE_HANDTEKENING = `
       </a>
     </td>
     <td valign="top" style="vertical-align:top;">
-      <p style="margin:0 0 3pt 0;color:#bbbbbb;font-size:9pt;">Volg onze laatste<br>ontwikkelingen</p>
+      <p style="font-family:Arial,sans-serif;margin:0 0 3pt 0;color:#bbbbbb;font-size:9pt;">Volg onze laatste<br>ontwikkelingen</p>
       <table border="0" cellpadding="0" cellspacing="0" role="presentation"><tr>
         <td valign="middle"><a href="https://www.instagram.com/pepewagenparkbeheer/" style="display:inline-block;text-decoration:none;"><img src="https://pepewagenparkbeheer.nl/app/uploads/2025/10/Instagram.png" width="25" height="25" alt="Instagram" style="display:block;border:0;"></a></td>
         <td width="6" style="font-size:0;line-height:0;">&nbsp;</td>
@@ -36,7 +36,7 @@ export const PEPE_HANDTEKENING = `
   </tr>
   <tr><td colspan="2" height="15" style="font-size:0;line-height:0;">&nbsp;</td></tr>
 </table>
-<p style="font-size:8pt;color:#bbbbbb;line-height:11pt;margin:0;max-width:1100px;">
+<p style="font-family:Arial,sans-serif;font-size:8pt;color:#bbbbbb;line-height:11pt;margin:0;max-width:1100px;">
   Dit emailbericht is uitsluitend bestemd voor de geadresseerde(n). Indien u dit emailbericht ten onrechte heeft ontvangen, verzoeken wij u de inhoud niet te gebruiken en/of onder derden te verspreiden, maar het bericht te verwijderen en contact op te nemen met de afzender. Op al onze diensten en correspondentie zijn onze <a href="https://pepewagenparkbeheer.nl/algemene-voorwaarden/" style="color:#bbbbbb;text-decoration:underline;">algemene voorwaarden</a>, <a href="https://pepewagenparkbeheer.nl/privacy-statement/" style="color:#bbbbbb;text-decoration:underline;">privacy statement</a> en <a href="https://pepewagenparkbeheer.nl/disclaimer/" style="color:#bbbbbb;text-decoration:underline;">disclaimer</a> van toepassing.
 </p>`;
 

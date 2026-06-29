@@ -14,6 +14,7 @@ import {
   type TwinfieldFactuurRegelInput,
 } from '@/lib/twinfield/factuur';
 import { updateCompany } from '@/lib/hubspot';
+import { syncAutoFactuurNaarHubSpot } from '@/lib/factuur/hubspot-sync';
 import type { FactuurRegel, FactuurType, UitgaandeFactuur } from '@/types/factuur';
 
 export const runtime = 'nodejs';
@@ -122,5 +123,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     updated_at: new Date().toISOString(),
   }, { onConflict: 'code' });
 
-  return NextResponse.json({ factuur: updated });
+  // Auto-verkoopfactuur → HubSpot bijwerken (deal op rijdend + RDW-velden), net als documentenstroom.
+  let hubspot: { dealId?: string; error?: string } = {};
+  if (factuur.type === 'auto' && factuur.soort !== 'creditnota') {
+    try {
+      const sync = await syncAutoFactuurNaarHubSpot(updated as UitgaandeFactuur);
+      if (sync.dealId) {
+        hubspot = { dealId: sync.dealId };
+        await supabaseAdmin.from('uitgaande_facturen')
+          .update({ hubspot_deal_id: sync.dealId, hubspot_synced_at: new Date().toISOString() })
+          .eq('id', id);
+      }
+    } catch (e) {
+      hubspot = { error: String(e) }; // niet fataal: Twinfield-boeking is al gelukt
+    }
+  }
+
+  return NextResponse.json({ factuur: updated, hubspot });
 }
