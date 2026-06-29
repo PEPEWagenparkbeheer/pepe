@@ -70,6 +70,13 @@ export async function importeerCarCollectMail(msg: GraphMessage): Promise<CarCol
   const regels = bouwRegels(d);
   const totalen = berekenTotalen(regels);
 
+  // toe_te_betalen = bedrag van HET VOERTUIG incl. BTW (NIET het grand total incl. administratiekosten).
+  // De FactuurModal leidt de Levering-regel hieruit af ((ttb − BPM)/1,21); zou het de admin bevatten,
+  // dan zou die dubbel tellen (in de autoprijs én als losse regel).
+  const voertuigIncl = d.btw_soort === 'btw'
+    ? round2((d.netto_excl ?? 0) + (d.btw_bedrag ?? 0) + (d.rest_bpm ?? 0))
+    : round2((d.netto_excl ?? 0) + (d.rest_bpm ?? 0));
+
   // Debiteur: TWINFIELD-FIRST. Veel handelaren staan al in Twinfield → match op naam én
   // postcode/huisnummer. Geen HubSpot-lookup/-creatie hier: handel-auto's hoeven niet in HubSpot
   // (geen deal, niet op rijdend = geen vervuiling). Het eventuele aanmaken van de debiteur + het
@@ -125,7 +132,7 @@ export async function importeerCarCollectMail(msg: GraphMessage): Promise<CarCol
       km_stand: d.km_stand ?? null,
       btw_soort: d.btw_soort,
       rest_bpm: (d.rest_bpm ?? 0) > 0 ? d.rest_bpm : null,
-      toe_te_betalen: d.te_betalen ?? null,
+      toe_te_betalen: voertuigIncl,
     },
     notitie,
   }).select('id').single();

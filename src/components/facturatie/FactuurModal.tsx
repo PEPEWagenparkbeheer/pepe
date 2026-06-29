@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { authHeaders } from '@/lib/clientAuth';
 import { berekenTotalen } from '@/lib/factuur/btw';
 import DebiteurMatchModal, { type DebiteurKeuze } from './DebiteurMatchModal';
@@ -168,25 +168,39 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   }
 
   // ── RDW lookup ──
-  async function rdwLookup() {
+  // autoFill = automatisch (bij openen/kenteken-wijziging): vult alleen LEGE velden in en toont geen
+  //            foutmelding. Handmatig (knop): overschrijft alles en meldt fouten.
+  async function rdwLookup(autoFill = false) {
     if (!kenteken) return;
     setRdwBezig(true);
-    setFout(null);
+    if (!autoFill) setFout(null);
     try {
       const h = await authHeaders();
       const res = await fetch(`/api/rdw?kenteken=${kenteken.replace(/\s/g, '').toUpperCase()}`, { headers: h });
       const json = await res.json();
       if (json.gevonden) {
-        if (json.merk) setMerk(json.merk);
-        if (json.model) setModel(json.model);
-        if (json.kleur) setKleur(json.kleur);
-        if (json.datum_deel1a) setDatumDeel1a(json.datum_deel1a);
-      } else {
+        if (json.merk && (!autoFill || !merk)) setMerk(json.merk);
+        if (json.model && (!autoFill || !model)) setModel(json.model);
+        if (json.kleur && (!autoFill || !kleur)) setKleur(json.kleur);
+        if (json.datum_deel1a && (!autoFill || !datumDeel1a)) setDatumDeel1a(json.datum_deel1a);
+      } else if (!autoFill) {
         setFout('Kenteken niet gevonden in RDW.');
       }
-    } catch { setFout('Fout bij RDW-opzoeken.'); }
+    } catch { if (!autoFill) setFout('Fout bij RDW-opzoeken.'); }
     setRdwBezig(false);
   }
+
+  // RDW automatisch ophalen zodra er een kenteken is en RDW-velden nog leeg zijn (geen knop nodig).
+  // Eenmalig per kenteken; merk/model/kleur die al ingevuld zijn (bv. uit CarCollect) blijven staan.
+  const rdwGedaanVoor = useRef<string>('');
+  useEffect(() => {
+    const k = kenteken.replace(/\s/g, '').toUpperCase();
+    if (!isAuto || !k || rdwGedaanVoor.current === k) return;
+    if (kleur && datumDeel1a) { rdwGedaanVoor.current = k; return; } // al compleet
+    rdwGedaanVoor.current = k;
+    rdwLookup(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuto, kenteken]);
 
   // ── Opslaan ──
   function bouwBody() {
@@ -410,8 +424,8 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
               )}
               <div className={styles.zoekRij}>
                 <input placeholder="Kenteken (bijv. XX123X)" value={kenteken} onChange={e => setKenteken(e.target.value.toUpperCase())} />
-                <button className={styles.secondary} onClick={rdwLookup} disabled={rdwBezig || !kenteken}>
-                  {rdwBezig ? 'Ophalen…' : 'RDW opzoeken'}
+                <button className={styles.secondary} onClick={() => rdwLookup()} disabled={rdwBezig || !kenteken}>
+                  {rdwBezig ? 'Ophalen…' : 'RDW opnieuw ophalen'}
                 </button>
               </div>
               <div className={styles.formGrid}>
