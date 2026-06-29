@@ -257,20 +257,19 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
     return { id: werkId, factuur: factuur as UitgaandeFactuur };
   }
 
-  // PDF-PREVIEW zonder te boeken — server rendert de exacte design-PDF (Chromium). Opent in nieuw tabblad.
+  // PDF-PREVIEW zonder te boeken — server rendert de exacte design-PDF (Chromium) en toont 'm IN de modal
+  // (iframe). Geen window.open na await → geen popup-blocker.
   async function previewPdf() {
     setBezig('Opslaan…'); setFout(null);
     const saved = await slaOp();
     if (!saved) { setBezig(null); return; }
-    setBezig('PDF maken…');
+    setBezig('PDF maken… (eerste keer kan ~10s duren)');
     try {
       const res = await fetch(`/api/uitgaande-facturen/${saved.id}/render`, { headers: await authHeaders() });
       if (!res.ok) { const j = await res.json().catch(() => ({})); setFout(j.error ?? 'PDF maken mislukt'); setBezig(null); return; }
       const blob = await res.blob();
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-      const url = URL.createObjectURL(blob);
-      setPdfUrl(url);
-      window.open(url, '_blank');
+      setPdfUrl(URL.createObjectURL(blob));
     } catch (e) { setFout(`PDF-fout: ${String(e)}`); }
     setBezig(null);
     await onSaved();
@@ -616,6 +615,21 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
           onBevestig={boekEnVerstuur}
           onAnnuleer={() => setMatchOpen(false)}
         />
+      )}
+      {pdfUrl && (
+        <div className={styles.overlay} style={{ zIndex: 200 }}>
+          <div style={{ background: '#fff', width: 'min(900px,96vw)', height: '92vh', borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <header className={styles.modalHeader}>
+              <span className={styles.modalTitle}>PDF-preview</span>
+              <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <a className={styles.secondary} href={pdfUrl} target="_blank" rel="noopener noreferrer">Open in tabblad</a>
+                <a className={styles.secondary} href={pdfUrl} download={`factuur-${factuur?.factuurnummer ?? 'concept'}.pdf`}>Download</a>
+                <button className={styles.closeBtn} onClick={() => { URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }}>×</button>
+              </span>
+            </header>
+            <iframe src={pdfUrl} style={{ flex: 1, border: 0, width: '100%' }} title="PDF-preview" />
+          </div>
+        </div>
       )}
     </div>
   );
