@@ -37,10 +37,16 @@ export function buildFactuurHtml(factuur: UitgaandeFactuur, totalen: FactuurTota
   const vdat = factuur.vervaldatum ? new Date(factuur.vervaldatum)
     : new Date(fdat.getTime() + (factuur.betaaltermijn_dagen ?? 14) * 86400000);
 
+  // Modelnaam splitsen: "merk + (eerste woord) model" donker, de uitvoering lichtgrijs ernaast.
+  // bv. "Cupra" + "Leon 1,4 DSG e-Hybrid 204PK" → naam "Cupra Leon", uitvoering "1,4 DSG e-Hybrid 204PK".
+  const modelWoorden = (v?.model ?? '').trim().split(/\s+/).filter(Boolean);
+  const carNaam = `${v?.merk ?? ''} ${modelWoorden[0] ?? ''}`.trim() || '—';
+  const carTrim = modelWoorden.slice(1).join(' ');
   const carband = isAuto && v ? `
     <section class="carband">
       <div class="car-head">
-        <div class="car-name">${esc(`${v.merk ?? ''} ${v.model ?? ''}`.trim() || '—')}</div>
+        <div class="car-name">${esc(carNaam)}</div>
+        ${carTrim ? `<div class="car-trim">${esc(carTrim)}</div>` : ''}
       </div>
       <div class="chips">
         <div class="chip"><span class="cl">Kenteken</span><span class="cv">${esc(v.kenteken || '—')}</span></div>
