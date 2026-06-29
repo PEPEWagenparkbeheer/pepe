@@ -13,8 +13,7 @@ import {
   GROOTBOEK,
   type TwinfieldFactuurRegelInput,
 } from '@/lib/twinfield/factuur';
-import { updateCompany } from '@/lib/hubspot';
-import { syncAutoFactuurNaarHubSpot } from '@/lib/factuur/hubspot-sync';
+import { syncAutoFactuurNaarHubSpot, koppelDebiteurCodeAanHubSpot } from '@/lib/factuur/hubspot-sync';
 import type { FactuurRegel, FactuurType, UitgaandeFactuur } from '@/types/factuur';
 
 export const runtime = 'nodejs';
@@ -55,9 +54,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     if (body.debiteurCode) {
       debiteurCode = String(body.debiteurCode);
-      if (factuur.hubspot_company_id) {
-        await updateCompany(factuur.hubspot_company_id, { twinfield_debiteur_code: debiteurCode } as never).catch(() => {});
-      }
     } else if (body.maakNieuw) {
       debiteurCode = await maakNieuweDebiteur(factuur.klant_naam ?? '', factuur.hubspot_company_id);
     } else if (factuur.twinfield_debiteur_code) {
@@ -111,6 +107,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .select('*')
     .single();
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+
+  // Schrijf het gebruikte debiteurnummer terug naar de JUISTE HubSpot-klant (company vinden/aanmaken),
+  // zodat een volgende factuur direct op deze debiteur matcht. Geldt voor zowel gekozen als nieuw
+  // aangemaakte debiteuren; niet voor creditnota's (die erven de debiteur van de bron).
+  if (factuur.soort !== 'creditnota') {
+    try {
+      const cid = await koppelDebiteurCodeAanHubSpot(updated as UitgaandeFactuur, debiteurCode);
+      if (cid && !factuur.hubspot_company_id) {
+        await supabaseAdmin.from('uitgaande_facturen').update({ hubspot_company_id: cid }).eq('id', id);
+      }
+    } catch { /* niet fataal: Twinfield-boeking is al gelukt */ }
+  }
 
   // Houd de debiteuren-zoekindex actueel: voeg deze debiteur (incl. NAW) meteen toe/bij.
   void supabaseAdmin.from('twinfield_debiteuren').upsert({

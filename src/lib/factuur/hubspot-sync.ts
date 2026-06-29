@@ -4,9 +4,31 @@
 import { rdwOpzoeken } from '../rdw';
 import {
   searchDealByKenteken, createDeal, updateDealFields, associateDealCompany,
-  findCompany, createCompany, searchCompanyByKvk, getCompanyFields, DEALSTAGE_RIJDEND,
+  findCompany, createCompany, searchCompanyByKvk, getCompanyFields, updateCompany, DEALSTAGE_RIJDEND,
 } from '../hubspot';
 import type { UitgaandeFactuur } from '@/types/factuur';
+
+/** Vindt of maakt de HubSpot-company van deze klant en schrijft het Twinfield-debiteurnummer erop
+ *  (twinfield_debiteur_code) — zodat een volgende factuur direct op die debiteur matcht. */
+export async function koppelDebiteurCodeAanHubSpot(factuur: UitgaandeFactuur, code: string): Promise<string | null> {
+  let companyId: string | null = factuur.hubspot_company_id ?? null;
+  if (companyId) {
+    const ok = await getCompanyFields(companyId, ['name']).then((f) => !!f).catch(() => false);
+    if (!ok) companyId = null;
+  }
+  if (!companyId && factuur.kvk) companyId = await searchCompanyByKvk(factuur.kvk.replace(/\D/g, '')).catch(() => null);
+  if (!companyId && factuur.klant_naam) {
+    companyId = await findCompany({ name: factuur.klant_naam, postcode: factuur.postcode, plaats: factuur.plaats, adres: factuur.adres }).catch(() => null);
+  }
+  if (!companyId && factuur.klant_naam) {
+    companyId = await createCompany({
+      name: factuur.klant_naam, kvk: factuur.kvk ? factuur.kvk.replace(/\D/g, '') : undefined,
+      address: factuur.adres ?? undefined, zip: factuur.postcode ?? undefined, city: factuur.plaats ?? undefined, country: 'NL',
+    }).catch(() => null);
+  }
+  if (companyId) await updateCompany(companyId, { twinfield_debiteur_code: code } as never).catch(() => {});
+  return companyId;
+}
 
 function mapBrandstof(rdwLabel?: string | null): string | undefined {
   if (!rdwLabel) return undefined;
