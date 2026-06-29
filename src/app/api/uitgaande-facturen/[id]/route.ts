@@ -9,7 +9,7 @@ import type { FactuurRegel } from '@/types/factuur';
 export const runtime = 'nodejs';
 
 const VELDEN = [
-  'type', 'soort', 'status', 'hubspot_company_id', 'klant_naam', 'tav', 'adres',
+  'type', 'soort', 'status', 'hubspot_company_id', 'twinfield_debiteur_code', 'klant_naam', 'tav', 'adres',
   'postcode', 'plaats', 'telefoon', 'email', 'factuur_email', 'kvk', 'btw_nummer',
   'factuurdatum', 'vervaldatum', 'betaaltermijn_dagen', 'voertuig', 'bijlage',
   'periode', 'notitie',

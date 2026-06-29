@@ -145,12 +145,31 @@ export async function maakNieuweDebiteur(naam: string, companyId?: string | null
 
 /** Leest het adres (postcode + ruwe adrestekst) van een bestaande debiteur uit Twinfield. */
 async function readDebiteurAdres(code: string): Promise<{ postcode?: string; tekst: string }> {
+  const r = await readDebiteurRaw(code);
+  return { postcode: r.postcode, tekst: r.tekst };
+}
+
+async function readDebiteurRaw(code: string): Promise<{ tekst: string; name?: string; postcode?: string; city?: string }> {
   const token = await getValidAccessToken();
   const office = token.companyCode ?? '';
   const xml = `<read><type>dimensions</type><office>${office}</office><code>${code}</code><dimtype>DEB</dimtype></read>`;
   const resp = await callProcessXml(xml, office);
-  const postcode = resp.match(/<postcode>([^<]+)<\/postcode>/i)?.[1];
-  return { postcode, tekst: resp };
+  return {
+    tekst: resp,
+    name: resp.match(/<name>([^<]+)<\/name>/i)?.[1]?.trim(),
+    postcode: resp.match(/<postcode>([^<]+)<\/postcode>/i)?.[1]?.trim(),
+    city: resp.match(/<city>([^<]+)<\/city>/i)?.[1]?.trim(),
+  };
+}
+
+/** Volledige NAW van een Twinfield-debiteur (voor het invullen van het factuuradres bij selectie). */
+export async function readDebiteur(code: string): Promise<{ code: string; naam: string; adres: string; postcode: string; plaats: string }> {
+  const r = await readDebiteurRaw(code);
+  // straat = eerste address-field dat een huisnummer (cijfer) bevat
+  let adres = '';
+  const velden = [...r.tekst.matchAll(/<field\d>([^<]*)<\/field\d>/gi)].map((m) => m[1].trim());
+  adres = velden.find((v) => /\d/.test(v) && !/^\d{4}\s?[a-z]{2}$/i.test(v)) ?? '';
+  return { code, naam: r.name ?? '', adres, postcode: r.postcode ?? '', plaats: r.city ?? '' };
 }
 
 export interface DebiteurMatchInput {

@@ -60,6 +60,9 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [zoekNaam, setZoekNaam] = useState('');
   const [zoekBezig, setZoekBezig] = useState(false);
   const [hubspotCompanyId, setHubspotCompanyId] = useState<string | null>(factuur?.hubspot_company_id ?? null);
+  // Twinfield-debiteur (live zoeken/koppelen i.p.v. blind aanmaken)
+  const [debSug, setDebSug] = useState<{ code: string; naam: string }[]>([]);
+  const [twinfieldDebiteurCode, setTwinfieldDebiteurCode] = useState<string | null>(factuur?.twinfield_debiteur_code ?? null);
 
   // Voertuig (alleen auto)
   const [kenteken, setKenteken] = useState(factuur?.voertuig?.kenteken ?? '');
@@ -141,6 +144,31 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
     setZoekBezig(false);
   }
 
+  // ── Twinfield-debiteur live zoeken (dynamische dropdown) ──
+  async function zoekDebiteur(q: string) {
+    setZoekNaam(q);
+    setTwinfieldDebiteurCode(null);
+    if (q.trim().length < 2) { setDebSug([]); return; }
+    try {
+      const res = await fetch(`/api/uitgaande-facturen/debiteur-search?q=${encodeURIComponent(q)}`, { headers: await authHeaders() });
+      const j = await res.json().catch(() => ({}));
+      setDebSug(Array.isArray(j.resultaten) ? j.resultaten : []);
+    } catch { setDebSug([]); }
+  }
+
+  async function kiesDebiteur(code: string, naam: string) {
+    setKlantNaam(naam); setZoekNaam(naam); setTwinfieldDebiteurCode(code); setDebSug([]); setFout(null);
+    try {
+      const res = await fetch(`/api/uitgaande-facturen/debiteur/${encodeURIComponent(code)}`, { headers: await authHeaders() });
+      const j = await res.json().catch(() => ({}));
+      if (j.debiteur) {
+        if (j.debiteur.adres) setAdres(j.debiteur.adres);
+        if (j.debiteur.postcode) setPostcode(j.debiteur.postcode);
+        if (j.debiteur.plaats) setPlaats(j.debiteur.plaats);
+      }
+    } catch { /* NAW best-effort */ }
+  }
+
   // ── RDW lookup ──
   async function rdwLookup() {
     if (!kenteken) return;
@@ -168,6 +196,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
       type,
       soort,
       hubspot_company_id: hubspotCompanyId,
+      twinfield_debiteur_code: twinfieldDebiteurCode || null,
       klant_naam: klantNaam || null,
       tav: tav || null,
       adres: adres || null,
@@ -262,6 +291,8 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
     const saved = await slaOp();
     if (!saved) { setBezig(null); return; }
     if (soort === 'creditnota') { setBezig(null); await boekEnVerstuur({}); return; }
+    // Debiteur al gekozen (Twinfield-zoek in Klant-tab)? Dan direct boeken, geen match-popup.
+    if (twinfieldDebiteurCode) { setBezig(null); await boekEnVerstuur({ debiteurCode: twinfieldDebiteurCode }); return; }
     setBezig('Debiteuren zoeken…');
     const res = await fetch(`/api/uitgaande-facturen/${saved.id}/debiteur-suggesties`, { headers: await authHeaders() });
     const j = await res.json().catch(() => ({}));
@@ -337,11 +368,22 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
           {tab === 'klant' && (
             <>
               <div className={styles.zoekRij}>
-                <input placeholder="KVK-nummer zoeken…" value={zoekKvk} onChange={e => setZoekKvk(e.target.value)} onKeyDown={e => e.key === 'Enter' && zoekKlant('kvk')} />
+                <input placeholder="Zoek debiteur in Twinfield (typ naam)…" value={zoekNaam} onChange={e => zoekDebiteur(e.target.value)} />
+                <input placeholder="KVK-nummer…" value={zoekKvk} onChange={e => setZoekKvk(e.target.value)} onKeyDown={e => e.key === 'Enter' && zoekKlant('kvk')} />
                 <button className={styles.secondary} onClick={() => zoekKlant('kvk')} disabled={zoekBezig}>Zoek KVK</button>
-                <input placeholder="Bedrijfsnaam zoeken…" value={zoekNaam} onChange={e => setZoekNaam(e.target.value)} onKeyDown={e => e.key === 'Enter' && zoekKlant('naam')} />
-                <button className={styles.secondary} onClick={() => zoekKlant('naam')} disabled={zoekBezig}>Zoek naam</button>
               </div>
+              {debSug.length > 0 && (
+                <div className={styles.sugList}>
+                  {debSug.map((d) => (
+                    <button key={d.code} className={styles.sugItem} onClick={() => kiesDebiteur(d.code, d.naam)}>
+                      {d.naam} <span style={{ color: '#8b8e93' }}>· debiteur {d.code}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {twinfieldDebiteurCode && (
+                <p className={styles.sub}>✓ Gekoppeld aan Twinfield-debiteur {twinfieldDebiteurCode} — geen nieuwe debiteur; bij boeken geen match-popup nodig.</p>
+              )}
               <div className={styles.formGrid}>
                 {[
                   ['Bedrijfsnaam *', klantNaam, setKlantNaam],
