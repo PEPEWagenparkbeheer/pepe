@@ -11,7 +11,9 @@ import { isPepeOpdracht } from '@/lib/werk-derden/richting';
 import { authHeaders } from '@/lib/clientAuth';
 import styles from './WerkDerdenOverzicht.module.css';
 
-type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgerond' | 'afgekeurd';
+// 'afgerond' bestaat nog als status (voertuigprijs-afronden) maar heeft geen tab meer:
+// dat volgen we voortaan in de facturatie-module, niet hier.
+type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgekeurd';
 
 function euroFmt(n?: number | null) {
   if (n == null) return '—';
@@ -185,7 +187,7 @@ function AfkeurenDialog({ record, onBevestigen, onSluiten }: AfkeurenDialogProps
 
 interface FacurerenDialogProps {
   record: WerkDerdenRecord;
-  onBevestigen: (margeType: 'pct' | 'bedrag', margeWaarde: number, btwPct: number) => Promise<void>;
+  onBevestigen: (margeType: 'pct' | 'bedrag', margeWaarde: number, btwPct: number, opmerking: string) => Promise<void>;
   onSluiten: () => void;
 }
 
@@ -196,6 +198,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
     record.marge_waarde != null ? String(record.marge_waarde) : '',
   );
   const [btwPct, setBtwPct] = useState(record.btw_pct ?? 21);
+  const [opmerking, setOpmerking] = useState('');
   const [bezig, setBezig] = useState(false);
 
   const margeNum = parseFloat(margeWaarde.replace(',', '.'));
@@ -213,7 +216,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
   async function handlerKlik() {
     if (verkoopBerekend == null || verkoopBerekend <= 0) return;
     setBezig(true);
-    try { await onBevestigen(margeType, margeNum, btwPct); } finally { setBezig(false); }
+    try { await onBevestigen(margeType, margeNum, btwPct, opmerking.trim()); } finally { setBezig(false); }
   }
 
   const toggleStyle = (active: boolean) => ({
@@ -231,7 +234,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
   return (
     <div className={styles.dialogOverlay} onClick={onSluiten}>
       <div className={styles.dialog} onClick={e => e.stopPropagation()}>
-        <h2 className={styles.dialogTitel}>Factureren via Twinfield</h2>
+        <h2 className={styles.dialogTitel}>Doorzetten naar facturatie</h2>
         <div className={styles.dialogInfo}>
           <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}{merk ? ` — ${merk}` : ''}</div>
           <div className={styles.dialogRij}><span>Partner</span>{record.partner}</div>
@@ -282,6 +285,18 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
           </div>
         </div>
 
+        <div className={styles.dialogVeld}>
+          <label className={styles.dialogLabel}>Opmerking voor facturatie</label>
+          <textarea
+            className={styles.dialogInput}
+            rows={2}
+            value={opmerking}
+            onChange={e => setOpmerking(e.target.value)}
+            placeholder="Bijv. aan wie wordt dit gefactureerd, of bijzonderheden…"
+            style={{ resize: 'vertical' }}
+          />
+        </div>
+
         {verkoopBerekend != null && (
           <div className={`${styles.margeInfo} ${margePositief ? styles.margePos : styles.margeNeg}`}>
             Verkoopbedrag: {euroFmt(verkoopBerekend)}
@@ -297,7 +312,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
               onClick={handlerKlik}
               disabled={bezig || verkoopBerekend == null || verkoopBerekend <= 0}
             >
-              {bezig ? 'Verwerken…' : 'Factureren'}
+              {bezig ? 'Verwerken…' : 'Doorzetten naar facturatie'}
             </button>
           </div>
         </div>
@@ -347,7 +362,6 @@ export default function WerkDerdenOverzicht() {
     goedgekeurd: 'Goedgekeurd',
     klaar_gemeld: 'Klaar gemeld',
     gefactureerd: 'Gefactureerd',
-    afgerond: 'Afgerond',
     afgekeurd: 'Afgekeurd',
   };
 
@@ -356,7 +370,6 @@ export default function WerkDerdenOverzicht() {
     goedgekeurd: '✓',
     klaar_gemeld: '🔧',
     gefactureerd: '🧾',
-    afgerond: '🏁',
     afgekeurd: '✗',
   };
 
@@ -405,11 +418,23 @@ export default function WerkDerdenOverzicht() {
     }
   }
 
+  async function handleKlaarMelden(rec: WerkDerdenRecord) {
+    setBezig(rec.id);
+    try {
+      const res = await setKlaarGemeld(rec.id);
+      if (res.ok) toonMelding('Klaar gemeld ✓', true);
+      else toonMelding(res.error ?? 'Fout bij klaar melden', false);
+    } finally {
+      setBezig(null);
+    }
+  }
+
   async function handleFactureren(
     rec: WerkDerdenRecord,
     margeType: 'pct' | 'bedrag',
     margeWaarde: number,
     btwPct: number,
+    opmerking: string,
   ) {
     setFactureerRec(null);
     setBezig(rec.id);
@@ -417,13 +442,13 @@ export default function WerkDerdenOverzicht() {
       const res = await fetch('/api/werk-derden/factureren', {
         method: 'POST',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ id: rec.id, marge_type: margeType, marge_waarde: margeWaarde, btw_pct: btwPct }),
+        body: JSON.stringify({ id: rec.id, marge_type: margeType, marge_waarde: margeWaarde, btw_pct: btwPct, opmerking }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Onbekende fout' }));
         toonMelding(`Fout: ${(err as { error?: string }).error ?? 'factureren mislukt'}`, false);
       } else {
-        toonMelding('Gefactureerd via Twinfield ✓', true);
+        toonMelding('Concept-factuur klaargezet in Facturatie ✓', true);
       }
     } catch {
       toonMelding('Netwerkfout bij factureren', false);
@@ -482,7 +507,7 @@ export default function WerkDerdenOverzicht() {
 
   if (loading) return <div className={styles.laden}>Laden…</div>;
 
-  const tabVolgorde: Tab[] = ['open', 'goedgekeurd', 'klaar_gemeld', 'gefactureerd', 'afgerond', 'afgekeurd'];
+  const tabVolgorde: Tab[] = ['open', 'goedgekeurd', 'klaar_gemeld', 'gefactureerd', 'afgekeurd'];
 
   return (
     <div className={styles.pagina}>
@@ -512,10 +537,10 @@ export default function WerkDerdenOverzicht() {
         {tabVolgorde.map(t => {
           const count = records.filter(r => r.status === t).length;
           const accent = t === 'open' && count > 0 ? styles.hot
-            : (t === 'gefactureerd' || t === 'afgerond') && count > 0 ? styles.good
+            : t === 'gefactureerd' && count > 0 ? styles.good
             : '';
           const getalAccent = t === 'open' && count > 0 ? styles.warn
-            : (t === 'gefactureerd' || t === 'afgerond') && count > 0 ? styles.ok
+            : t === 'gefactureerd' && count > 0 ? styles.ok
             : '';
           return (
             <div
@@ -643,35 +668,54 @@ export default function WerkDerdenOverzicht() {
                             </button>
                           </>
                         )}
-                        {(tab === 'goedgekeurd' || tab === 'klaar_gemeld') && (
+                        {/* Voertuigprijs: kosten zitten in de auto → Afronden (geen facturatie). */}
+                        {(tab === 'goedgekeurd' || tab === 'klaar_gemeld') && rec.bestemming === 'voertuigprijs' && (
+                          <button
+                            className={styles.facturerenKnop}
+                            onClick={() => handleAfronden(rec.id)}
+                            disabled={isBusy}
+                            style={{ background: 'rgba(82,196,126,0.15)', color: '#32a868', borderColor: 'rgba(82,196,126,0.4)' }}
+                          >
+                            ✓ Afronden
+                          </button>
+                        )}
+                        {/* Goedgekeurd + doorbelasten: PEPE meldt zelf klaar (niet wachten op partner). */}
+                        {tab === 'goedgekeurd' && rec.bestemming !== 'voertuigprijs' && (
                           <>
-                            {rec.bestemming === 'voertuigprijs' ? (
-                              <button
-                                className={styles.facturerenKnop}
-                                onClick={() => handleAfronden(rec.id)}
-                                disabled={isBusy}
-                                style={{ background: 'rgba(82,196,126,0.15)', color: '#32a868', borderColor: 'rgba(82,196,126,0.4)' }}
-                              >
-                                ✓ Afronden
-                              </button>
-                            ) : (
-                              <>
-                                <button
-                                  className={styles.facturerenKnop}
-                                  onClick={() => setFactureerRec(rec)}
-                                  disabled={isBusy}
-                                >
-                                  Factureren
-                                </button>
-                                <button
-                                  className={styles.afkeurenKnop}
-                                  onClick={() => setAfkeurenRec(rec)}
-                                  disabled={isBusy}
-                                >
-                                  ✗ Afkeuren
-                                </button>
-                              </>
-                            )}
+                            <button
+                              className={styles.facturerenKnop}
+                              onClick={() => handleKlaarMelden(rec)}
+                              disabled={isBusy}
+                              style={{ background: 'rgba(59,130,246,0.10)', color: 'var(--accent)', borderColor: 'rgba(59,130,246,0.4)' }}
+                            >
+                              🔧 Klaar melden
+                            </button>
+                            <button
+                              className={styles.afkeurenKnop}
+                              onClick={() => setAfkeurenRec(rec)}
+                              disabled={isBusy}
+                            >
+                              ✗ Afkeuren
+                            </button>
+                          </>
+                        )}
+                        {/* Klaar gemeld + doorbelasten: pas hier kan gefactureerd worden. */}
+                        {tab === 'klaar_gemeld' && rec.bestemming !== 'voertuigprijs' && (
+                          <>
+                            <button
+                              className={styles.facturerenKnop}
+                              onClick={() => setFactureerRec(rec)}
+                              disabled={isBusy}
+                            >
+                              Factureren
+                            </button>
+                            <button
+                              className={styles.afkeurenKnop}
+                              onClick={() => setAfkeurenRec(rec)}
+                              disabled={isBusy}
+                            >
+                              ✗ Afkeuren
+                            </button>
                           </>
                         )}
                         {tab === 'gefactureerd' && rec.twinfield_invoice_id && (
@@ -710,8 +754,8 @@ export default function WerkDerdenOverzicht() {
       {factureerRec && (
         <FacurerenDialog
           record={factureerRec}
-          onBevestigen={(margeType, margeWaarde, btwPct) =>
-            handleFactureren(factureerRec, margeType, margeWaarde, btwPct)
+          onBevestigen={(margeType, margeWaarde, btwPct, opmerking) =>
+            handleFactureren(factureerRec, margeType, margeWaarde, btwPct, opmerking)
           }
           onSluiten={() => setFactureerRec(null)}
         />

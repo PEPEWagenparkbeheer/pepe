@@ -1,18 +1,22 @@
 ﻿// POST /api/werk-derden/factureren
-// Body: { id: string, marge_type: 'pct' | 'bedrag', marge_waarde: number }
-// Vereiste status: 'goedgekeurd'
+// Body: { id, marge_type: 'pct'|'bedrag', marge_waarde: number, btw_pct?: number, opmerking?: string }
+// Vereiste status: 'klaar_gemeld'
 // 1. Haal de melding op uit Supabase
 // 2. Bereken verkoop_bedrag uit inkoop + marge
-// 3. Roep Twinfield aan (stub)
-// 4. Update status → 'gefactureerd' + marge + verkoop + twinfield_invoice_id + gefactureerd_op
+// 3. Zet een CONCEPT-factuur klaar in de facturatie-module (uitgaande_facturen, type 'werk_derden')
+// 4. Update status → 'gefactureerd' + marge + verkoop + gefactureerd_op
+// De facturatie-medewerker werkt het concept af (debiteur, controle, versturen).
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { createTwinfieldInvoice } from '@/lib/twinfield';
 import { requirePepe } from '@/lib/apiAuth';
+import { berekenTotalen } from '@/lib/factuur/btw';
+import type { FactuurRegel } from '@/types/factuur';
 import type { WerkDerdenRecord, WerkRegel } from '@/types';
 
 export const runtime = 'nodejs';
+
+function round2(n: number) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
 export async function POST(req: NextRequest) {
   const gate = await requirePepe(req);
@@ -24,14 +28,16 @@ export async function POST(req: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  let body: { id?: string; marge_type?: string; marge_waarde?: number };
+  let body: { id?: string; marge_type?: string; marge_waarde?: number; btw_pct?: number; opmerking?: string };
   try {
-    body = (await req.json()) as { id?: string; marge_type?: string; marge_waarde?: number };
+    body = (await req.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: 'Ongeldige JSON' }, { status: 400 });
   }
 
   const { id, marge_type, marge_waarde } = body;
+  const btw_pct = body.btw_pct === 0 ? 0 : (body.btw_pct ?? 21);
+  const opmerking = (body.opmerking ?? '').trim();
 
   if (!id) {
     return NextResponse.json({ error: 'id is vereist' }, { status: 400 });
@@ -56,9 +62,9 @@ export async function POST(req: NextRequest) {
 
   const rec = raw as unknown as WerkDerdenRecord;
 
-  if (rec.status !== 'goedgekeurd') {
+  if (rec.status !== 'klaar_gemeld') {
     return NextResponse.json(
-      { error: `Kan niet factureren: status is "${rec.status}" (verwacht "goedgekeurd")` },
+      { error: `Kan niet factureren: status is "${rec.status}" (verwacht "klaar_gemeld" — meld de auto eerst klaar)` },
       { status: 409 },
     );
   }
@@ -86,32 +92,54 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Berekend verkoopbedrag is niet geldig' }, { status: 400 });
   }
 
-  const twResult = await createTwinfieldInvoice({
-    werk_derden_id: rec.id,
-    kenteken: rec.kenteken ?? rec.meldcode ?? '',
-    klant: rec.klant,
-    partner: rec.partner,
-    regels: rec.regels as WerkRegel[],
-    btw_pct: rec.btw_pct ?? 21,
-    verkoop_bedrag,
-    notitie: rec.notitie,
-    hubspot_deal_id: rec.hubspot_deal_id ?? undefined,
-  });
+  // Zet een CONCEPT-factuur klaar in de facturatie-module. Eén regel met het verkoopbedrag
+  // (incl. marge); de werk-details + opmerking ("aan wie factureren") komen in de notitie.
+  const voertuig = rec.kenteken ?? rec.meldcode ?? '';
+  const merk = [rec.merk, rec.model].filter(Boolean).join(' ');
+  const werkDetails = (rec.regels as WerkRegel[]).map((r) => r.omschrijving).filter(Boolean).join(', ');
+  const regels: FactuurRegel[] = [{
+    omschrijving: `Werkzaamheden ${voertuig}${merk ? ` ${merk}` : ''} via ${rec.partner}${werkDetails ? ` — ${werkDetails}` : ''}`.trim(),
+    aantal: 1,
+    prijs_excl: round2(verkoop_bedrag),
+    btw_code: btw_pct === 0 ? 'geen' : 'hoog',
+  }];
+  const totalen = berekenTotalen(regels);
+  const notitie = [
+    opmerking,
+    `Werk derden via ${rec.partner}.`,
+    rec.klant ? `Klant: ${rec.klant}.` : '',
+  ].filter(Boolean).join(' ');
 
-  if (!twResult.ok) {
-    return NextResponse.json({ error: `Twinfield fout: ${twResult.error}` }, { status: 502 });
+  const { data: factuur, error: factErr } = await admin
+    .from('uitgaande_facturen')
+    .insert({
+      type: 'werk_derden', soort: 'factuur', status: 'concept',
+      klant_naam: rec.klant ?? null,
+      regels,
+      totaal_excl: totalen.totaal_excl,
+      totaal_btw: totalen.totaal_btw,
+      totaal_incl: totalen.totaal_incl,
+      voertuig: voertuig ? { kenteken: voertuig, merk: rec.merk ?? null, model: rec.model ?? null } : null,
+      bron: 'werk_derden',
+      notitie,
+    })
+    .select('id')
+    .single();
+
+  if (factErr) {
+    return NextResponse.json({ error: `Concept-factuur aanmaken mislukt: ${factErr.message}` }, { status: 500 });
   }
 
-  // Update Supabase
+  // Werk-derden record afsluiten → 'gefactureerd'
   const { error: updateErr } = await admin
     .from('werk_derden')
     .update({
       status: 'gefactureerd',
       marge_type,
       marge_waarde,
+      btw_pct,
       verkoop_bedrag,
       gefactureerd_op: new Date().toISOString(),
-      twinfield_invoice_id: twResult.invoice_id ?? null,
     })
     .eq('id', id);
 
@@ -119,5 +147,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, twinfield_invoice_id: twResult.invoice_id, verkoop_bedrag });
+  return NextResponse.json({ ok: true, factuur_id: factuur?.id, verkoop_bedrag });
 }
