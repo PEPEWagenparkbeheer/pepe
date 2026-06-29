@@ -48,8 +48,9 @@ export default function FacturatieOverzicht() {
   const [nieuwOpen, setNieuwOpen] = useState(false);
   const [geenToegang, setGeenToegang] = useState(false);
 
-  const laad = useCallback(async () => {
-    setLoading(true);
+  // stil = achtergrond-refresh zonder de lijst op "laden" te zetten (geen flikkering).
+  const laad = useCallback(async (stil = false) => {
+    if (!stil) setLoading(true);
     const res = await fetch('/api/uitgaande-facturen', { headers: await authHeaders() });
     if (res.status === 403) { setGeenToegang(true); setLoading(false); return; }
     const json = await res.json().catch(() => ({}));
@@ -58,6 +59,20 @@ export default function FacturatieOverzicht() {
   }, []);
 
   useEffect(() => { void laad(); }, [laad]);
+
+  // Auto-refresh: nieuwe facturen (DocuSign-import, crons, CarCollect) verschijnen vanzelf,
+  // zonder handmatig verversen. Ververst bij terugkeer naar het tabblad + elke 45s stil.
+  useEffect(() => {
+    const herlaad = () => { if (document.visibilityState === 'visible') void laad(true); };
+    window.addEventListener('focus', herlaad);
+    document.addEventListener('visibilitychange', herlaad);
+    const interval = setInterval(herlaad, 45000);
+    return () => {
+      window.removeEventListener('focus', herlaad);
+      document.removeEventListener('visibilitychange', herlaad);
+      clearInterval(interval);
+    };
+  }, [laad]);
 
   // Bij openen van Historie: bounce-check (NDR's in info@) en daarna herladen.
   const [bezorgGecheckt, setBezorgGecheckt] = useState(false);
