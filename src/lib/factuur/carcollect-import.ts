@@ -130,7 +130,15 @@ export async function importeerCarCollectMail(msg: GraphMessage): Promise<CarCol
     notitie,
   }).select('id').single();
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // Unieke index op bron_ref → race met een gelijktijdige run: al aangemaakt = geen fout.
+    if ((error as { code?: string }).code === '23505') {
+      const { data: dup } = await supabaseAdmin
+        .from('uitgaande_facturen').select('id').eq('bron_ref', ref).maybeSingle();
+      return { ok: true, id: dup?.id, bestond: true };
+    }
+    return { ok: false, error: error.message };
+  }
   return { ok: true, id: row.id, kenteken: d.kenteken ?? null, klant: d.koper?.bedrijf ?? null };
 }
 
