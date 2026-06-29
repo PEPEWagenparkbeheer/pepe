@@ -111,5 +111,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .single();
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
+  // Houd de debiteuren-zoekindex actueel: voeg deze debiteur (incl. NAW) meteen toe/bij.
+  void supabaseAdmin.from('twinfield_debiteuren').upsert({
+    code: debiteurCode,
+    naam: factuur.klant_naam ?? null,
+    adres: factuur.adres ?? null,
+    postcode: factuur.postcode || '',
+    plaats: factuur.plaats ?? null,
+    huisnummer: factuur.adres?.match(/\d+/)?.[0] ?? null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'code' });
+
   return NextResponse.json({ factuur: updated });
 }
