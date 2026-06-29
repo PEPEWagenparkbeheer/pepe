@@ -4,8 +4,8 @@
 // direct een compleet concept dat PEPE alleen nog hoeft goed te keuren en te versturen.
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { searchCompanyByName, getCompanyFields } from '@/lib/hubspot';
 import { berekenTotalen } from '@/lib/factuur/btw';
+import { searchDebiteurCandidates } from '@/lib/twinfield/factuur';
 import { parseCarCollectMail, type CarCollectData } from '@/lib/factuur/carcollect-parse';
 import type { GraphMessage } from '@/lib/graph/mail';
 import type { FactuurRegel } from '@/types/factuur';
@@ -70,17 +70,18 @@ export async function importeerCarCollectMail(msg: GraphMessage): Promise<CarCol
   const regels = bouwRegels(d);
   const totalen = berekenTotalen(regels);
 
-  // Optionele HubSpot-koppeling: company-id (+ bestaand debiteurnummer) op bedrijfsnaam.
-  let companyId: string | null = null;
+  // Debiteur: TWINFIELD-FIRST. Veel handelaren staan al in Twinfield → match op naam én
+  // postcode/huisnummer. Geen HubSpot-lookup/-creatie hier: handel-auto's hoeven niet in HubSpot
+  // (geen deal, niet op rijdend = geen vervuiling). Het eventuele aanmaken van de debiteur + het
+  // heen-en-weer schrijven van het debiteurnummer gebeurt pas bij het boeken (akkoord-verstuur).
   let twinfieldCode: string | null = null;
-  if (d.koper?.bedrijf) {
+  const zoekNaam = d.koper?.bedrijf || d.koper?.naam || '';
+  if (zoekNaam) {
     try {
-      const id = await searchCompanyByName(d.koper.bedrijf);
-      if (id) {
-        companyId = id;
-        const f = await getCompanyFields(id, ['twinfield_debiteur_code']);
-        twinfieldCode = (f?.twinfield_debiteur_code as string) || null;
-      }
+      const huisnummer = (d.koper?.adres ?? '').match(/\d+/)?.[0] ?? null;
+      const kandidaten = await searchDebiteurCandidates(zoekNaam, { postcode: d.koper?.postcode ?? null, huisnummer });
+      const top = kandidaten[0];
+      if (top && top.score >= 90) twinfieldCode = top.id; // sterke match: naam exact of postcode+huisnummer
     } catch { /* niet fataal */ }
   }
 
@@ -100,7 +101,7 @@ export async function importeerCarCollectMail(msg: GraphMessage): Promise<CarCol
     status: 'concept',
     bron: 'carcollect',
     bron_ref: ref,
-    hubspot_company_id: companyId,
+    hubspot_company_id: null,
     klant_naam: d.koper?.bedrijf || d.koper?.naam || null,
     tav: d.koper?.naam || null,
     adres: d.koper?.adres || null,

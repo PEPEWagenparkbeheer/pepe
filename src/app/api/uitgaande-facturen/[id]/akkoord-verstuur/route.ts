@@ -132,8 +132,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }, { onConflict: 'code' });
 
   // Auto-verkoopfactuur → HubSpot bijwerken (deal op rijdend + RDW-velden), net als documentenstroom.
+  // UITZONDERING: handelsverkopen via CarCollect NIET in HubSpot zetten — die auto's hoeven daar niet
+  // te staan (geen deal, niet op rijdend), dat zou vervuiling geven. De debiteur (company) is hierboven
+  // al bijgewerkt via koppelDebiteurCodeAanHubSpot.
   let hubspot: { dealId?: string; error?: string } = {};
-  if (factuur.type === 'auto' && factuur.soort !== 'creditnota') {
+  if (factuur.type === 'auto' && factuur.soort !== 'creditnota' && factuur.bron !== 'carcollect') {
     try {
       const sync = await syncAutoFactuurNaarHubSpot(updated as UitgaandeFactuur);
       if (sync.dealId) {

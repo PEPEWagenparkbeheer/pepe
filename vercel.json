@@ -19,10 +19,6 @@
     {
       "path": "/api/facturatie/debiteuren-sync-cron",
       "schedule": "17 3 * * *"
-    },
-    {
-      "path": "/api/facturatie/carcollect-import",
-      "schedule": "41 7 * * *"
     }
   ]
 }

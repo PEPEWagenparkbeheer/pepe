@@ -91,7 +91,8 @@ export interface UitgaandeFactuur {
   voertuig?: FactuurVoertuig | null;
   bijlage?: { entiteiten: BijlageEntiteit[] } | null;
 
-  bron?: 'handmatig' | 'docusign' | 'recurring';
+  bron?: 'handmatig' | 'docusign' | 'recurring' | 'carcollect';
+  bron_ref?: string | null;
   docusign_envelope_id?: string | null;
   periode?: string | null;
   recurring_key?: string | null;
