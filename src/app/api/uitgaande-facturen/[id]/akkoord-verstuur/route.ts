@@ -9,10 +9,11 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireFacturatie } from '@/lib/apiAuth';
 import {
   createTwinfieldFactuur,
-  findOrCreateDebtorByCompany,
+  maakNieuweDebiteur,
   GROOTBOEK,
   type TwinfieldFactuurRegelInput,
 } from '@/lib/twinfield/factuur';
+import { updateCompany } from '@/lib/hubspot';
 import type { FactuurRegel, FactuurType, UitgaandeFactuur } from '@/types/factuur';
 
 export const runtime = 'nodejs';
@@ -46,13 +47,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: 'Geen factuurregels' }, { status: 400 });
   }
 
-  // Debiteur zoeken/aanmaken (op company-id, met naam-fallback)
+  // Debiteur: gekozen bestaande code (match-modal), expliciet nieuw aanmaken, of — bij creditnota —
+  // de debiteur van de bronfactuur. NOOIT meer blind aanmaken.
+  const body = await req.json().catch(() => ({}));
   let debiteurCode: string;
   try {
-    debiteurCode = await findOrCreateDebtorByCompany(
-      factuur.hubspot_company_id,
-      factuur.klant_naam ?? '',
-    );
+    if (body.debiteurCode) {
+      debiteurCode = String(body.debiteurCode);
+      if (factuur.hubspot_company_id) {
+        await updateCompany(factuur.hubspot_company_id, { twinfield_debiteur_code: debiteurCode } as never).catch(() => {});
+      }
+    } else if (body.maakNieuw) {
+      debiteurCode = await maakNieuweDebiteur(factuur.klant_naam ?? '', factuur.hubspot_company_id);
+    } else if (factuur.twinfield_debiteur_code) {
+      debiteurCode = factuur.twinfield_debiteur_code;
+    } else {
+      return NextResponse.json({ error: 'Geen debiteur gekozen (debiteurCode of maakNieuw vereist)' }, { status: 400 });
+    }
   } catch (e) {
     return NextResponse.json({ error: `Debiteur Twinfield: ${String(e)}` }, { status: 502 });
   }

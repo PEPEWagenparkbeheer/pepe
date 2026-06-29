@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { authHeaders } from '@/lib/clientAuth';
 import type { UitgaandeFactuur, FactuurStatus, FactuurType } from '@/types/factuur';
@@ -24,14 +24,17 @@ const TYPE_LABEL: Record<FactuurType, string> = {
   diensten_overig: 'Diensten',
 };
 
-const TABS: { key: 'open' | FactuurStatus; label: string }[] = [
+type TabKey = 'open' | 'historie' | FactuurStatus;
+
+const TABS: { key: TabKey; label: string }[] = [
   { key: 'open', label: 'Te doen' },
   { key: 'ter_controle', label: 'Ter controle' },
   { key: 'concept', label: 'Concept' },
   { key: 'aanvullen', label: 'Aanvullen' },
-  { key: 'definitief', label: 'Definitief' },
-  { key: 'verzonden', label: 'Verzonden' },
+  { key: 'historie', label: 'Historie' },
 ];
+
+const HISTORIE_STATUSSEN = ['definitief', 'verzonden'];
 
 function euro(n?: number) {
   return `€ ${new Intl.NumberFormat('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0)}`;
@@ -40,7 +43,7 @@ function euro(n?: number) {
 export default function FacturatieOverzicht() {
   const [facturen, setFacturen] = useState<UitgaandeFactuur[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'open' | FactuurStatus>('open');
+  const [tab, setTab] = useState<TabKey>('open');
   const [actief, setActief] = useState<UitgaandeFactuur | null>(null);
   const [nieuwOpen, setNieuwOpen] = useState(false);
   const [geenToegang, setGeenToegang] = useState(false);
@@ -84,8 +87,31 @@ export default function FacturatieOverzicht() {
     if (tab === 'open') {
       return facturen.filter((f) => ['concept', 'aanvullen', 'ter_controle'].includes(f.status));
     }
+    if (tab === 'historie') {
+      return facturen.filter((f) => HISTORIE_STATUSSEN.includes(f.status));
+    }
     return facturen.filter((f) => f.status === tab);
   }, [facturen, tab]);
+
+  async function openPdf(e: MouseEvent, id: string) {
+    e.stopPropagation();
+    const res = await fetch(`/api/uitgaande-facturen/${id}/pdf`, { headers: await authHeaders() });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok && j.url) window.open(j.url, '_blank');
+    else alert(j.error ?? 'Geen PDF beschikbaar');
+  }
+
+  async function crediteer(e: MouseEvent, f: UitgaandeFactuur) {
+    e.stopPropagation();
+    const pin = window.prompt(`Pincode om factuur ${f.factuurnummer ?? ''} te crediteren:`);
+    if (!pin) return;
+    const res = await fetch(`/api/uitgaande-facturen/${f.id}/crediteer`, {
+      method: 'POST', headers: await authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ pin }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) { await laad(); setActief(j.factuur); }
+    else alert(j.error ?? 'Crediteren mislukt');
+  }
 
   if (geenToegang) {
     return (
@@ -115,6 +141,8 @@ export default function FacturatieOverzicht() {
         {TABS.map((t) => {
           const count = t.key === 'open'
             ? facturen.filter((f) => ['concept', 'aanvullen', 'ter_controle'].includes(f.status)).length
+            : t.key === 'historie'
+            ? facturen.filter((f) => HISTORIE_STATUSSEN.includes(f.status)).length
             : facturen.filter((f) => f.status === t.key).length;
           return (
             <button
@@ -138,6 +166,7 @@ export default function FacturatieOverzicht() {
             <tr>
               <th>Type</th><th>Status</th><th>Klant</th><th>Nummer</th>
               <th>Datum</th><th className={styles.right}>Totaal</th>
+              {tab === 'historie' && <th className={styles.right}>Acties</th>}
             </tr>
           </thead>
           <tbody>
@@ -152,6 +181,14 @@ export default function FacturatieOverzicht() {
                 <td>{f.factuurnummer || '—'}</td>
                 <td>{f.factuurdatum ? new Date(f.factuurdatum).toLocaleDateString('nl-NL') : '—'}</td>
                 <td className={styles.right}>{euro(f.totaal_incl)}</td>
+                {tab === 'historie' && (
+                  <td className={styles.right} onClick={(e) => e.stopPropagation()}>
+                    <button className={styles.mini} onClick={(e) => openPdf(e, f.id)}>PDF</button>
+                    {f.soort !== 'creditnota' && (
+                      <button className={styles.mini} style={{ marginLeft: 6 }} onClick={(e) => crediteer(e, f)}>Crediteer</button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

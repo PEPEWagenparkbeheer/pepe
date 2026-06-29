@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { authHeaders } from '@/lib/clientAuth';
 import { berekenTotalen } from '@/lib/factuur/btw';
 import { createFactuurPdfBase64 } from '@/lib/factuur/pdf';
+import DebiteurMatchModal, { type DebiteurKeuze } from './DebiteurMatchModal';
+import type { MatchKandidaat } from '@/types/match';
 import type { UitgaandeFactuur, FactuurType, FactuurRegel, BtwCode } from '@/types/factuur';
 import styles from './Facturatie.module.css';
 
@@ -86,6 +88,8 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [geboektNummer, setGeboektNummer] = useState<string | null>(factuur?.factuurnummer ?? null);
   const [werkId, setWerkId] = useState<string | null>(factuur?.id ?? null);
+  const [matchOpen, setMatchOpen] = useState(false);
+  const [matchKandidaten, setMatchKandidaten] = useState<MatchKandidaat[]>([]);
 
   // Auto: regels automatisch afleiden uit Toe te betalen + BPM. Het toe-te-betalen-bedrag
   // blijft VAST; als de BPM wijzigt, herrekent de voertuigprijs (en btw) automatisch.
@@ -210,25 +214,66 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
     return new Blob([arr], { type: 'application/pdf' });
   }
 
-  // Stap 1: opslaan + DEFINITIEF boeken in Twinfield + PDF genereren en TONEN (nog niet versturen).
-  async function akkoordEnPdf() {
-    setBezig('Opslaan…'); setFout(null);
+  // Opslaan (create/patch) → geeft de opgeslagen factuur + id terug.
+  async function slaOp(): Promise<{ id: string; factuur: UitgaandeFactuur } | null> {
     const h = await authHeaders({ 'Content-Type': 'application/json' });
-    let id = werkId;
-    const reedsDefinitief = factuur?.status === 'definitief';
-    try {
-      if (!id) {
-        const res = await fetch('/api/uitgaande-facturen', { method: 'POST', headers: h, body: JSON.stringify(bouwBody()) });
-        const j = await res.json();
-        if (!res.ok) { setFout(j.error ?? 'Aanmaken mislukt'); setBezig(null); return; }
-        id = j.factuur.id as string; setWerkId(id);
-      } else if (!reedsDefinitief) {
-        const res = await fetch(`/api/uitgaande-facturen/${id}`, { method: 'PATCH', headers: h, body: JSON.stringify(bouwBody()) });
-        if (!res.ok) { const j = await res.json(); setFout(j.error ?? 'Opslaan mislukt'); setBezig(null); return; }
-      }
+    if (!werkId) {
+      const res = await fetch('/api/uitgaande-facturen', { method: 'POST', headers: h, body: JSON.stringify(bouwBody()) });
+      const j = await res.json();
+      if (!res.ok) { setFout(j.error ?? 'Aanmaken mislukt'); return null; }
+      setWerkId(j.factuur.id);
+      return { id: j.factuur.id, factuur: j.factuur };
+    }
+    if (factuur?.status !== 'definitief') {
+      const res = await fetch(`/api/uitgaande-facturen/${werkId}`, { method: 'PATCH', headers: h, body: JSON.stringify(bouwBody()) });
+      const j = await res.json();
+      if (!res.ok) { setFout(j.error ?? 'Opslaan mislukt'); return null; }
+      return { id: werkId, factuur: j.factuur };
+    }
+    return { id: werkId, factuur: factuur as UitgaandeFactuur };
+  }
 
-      setBezig('Boeken in Twinfield…');
-      const akkoordRes = await fetch(`/api/uitgaande-facturen/${id}/akkoord-verstuur`, { method: 'POST', headers: h });
+  // PDF-PREVIEW zonder te boeken (factuurnummer nog leeg → toont "CONCEPT"). Opent in nieuw tabblad.
+  async function previewPdf() {
+    setBezig('Opslaan…'); setFout(null);
+    const saved = await slaOp();
+    if (!saved) { setBezig(null); return; }
+    setBezig('PDF genereren…');
+    try {
+      const b64 = await createFactuurPdfBase64(saved.factuur);
+      setPdfBase64(b64);
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      const url = URL.createObjectURL(b64ToBlob(b64));
+      setPdfUrl(url);
+      window.open(url, '_blank');
+    } catch (e) { setFout(`PDF-fout: ${String(e)}`); }
+    setBezig(null);
+    await onSaved();
+  }
+
+  // "Akkoord & verstuur": eerst debiteur matchen (geen blinde creatie). Credit → bron-debiteur, geen modal.
+  async function startAkkoord() {
+    if (!klantNaam.trim()) { setFout('Vul de klantnaam in.'); return; }
+    setBezig('Opslaan…'); setFout(null);
+    const saved = await slaOp();
+    if (!saved) { setBezig(null); return; }
+    if (soort === 'creditnota') { setBezig(null); await boekEnVerstuur({}); return; }
+    setBezig('Debiteuren zoeken…');
+    const res = await fetch(`/api/uitgaande-facturen/${saved.id}/debiteur-suggesties`, { headers: await authHeaders() });
+    const j = await res.json().catch(() => ({}));
+    setMatchKandidaten(Array.isArray(j.kandidaten) ? j.kandidaten : []);
+    setBezig(null);
+    setMatchOpen(true);
+  }
+
+  // Boek (final, met gekozen debiteur) → PDF mét nummer → versturen.
+  async function boekEnVerstuur(keuze: DebiteurKeuze) {
+    if (!werkId) return;
+    setMatchOpen(false);
+    setBezig('Boeken in Twinfield…'); setFout(null);
+    const h = await authHeaders({ 'Content-Type': 'application/json' });
+    try {
+      const akkoordRes = await fetch(`/api/uitgaande-facturen/${werkId}/akkoord-verstuur`, { method: 'POST', headers: h, body: JSON.stringify(keuze) });
       const aj = await akkoordRes.json();
       if (!akkoordRes.ok) { setFout(aj.error ?? 'Twinfield-boeking mislukt'); setBezig(null); return; }
       const definitief = aj.factuur as UitgaandeFactuur;
@@ -237,26 +282,14 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
       setBezig('PDF genereren…');
       const b64 = await createFactuurPdfBase64(definitief);
       setPdfBase64(b64);
-      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-      setPdfUrl(URL.createObjectURL(b64ToBlob(b64)));
-      setBezig(null);
-      await onSaved(); // lijst verversen; modal blijft open voor controle + verzenden
-    } catch (e) { setFout(`Fout: ${String(e)}`); setBezig(null); }
-  }
 
-  // Stap 2: de getoonde PDF daadwerkelijk naar de klant mailen.
-  async function verstuurNu() {
-    if (!werkId || !pdfBase64) return;
-    setBezig('Verzenden…'); setFout(null);
-    const h = await authHeaders({ 'Content-Type': 'application/json' });
-    const res = await fetch(`/api/uitgaande-facturen/${werkId}/verzend`, {
-      method: 'POST', headers: h, body: JSON.stringify({ pdfBase64, to: factuurEmail || email }),
-    });
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok) { setFout(`${j.error ?? 'Mail mislukt'}${j.pdfOpgeslagen ? ' (PDF wel opgeslagen)' : ''}`); setBezig(null); return; }
-    await onSaved();
-    setBezig(null);
-    onClose();
+      setBezig('Verzenden…');
+      const vRes = await fetch(`/api/uitgaande-facturen/${werkId}/verzend`, { method: 'POST', headers: h, body: JSON.stringify({ pdfBase64: b64, to: factuurEmail || email }) });
+      const vj = await vRes.json().catch(() => ({}));
+      if (!vRes.ok) { setFout(`Geboekt (nr ${definitief.factuurnummer ?? '?'}), maar versturen mislukte: ${vj.error ?? ''}`); await onSaved(); setBezig(null); return; }
+      await onSaved();
+      onClose();
+    } catch (e) { setFout(`Fout: ${String(e)}`); setBezig(null); }
   }
 
   const kanVersturen = !!factuur && ['concept', 'aanvullen', 'ter_controle', 'definitief'].includes(factuur.status);
@@ -490,12 +523,14 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
               Annuleren
             </button>
           )}
-          {factuur && factuur.status === 'verzonden' && (
+          {factuur && factuur.status === 'verzonden' && factuur.soort !== 'creditnota' && (
             <button
               className={styles.secondary}
               onClick={async () => {
+                const pin = window.prompt('Pincode voor crediteren:');
+                if (!pin) return;
                 const h = await authHeaders({ 'Content-Type': 'application/json' });
-                const res = await fetch(`/api/uitgaande-facturen/${factuur.id}/crediteer`, { method: 'POST', headers: h });
+                const res = await fetch(`/api/uitgaande-facturen/${factuur.id}/crediteer`, { method: 'POST', headers: h, body: JSON.stringify({ pin }) });
                 const json = await res.json();
                 if (res.ok) await onSaved();
                 else setFout(json.error ?? 'Crediteren mislukt');
@@ -505,33 +540,32 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
             </button>
           )}
           <button className={styles.secondary} onClick={onClose}>Sluiten</button>
-          {!pdfBase64 && kanAanpassen && !isNieuw && (
+          {kanAanpassen && (
             <button className={styles.secondary} onClick={opslaan} disabled={!!bezig}>
               {bezig === 'Opslaan…' ? 'Bezig…' : 'Opslaan concept'}
             </button>
           )}
-          {!pdfBase64 && isNieuw && (
-            <button className={styles.secondary} onClick={opslaan} disabled={!!bezig}>
-              {bezig === 'Opslaan…' ? 'Bezig…' : 'Opslaan concept'}
+          {(kanVersturen || isNieuw) && (
+            <button className={styles.secondary} onClick={previewPdf} disabled={!!bezig}>
+              📄 PDF-preview
             </button>
           )}
-          {!pdfBase64 && (kanVersturen || isNieuw) && (
-            <button className={styles.primary} onClick={akkoordEnPdf} disabled={!!bezig}>
-              {bezig ?? '✓ Akkoord & PDF maken'}
+          {(kanVersturen || isNieuw) && (
+            <button className={styles.primary} onClick={startAkkoord} disabled={!!bezig}>
+              {bezig ?? '✓ Akkoord & verstuur'}
             </button>
-          )}
-          {pdfBase64 && (
-            <>
-              <button className={styles.secondary} onClick={() => pdfUrl && window.open(pdfUrl, '_blank')}>
-                📄 PDF bekijken
-              </button>
-              <button className={styles.primary} onClick={verstuurNu} disabled={!!bezig}>
-                {bezig ?? '✉️ Verstuur naar klant'}
-              </button>
-            </>
           )}
         </div>
       </div>
+      {matchOpen && (
+        <DebiteurMatchModal
+          klantNaam={klantNaam}
+          kandidaten={matchKandidaten}
+          busy={!!bezig}
+          onBevestig={boekEnVerstuur}
+          onAnnuleer={() => setMatchOpen(false)}
+        />
+      )}
     </div>
   );
 }

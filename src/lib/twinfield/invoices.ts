@@ -2,8 +2,7 @@ import { callProcessXml, finderSearch } from './soap';
 import { getDealCompanyId, getCompanyFields, updateCompany } from '../hubspot';
 import type { TwinfieldFactuurInput, TwinfieldFactuurResult } from '../twinfield';
 
-const DEBITEUR_REGEX = /^1\d{4}$/;
-const DEBITEUR_START = 10001;
+const DEBITEUR_START = 1000; // fallback als de administratie nog geen numerieke debiteuren heeft
 const HS_PROP = 'twinfield_debiteur_code';
 
 // Grootboekrekening voor partner-kostendoorbelasting ("Omzet doorbelasting partnerkosten").
@@ -45,10 +44,10 @@ export async function findOrCreateDebtor(
     return gevonden.code;
   }
 
-  // Nieuw debiteurnummer (formaat 1XXXX)
+  // Nieuw debiteurnummer = hoogste bestaande NUMERIEKE code + 1 (volgt formaat van de administratie).
   const nummers = items
-    .map((i) => i.code)
-    .filter((c) => DEBITEUR_REGEX.test(c))
+    .map((i) => i.code.trim())
+    .filter((c) => /^\d+$/.test(c))
     .map(Number);
   const volgend = nummers.length ? Math.max(...nummers) + 1 : DEBITEUR_START;
   const code = String(volgend);

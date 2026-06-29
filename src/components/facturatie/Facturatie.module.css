@@ -604,3 +604,19 @@
   color: #14181f;
 }
 .sugItem:hover { background: #faf7f8; }
+
+/* Debiteur-match opties */
+.matchOptie {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.matchOptie:hover { background: #faf7f8; border-color: #d6d8dc; }
+.matchInfo { display: flex; flex-direction: column; gap: 2px; }
+.matchNaam { font-size: 14px; font-weight: 600; color: #14181f; }
+.matchReden { font-size: 12px; color: #6b7280; }

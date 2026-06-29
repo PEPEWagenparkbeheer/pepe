@@ -13,6 +13,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!gate.ok) return gate.response;
   const { id } = await ctx.params;
 
+  // Beveiliging: crediteren vereist een pincode (env FACTURATIE_CREDIT_PIN).
+  const body = await req.json().catch(() => ({}));
+  const vereistePin = process.env.FACTURATIE_CREDIT_PIN ?? '';
+  if (vereistePin && String(body.pin ?? '') !== vereistePin) {
+    return NextResponse.json({ error: 'Onjuiste pincode' }, { status: 403 });
+  }
+
   const { data: f } = await supabaseAdmin
     .from('uitgaande_facturen').select('*').eq('id', id).maybeSingle();
   if (!f) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 });

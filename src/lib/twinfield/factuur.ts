@@ -11,12 +11,34 @@
 //  - de Twinfield-vatcode voor de margeregeling (MARGE_VATCODE)
 
 import { callProcessXml, finderSearch } from './soap';
+import { getValidAccessToken } from './auth';
 import { getCompanyFields, updateCompany } from '../hubspot';
 import type { BtwCode, FactuurRegel, FactuurType } from '@/types/factuur';
+import type { MatchKandidaat } from '@/types/match';
 
-const DEBITEUR_REGEX = /^1\d{4}$/;
-const DEBITEUR_START = 10001;
+const DEBITEUR_START = 1000; // fallback als de administratie nog geen numerieke debiteuren heeft
 const HS_PROP = 'twinfield_debiteur_code';
+
+// Volgend debiteurnummer = hoogste bestaande NUMERIEKE code + 1. Zo volgen we automatisch het
+// formaat van de administratie (bv. 4-cijferig 1XXX bij PEPE Wagenparkbeheer) i.p.v. een vaste start.
+function volgendDebiteurNummer(items: Array<{ code: string }>): string {
+  const nummers = items
+    .map((i) => i.code.trim())
+    .filter((c) => /^\d+$/.test(c))
+    .map(Number);
+  return String(nummers.length ? Math.max(...nummers) + 1 : DEBITEUR_START);
+}
+
+function normalizeNaam(s: string): string {
+  return (s ?? '')
+    .toLowerCase()
+    .replace(/\b(b\.?v\.?|n\.?v\.?|v\.?o\.?f\.?|holding|beheer|gmbh|ltd)\b/g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+function normalizeZip(s?: string | null): string {
+  return (s ?? '').toUpperCase().replace(/\s+/g, '');
+}
 
 // Twinfield-vatcodes. VH=21%, VN=0%. Marge = margeregeling-code (BEVESTIGEN met boekhouder).
 const MARGE_VATCODE = process.env.TWINFIELD_MARGE_VATCODE || 'VM';
@@ -89,29 +111,108 @@ export async function findOrCreateDebtorByCompany(
     return gevonden.code;
   }
 
-  const nummers = items
-    .map((i) => i.code)
-    .filter((c) => DEBITEUR_REGEX.test(c))
-    .map(Number);
-  const volgend = nummers.length ? Math.max(...nummers) + 1 : DEBITEUR_START;
-  const code = String(volgend);
+  const code = volgendDebiteurNummer(items);
+  await schrijfDebiteur(code, naamVoorZoeken);
+  if (companyId) void writeDebiteurNaarHubSpot(companyId, code);
+  return code;
+}
 
+/** Maakt een Twinfield-debiteur (DEB-dimensie) aan met een gegeven code + naam. */
+async function schrijfDebiteur(code: string, naam: string): Promise<void> {
   const xml = `
 <dimensions>
   <dimension>
     <type>DEB</type>
     <code>${code}</code>
-    <name>${escapeXml(naamVoorZoeken)}</name>
-    <shortname>${escapeXml(naamVoorZoeken.slice(0, 20))}</shortname>
+    <name>${escapeXml(naam)}</name>
+    <shortname>${escapeXml(naam.slice(0, 20))}</shortname>
   </dimension>
 </dimensions>`.trim();
-
   const response = await callProcessXml(xml);
   if (!response.includes('result="1"') && !response.includes("result='1'")) {
     throw new Error(`Debiteur aanmaken mislukt: ${response.slice(0, 300)}`);
   }
+}
+
+/** Maakt expliciet een NIEUWE debiteur (na bevestiging in de match-modal). */
+export async function maakNieuweDebiteur(naam: string, companyId?: string | null): Promise<string> {
+  const items = await finderSearch('DEB', '*', 2000);
+  const code = volgendDebiteurNummer(items);
+  await schrijfDebiteur(code, naam);
   if (companyId) void writeDebiteurNaarHubSpot(companyId, code);
   return code;
+}
+
+/** Leest het adres (postcode + ruwe adrestekst) van een bestaande debiteur uit Twinfield. */
+async function readDebiteurAdres(code: string): Promise<{ postcode?: string; tekst: string }> {
+  const token = await getValidAccessToken();
+  const office = token.companyCode ?? '';
+  const xml = `<read><type>dimensions</type><office>${office}</office><code>${code}</code><dimtype>DEB</dimtype></read>`;
+  const resp = await callProcessXml(xml, office);
+  const postcode = resp.match(/<postcode>([^<]+)<\/postcode>/i)?.[1];
+  return { postcode, tekst: resp };
+}
+
+export interface DebiteurMatchInput {
+  gekoppeldeCode?: string | null;
+  postcode?: string | null;
+  huisnummer?: string | null;
+}
+
+/**
+ * Zoekt bestaande Twinfield-debiteuren als match-kandidaten (geen blinde creatie).
+ * Scoort op: reeds gekoppelde code (100), naam-gelijkenis (95 exact / 70 bevat) en — voor de
+ * top naam-kandidaten — een adres-match op postcode(+huisnummer) (boost naar 90).
+ */
+export async function searchDebiteurCandidates(
+  klantNaam: string,
+  opts: DebiteurMatchInput = {},
+): Promise<MatchKandidaat[]> {
+  const items = await finderSearch('DEB', '*', 2000);
+  const kandidaten: MatchKandidaat[] = [];
+  const seen = new Set<string>();
+
+  if (opts.gekoppeldeCode) {
+    const hit = items.find((i) => i.code === opts.gekoppeldeCode);
+    kandidaten.push({ id: opts.gekoppeldeCode, naam: hit?.name ?? klantNaam, reden: 'Al gekoppeld aan deze klant', score: 100 });
+    seen.add(opts.gekoppeldeCode);
+  }
+
+  const doel = normalizeNaam(klantNaam);
+  const scored = items
+    .filter((i) => !seen.has(i.code))
+    .map((i) => {
+      const n = normalizeNaam(i.name);
+      let score = 0; let reden = '';
+      if (doel && n && n === doel) { score = 95; reden = 'Naam exact'; }
+      else if (doel && n && (n.includes(doel) || doel.includes(n))) { score = 70; reden = 'Naam vergelijkbaar'; }
+      return { i, score, reden };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+
+  // Adres-match (postcode + huisnummer) voor de top naam-kandidaten → boost
+  if (opts.postcode) {
+    const pcDoel = normalizeZip(opts.postcode);
+    for (const x of scored) {
+      try {
+        const adr = await readDebiteurAdres(x.i.code);
+        const pcOk = adr.postcode && normalizeZip(adr.postcode) === pcDoel;
+        const hnOk = !opts.huisnummer || adr.tekst.toLowerCase().includes(String(opts.huisnummer).toLowerCase());
+        if (pcOk && hnOk) {
+          x.score = Math.max(x.score, 90);
+          x.reden = x.reden ? `${x.reden} + adres` : 'Adres match (postcode/huisnummer)';
+        }
+      } catch { /* adres niet leesbaar → negeren */ }
+    }
+    scored.sort((a, b) => b.score - a.score);
+  }
+
+  for (const x of scored) {
+    kandidaten.push({ id: x.i.code, naam: x.i.name, reden: x.reden, score: x.score });
+  }
+  return kandidaten;
 }
 
 async function writeDebiteurNaarHubSpot(companyId: string, code: string): Promise<void> {
