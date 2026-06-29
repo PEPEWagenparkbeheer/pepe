@@ -114,6 +114,8 @@ export async function GET(req: NextRequest) {
       recurring_key: recurringKey,
     });
     if (insErr) { resultaat.push({ klant: cfg.klant_naam ?? cfg.parent_hubspot_company_id, status: `fout: ${insErr.message}` }); continue; }
+    await supabaseAdmin.from('wagenparkbeheer_config')
+      .update({ laatst_aantal: totaalAantal, laatst_periode: periode }).eq('id', cfg.id);
     resultaat.push({ klant: (pf.name as string) ?? cfg.klant_naam ?? cfg.parent_hubspot_company_id, status: 'klaargezet', aantal: totaalAantal });
   }
 

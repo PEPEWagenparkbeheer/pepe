@@ -15,6 +15,7 @@ interface Config {
   betaaldag: number;
   actief: boolean;
   notitie: string | null;
+  laatst_aantal?: number | null;
 }
 
 const leeg = (): Config => ({
@@ -27,6 +28,7 @@ export default function WagenparkbeheerConfig() {
   const [bewerk, setBewerk] = useState<Config | null>(null);
   const [melding, setMelding] = useState('');
   const [busy, setBusy] = useState(false);
+  const [huidig, setHuidig] = useState<Record<string, number>>({}); // live aantallen na controle
 
   const laad = useCallback(async () => {
     const res = await fetch('/api/wagenparkbeheer-config', { headers: await authHeaders() });
@@ -62,6 +64,23 @@ export default function WagenparkbeheerConfig() {
     await laad();
   }
 
+  async function verwijder(id: string, naam: string) {
+    const pin = window.prompt(`Definitief verwijderen van "${naam}". Voer de pincode in:`);
+    if (!pin) return;
+    const res = await fetch(`/api/wagenparkbeheer-config/${id}?pin=${encodeURIComponent(pin)}`, { method: 'DELETE', headers: await authHeaders() });
+    if (res.ok) await laad();
+    else { const j = await res.json().catch(() => ({})); alert(j.error ?? 'Verwijderen mislukt'); }
+  }
+
+  async function controleerAantallen() {
+    setBusy(true); setMelding('Huidige aantallen ophalen uit HubSpot…');
+    const res = await fetch('/api/wagenparkbeheer-config/aantallen', { headers: await authHeaders() });
+    const j = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (res.ok) { setHuidig(j.aantallen ?? {}); setMelding('Aantallen bijgewerkt. Een afwijking t.o.v. vorige maand staat in rood.'); }
+    else setMelding(j.error ?? 'Ophalen mislukt');
+  }
+
   async function genereerNu() {
     if (!confirm('Conceptfacturen voor deze maand klaarzetten in Facturatie?')) return;
     setBusy(true); setMelding('Concepten genereren…');
@@ -84,6 +103,7 @@ export default function WagenparkbeheerConfig() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Link className={styles.secondary} href="/facturatie">← Terug naar Facturatie</Link>
+          <button className={styles.secondary} onClick={controleerAantallen} disabled={busy}>Controleer aantallen</button>
           <button className={styles.secondary} onClick={genereerNu} disabled={busy}>Genereer concepten nu</button>
           <button className={styles.primary} onClick={() => setBewerk(leeg())}>+ Nieuwe klant</button>
         </div>
@@ -102,7 +122,7 @@ export default function WagenparkbeheerConfig() {
 
       <table className={styles.table}>
         <thead>
-          <tr><th>Moedermaatschappij</th><th>Fee/voertuig</th><th>Dochters</th><th>Betaaldag</th><th>Actief</th><th></th></tr>
+          <tr><th>Moedermaatschappij</th><th>Fee/voertuig</th><th>Dochters</th><th>Auto&apos;s rijdend</th><th>Betaaldag</th><th>Actief</th><th></th></tr>
         </thead>
         <tbody>
           {configs.map((c) => (
@@ -110,16 +130,29 @@ export default function WagenparkbeheerConfig() {
               <td onClick={() => setBewerk({ ...c, child_company_ids: (c.child_company_ids ?? []).map((x) => ({ ...x, checked: true })) })}>{c.klant_naam || c.parent_hubspot_company_id}</td>
               <td>€ {Number(c.fee_per_voertuig).toFixed(2)}</td>
               <td>{(c.child_company_ids ?? []).length}</td>
+              <td>{(() => {
+                const h = huidig[c.id];
+                const vorig = c.laatst_aantal;
+                if (h == null) return <span>{vorig ?? '—'}{vorig != null && <span style={{ color: '#8b8e93', fontSize: 11 }}> (vorige mnd)</span>}</span>;
+                const delta = vorig == null ? 0 : h - vorig;
+                return (
+                  <span style={{ color: delta !== 0 ? '#dc2626' : '#1d7a34', fontWeight: 600 }}>
+                    {h}
+                    {delta !== 0 && <span> ({delta > 0 ? '+' : ''}{delta} t.o.v. {vorig})</span>}
+                  </span>
+                );
+              })()}</td>
               <td>{c.betaaldag}e</td>
               <td>{c.actief ? 'ja' : 'nee'}</td>
-              <td>
+              <td style={{ whiteSpace: 'nowrap' }}>
                 {c.actief
                   ? <button className={styles.mini} onClick={() => zetActief(c.id, c.klant_naam || c.parent_hubspot_company_id, false)}>Op inactief</button>
                   : <button className={styles.mini} onClick={() => zetActief(c.id, c.klant_naam || c.parent_hubspot_company_id, true)}>Activeren</button>}
+                <button className={styles.mini} style={{ marginLeft: 6 }} onClick={() => verwijder(c.id, c.klant_naam || c.parent_hubspot_company_id)}>Verwijderen</button>
               </td>
             </tr>
           ))}
-          {configs.length === 0 && <tr><td colSpan={6} className={styles.empty}>Nog geen klanten geconfigureerd.</td></tr>}
+          {configs.length === 0 && <tr><td colSpan={7} className={styles.empty}>Nog geen klanten geconfigureerd.</td></tr>}
         </tbody>
       </table>
 

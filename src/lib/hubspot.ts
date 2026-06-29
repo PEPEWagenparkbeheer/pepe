@@ -524,13 +524,19 @@ export async function getRijdendeDealsForCompany(
   ).catch(() => ({ results: [] as { toObjectId: string | number }[] }));
 
   const ids = (assoc.results ?? []).map((r) => String(r.toObjectId));
+  if (!ids.length) return { kentekens: [], aantal: 0 };
+
+  // Batch-read (max 100 per call) i.p.v. per deal → veel minder HubSpot-calls (sneller, geen rate limit).
   const kentekens: string[] = [];
-  for (const dealId of ids) {
-    const f = await getDealFields(dealId, ['dealname', 'dealstage']).catch(
-      () => ({} as Record<string, string>),
-    );
-    if (f.dealstage !== DEALSTAGE_RIJDEND) continue;
-    if (f.dealname) kentekens.push(f.dealname.toUpperCase());
+  for (let i = 0; i < ids.length; i += 100) {
+    const batch = await hsFetch<{ results?: { properties?: Record<string, string> }[] }>(
+      `${HS_BASE}/crm/v3/objects/deals/batch/read`,
+      { method: 'POST', body: JSON.stringify({ properties: ['dealname', 'dealstage'], inputs: ids.slice(i, i + 100).map((x) => ({ id: x })) }) },
+    ).catch(() => ({ results: [] as { properties?: Record<string, string> }[] }));
+    for (const d of batch.results ?? []) {
+      if (d.properties?.dealstage !== DEALSTAGE_RIJDEND) continue;
+      if (d.properties?.dealname) kentekens.push(d.properties.dealname.toUpperCase());
+    }
   }
   kentekens.sort();
   return { kentekens, aantal: kentekens.length };

@@ -28,6 +28,10 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
   const { id } = await ctx.params;
+  // Definitief verwijderen vereist pincode (zelfde als crediteren).
+  const pin = new URL(req.url).searchParams.get('pin') ?? '';
+  const vereist = process.env.FACTURATIE_CREDIT_PIN ?? '';
+  if (vereist && pin !== vereist) return NextResponse.json({ error: 'Onjuiste pincode' }, { status: 403 });
   const { error } = await supabaseAdmin.from('wagenparkbeheer_config').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
