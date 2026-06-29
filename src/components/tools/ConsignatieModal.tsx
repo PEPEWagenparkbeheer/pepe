@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
+import { loadRgbLogoAsPng, loadWitLogoAsPng } from '@/lib/factuur/pepePdf';
 import { authHeaders } from '@/lib/clientAuth';
 import { useMedewerkers } from '@/hooks/useMedewerkers';
 import styles from './ConsignatieModal.module.css';
@@ -233,69 +234,6 @@ async function rdwInkoopOphalen(kenteken: string): Promise<Partial<InkoopForm> |
 }
 
 // Laad witte PEPE-logo SVG, render naar high-res PNG voor crisp PDF embedding
-async function loadWitLogoAsPng(): Promise<{ data: string; aspect: number } | null> {
-  try {
-    const res = await fetch('/pepe-logo-cmyk-wit.svg');
-    let svgText = await res.text();
-
-    let aspect = 4;
-    const vb = svgText.match(/viewBox=["']([\d.\-\s]+)["']/);
-    if (vb) {
-      const parts = vb[1].split(/\s+/).map(Number);
-      if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) aspect = parts[2] / parts[3];
-    }
-
-    if (!/<svg[^>]*\swidth=/.test(svgText)) {
-      const targetW = 1200;
-      const targetH = Math.round(targetW / aspect);
-      svgText = svgText.replace(/<svg/, `<svg width="${targetW}" height="${targetH}"`);
-    }
-
-    const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const i = new Image();
-      i.onload = () => resolve(i);
-      i.onerror = reject;
-      i.src = url;
-    });
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 1600;
-    canvas.height = Math.round(1600 / aspect);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    URL.revokeObjectURL(url);
-    return { data: canvas.toDataURL('image/png'), aspect };
-  } catch {
-    return null;
-  }
-}
-
-// Laad het kleuren-logo (voor witte documenten zoals de inkoopverklaring)
-async function loadRgbLogoAsPng(): Promise<{ data: string; aspect: number } | null> {
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const i = new Image();
-      i.onload = () => resolve(i);
-      i.onerror = reject;
-      i.src = '/pepe-logo-rgb.png';
-    });
-    const w = img.naturalWidth || 1200;
-    const h = img.naturalHeight || 300;
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.drawImage(img, 0, 0);
-    return { data: canvas.toDataURL('image/png'), aspect: w / h };
-  } catch {
-    return null;
-  }
-}
-
 // Gedeelde PEPE-header (zwarte band) — geeft start-y terug
 function drawPepeHeader(doc: jsPDF, titel: string, witLogo: { data: string; aspect: number } | null): number {
   const W = 210;
