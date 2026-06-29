@@ -145,7 +145,7 @@ export default function FacturatieOverzicht() {
           <h1 className={styles.title}>Facturatie</h1>
           <p className={styles.sub}>Uitgaande facturen — auto&apos;s &amp; diensten · gekoppeld aan Twinfield</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Link className={styles.secondary} href="/facturatie/wagenparkbeheer">Wagenparkbeheer-config</Link>
           <button className={styles.secondary} onClick={syncDebiteuren}>{syncStatus || 'Sync debiteuren'}</button>
           <button className={styles.secondary} onClick={genereerShortlease}>Shortlease nu</button>

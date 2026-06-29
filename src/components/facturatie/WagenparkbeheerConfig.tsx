@@ -53,9 +53,12 @@ export default function WagenparkbeheerConfig() {
     if (res.ok) { setBewerk(null); setMelding(''); await laad(); } else { setMelding('Opslaan mislukt.'); }
   }
 
-  async function verwijder(id: string) {
-    if (!confirm('Deze config verwijderen?')) return;
-    await fetch(`/api/wagenparkbeheer-config/${id}`, { method: 'DELETE', headers: await authHeaders() });
+  // Niet hard verwijderen: op inactief zetten (herstelbaar). De maandelijkse cron slaat inactieve klanten over.
+  async function zetActief(id: string, naam: string, actief: boolean) {
+    if (!actief && !confirm(`"${naam}" op INACTIEF zetten? De klant wordt niet verwijderd; je kunt 'm later weer activeren.`)) return;
+    await fetch(`/api/wagenparkbeheer-config/${id}`, {
+      method: 'PATCH', headers: await authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ actief }),
+    });
     await laad();
   }
 
@@ -79,7 +82,8 @@ export default function WagenparkbeheerConfig() {
           <h1 className={styles.title}>Wagenparkbeheer — configuratie</h1>
           <p className={styles.sub}>Fee per voertuig per klant · maandelijkse concepten verschijnen in <Link href="/facturatie">Facturatie</Link></p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link className={styles.secondary} href="/facturatie">← Terug naar Facturatie</Link>
           <button className={styles.secondary} onClick={genereerNu} disabled={busy}>Genereer concepten nu</button>
           <button className={styles.primary} onClick={() => setBewerk(leeg())}>+ Nieuwe klant</button>
         </div>
@@ -108,7 +112,11 @@ export default function WagenparkbeheerConfig() {
               <td>{(c.child_company_ids ?? []).length}</td>
               <td>{c.betaaldag}e</td>
               <td>{c.actief ? 'ja' : 'nee'}</td>
-              <td><button className={styles.removeBtn} onClick={() => verwijder(c.id)}>×</button></td>
+              <td>
+                {c.actief
+                  ? <button className={styles.mini} onClick={() => zetActief(c.id, c.klant_naam || c.parent_hubspot_company_id, false)}>Op inactief</button>
+                  : <button className={styles.mini} onClick={() => zetActief(c.id, c.klant_naam || c.parent_hubspot_company_id, true)}>Activeren</button>}
+              </td>
             </tr>
           ))}
           {configs.length === 0 && <tr><td colSpan={6} className={styles.empty}>Nog geen klanten geconfigureerd.</td></tr>}
