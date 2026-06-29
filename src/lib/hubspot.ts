@@ -711,6 +711,18 @@ export async function getDealContactId(dealId: string): Promise<string | null> {
   return id != null ? String(id) : null;
 }
 
+/** Naam van de aan een deal gekoppelde berijder (eerste contact, "Voornaam Achternaam"). */
+export async function getDealBerijderNaam(dealId: string): Promise<string | null> {
+  const contactId = await getDealContactId(dealId);
+  if (!contactId) return null;
+  const c = await hsFetch<{ properties?: Record<string, string> }>(
+    `${HS_BASE}/crm/v3/objects/contacts/${contactId}?properties=firstname,lastname`,
+  ).catch(() => ({ properties: {} as Record<string, string> }));
+  const p = c.properties ?? {};
+  const naam = [p.firstname, p.lastname].filter(Boolean).join(' ').trim();
+  return naam || null;
+}
+
 /** Eerste aan een deal gekoppelde company-id (deal → company). */
 export async function getDealCompanyId(dealId: string): Promise<string | null> {
   if (!dealId?.trim()) return null;

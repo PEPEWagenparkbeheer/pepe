@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireFacturatie } from '@/lib/apiAuth';
-import { getShortleaseDeals, getDealCompanyId, getCompanyFields } from '@/lib/hubspot';
+import { getShortleaseDeals, getDealCompanyId, getDealBerijderNaam, getCompanyFields } from '@/lib/hubspot';
 import { berekenTotalen } from '@/lib/factuur/btw';
 import type { FactuurRegel } from '@/types/factuur';
 
@@ -68,10 +68,12 @@ export async function GET(req: NextRequest) {
     if (ratio <= 0) continue;
     const companyId = await getDealCompanyId(d.id).catch(() => null);
     if (!companyId) continue;
+    const berijder = await getDealBerijderNaam(d.id).catch(() => null);
     const bedrag = round2(d.maandhuur * ratio);
+    const wie = berijder ? ` — ${berijder}` : '';
     const oms = ratio < 1
-      ? `Shortlease ${d.kenteken} — ${label} (${dagen}/${dagenInMaand} dagen)`
-      : `Shortlease ${d.kenteken} — ${label}`;
+      ? `Shortlease ${d.kenteken}${wie} — ${label} (${dagen}/${dagenInMaand} dagen)`
+      : `Shortlease ${d.kenteken}${wie} — ${label}`;
     const g = perCompany.get(companyId) ?? { regels: [] };
     g.regels.push({ omschrijving: oms, aantal: 1, prijs_excl: bedrag, btw_code: 'hoog' });
     perCompany.set(companyId, g);
@@ -85,7 +87,7 @@ export async function GET(req: NextRequest) {
     if (bestaat) { resultaat.push({ company: companyId, status: 'bestond al' }); continue; }
 
     const pf = await getCompanyFields(companyId,
-      ['name', 'address', 'zip', 'city', 'phone', 'kvk_nummer', 'twinfield_debiteur_code'],
+      ['name', 'address', 'zip', 'city', 'phone', 'kvk_nummer', 'twinfield_debiteur_code', 'mailadres_tbv_facturatie'],
     ).catch(() => ({} as Record<string, string>));
     const totalen = berekenTotalen(g.regels);
 
@@ -97,6 +99,8 @@ export async function GET(req: NextRequest) {
       postcode: (pf.zip as string) ?? null,
       plaats: (pf.city as string) ?? null,
       telefoon: (pf.phone as string) ?? null,
+      email: (pf.mailadres_tbv_facturatie as string) ?? null,
+      factuur_email: (pf.mailadres_tbv_facturatie as string) ?? null,
       kvk: (pf.kvk_nummer as string) ?? null,
       twinfield_debiteur_code: (pf.twinfield_debiteur_code as string) ?? null,
       betaaltermijn_dagen: 14,
