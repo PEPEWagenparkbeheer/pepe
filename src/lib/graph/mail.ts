@@ -88,10 +88,12 @@ export async function getMessagesFromSender(
   top = 50,
 ): Promise<GraphMessage[]> {
   const select = 'id,subject,from,receivedDateTime,bodyPreview,body,isRead,conversationId'
+  // NB: $filter op from-adres samen met $orderby op receivedDateTime geeft "restriction too complex".
+  // Daarom alleen $filter; client-side sorteren op datum (nieuwste eerst).
   const filter = `from/emailAddress/address eq '${sender.replace(/'/g, "''")}'`
   const url =
     `${GRAPH_BASE}/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages` +
-    `?$filter=${encodeURIComponent(filter)}&$orderby=receivedDateTime desc&$top=${top}&$select=${select}`
+    `?$filter=${encodeURIComponent(filter)}&$top=${top}&$select=${select}`
 
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -103,7 +105,9 @@ export async function getMessagesFromSender(
     throw new Error(`Mailbox filteren mislukt (HTTP ${response.status}): ${detail}`)
   }
 
-  return (data.value ?? []).map((msg) => ({
+  return (data.value ?? [])
+    .sort((a, b) => (b.receivedDateTime ?? '').localeCompare(a.receivedDateTime ?? ''))
+    .map((msg) => ({
     id: msg.id,
     subject: msg.subject ?? '(geen onderwerp)',
     afzenderEmail: msg.from?.emailAddress?.address ?? '(onbekend)',
