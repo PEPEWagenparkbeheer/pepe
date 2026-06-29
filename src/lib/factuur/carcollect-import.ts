@@ -138,13 +138,14 @@ export async function importeerCarCollectMail(msg: GraphMessage): Promise<CarCol
  *  Per run worden max `maxNieuw` NIEUWE facturen aangemaakt (AI-parsing is traag; Hobby cap = 60s) —
  *  de 15-min-cron werkt een eventuele achterstand vanzelf bij. Reeds geïmporteerde mails worden
  *  alleen (snel) overgeslagen en tellen niet mee voor de cap. */
-export async function verwerkCarCollectInbox(token: string, mailbox: string, top = 25, maxNieuw = 6): Promise<{
+export async function verwerkCarCollectInbox(token: string, mailbox: string, top = 50, maxNieuw = 6): Promise<{
   gescand: number; nieuw: number; bestond: number; genegeerd: number; fouten: number; resterend: number;
   resultaten: CarCollectImportResult[];
 }> {
-  // Server-side zoeken op afzender + onderwerp — vindt ook oudere mails in een drukke info@-inbox.
-  const { searchMessages } = await import('@/lib/graph/mail');
-  const berichten = await searchMessages(token, mailbox, 'from:noreply@carcollect.com AND subject:Facturatieverzoek', top);
+  // Deterministisch op afzender filteren (nieuwste eerst) — vindt ook oudere mails in een drukke
+  // info@-inbox, los van relevantie-ordening. Onderwerp-filter daarna lokaal.
+  const { getMessagesFromSender } = await import('@/lib/graph/mail');
+  const berichten = await getMessagesFromSender(token, mailbox, 'noreply@carcollect.com', top);
   const verzoeken = berichten.filter(
     (m) => /facturatieverzoek/i.test(m.subject) && /carcollect\.com/i.test(m.afzenderEmail),
   );

@@ -75,31 +75,32 @@ export async function getRecentMessages(
 }
 
 /**
- * Zoekt berichten in het Postvak IN via Graph KQL-`$search` (bv. afzender + onderwerp).
- * Vindt ook oudere mails die buiten de "laatste N" vallen — handig voor specifieke afzenders
- * in een drukke mailbox. `$search` mag niet samen met `$orderby`; vereist ConsistencyLevel: eventual.
+ * Haalt berichten van één afzender uit het Postvak IN, nieuwste eerst (deterministisch op datum).
+ * `$filter` op het afzender-adres + `$orderby receivedDateTime desc` — vindt ook oudere mails die
+ * buiten de "laatste N van alles" vallen, zonder afhankelijk te zijn van relevantie-ordening.
  *
- * @param query  KQL, bv. `from:noreply@carcollect.com AND subject:Facturatieverzoek`
+ * @param sender  exact afzender-adres, bv. `noreply@carcollect.com`
  */
-export async function searchMessages(
+export async function getMessagesFromSender(
   accessToken: string,
   mailbox: string,
-  query: string,
-  top = 25,
+  sender: string,
+  top = 50,
 ): Promise<GraphMessage[]> {
   const select = 'id,subject,from,receivedDateTime,bodyPreview,body,isRead,conversationId'
+  const filter = `from/emailAddress/address eq '${sender.replace(/'/g, "''")}'`
   const url =
     `${GRAPH_BASE}/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages` +
-    `?$search=${encodeURIComponent(`"${query}"`)}&$top=${top}&$select=${select}`
+    `?$filter=${encodeURIComponent(filter)}&$orderby=receivedDateTime desc&$top=${top}&$select=${select}`
 
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' },
+    headers: { Authorization: `Bearer ${accessToken}` },
   })
   const data = (await response.json()) as GraphListResponse
 
   if (!response.ok) {
     const detail = data?.error?.message ?? 'onbekende fout'
-    throw new Error(`Mailbox doorzoeken mislukt (HTTP ${response.status}): ${detail}`)
+    throw new Error(`Mailbox filteren mislukt (HTTP ${response.status}): ${detail}`)
   }
 
   return (data.value ?? []).map((msg) => ({
