@@ -1,22 +1,22 @@
 // POST /api/uitgaande-facturen/[id]/verzend
-// Ontvangt de client-gegenereerde PDF (base64), slaat 'm op in Storage en mailt 'm via Graph.
-// Los herstartbaar: raakt Twinfield niet aan. Body: { pdfBase64, to?, subject?, bodyHtml? }
+// Rendert de factuur server-side (Chromium, design-getrouw), slaat 'm op in Storage en mailt via Graph.
+// Los herstartbaar: raakt Twinfield niet aan. Body: { to?, subject?, bodyHtml? }
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireFacturatie } from '@/lib/apiAuth';
 import { sendMail } from '@/lib/graph/mail';
 import { getAccessToken, readAzureConfig } from '@/lib/graph/auth';
+import { renderFactuurPdf } from '@/lib/factuur/render';
 import type { UitgaandeFactuur } from '@/types/factuur';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const gate = await requireFacturatie(req);
   if (!gate.ok) return gate.response;
   const { id } = await ctx.params;
   const body = await req.json().catch(() => ({}));
-  const pdfBase64: string | undefined = body.pdfBase64;
-  if (!pdfBase64) return NextResponse.json({ error: 'pdfBase64 vereist' }, { status: 400 });
 
   const { data: f } = await supabaseAdmin
     .from('uitgaande_facturen').select('*').eq('id', id).maybeSingle();
@@ -28,8 +28,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const bestandsnaam = `PEPE-Factuur-${nummer}.pdf`;
   const storagePath = `${jaar}/${nummer}.pdf`;
 
+  // Render de PDF server-side (exact design) → buffer + base64 voor mailbijlage.
+  let buffer: Buffer;
+  try {
+    buffer = await renderFactuurPdf(factuur);
+  } catch (e) {
+    return NextResponse.json({ error: `PDF renderen mislukt: ${String(e)}` }, { status: 500 });
+  }
+  const pdfBase64 = buffer.toString('base64');
+
   // Upload naar Storage (overschrijven mag bij retry)
-  const buffer = Buffer.from(pdfBase64, 'base64');
   const { error: upErr } = await supabaseAdmin.storage
     .from('uitgaande-facturen')
     .upload(storagePath, buffer, { contentType: 'application/pdf', upsert: true });

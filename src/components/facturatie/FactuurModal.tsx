@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react';
 import { authHeaders } from '@/lib/clientAuth';
 import { berekenTotalen } from '@/lib/factuur/btw';
-import { createFactuurPdfBase64 } from '@/lib/factuur/pdf';
 import DebiteurMatchModal, { type DebiteurKeuze } from './DebiteurMatchModal';
 import type { MatchKandidaat } from '@/types/match';
 import type { UitgaandeFactuur, FactuurType, FactuurRegel, BtwCode } from '@/types/factuur';
@@ -92,7 +91,6 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [notitie, setNotitie] = useState(factuur?.notitie ?? '');
 
   // Verzend-flow: eerst boeken+PDF tonen, daarna pas versturen
-  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [geboektNummer, setGeboektNummer] = useState<string | null>(factuur?.factuurnummer ?? null);
   const [werkId, setWerkId] = useState<string | null>(factuur?.id ?? null);
@@ -240,13 +238,6 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
     setBezig(null);
   }
 
-  function b64ToBlob(b64: string): Blob {
-    const bin = atob(b64);
-    const arr = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-    return new Blob([arr], { type: 'application/pdf' });
-  }
-
   // Opslaan (create/patch) → geeft de opgeslagen factuur + id terug.
   async function slaOp(): Promise<{ id: string; factuur: UitgaandeFactuur } | null> {
     const h = await authHeaders({ 'Content-Type': 'application/json' });
@@ -266,17 +257,18 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
     return { id: werkId, factuur: factuur as UitgaandeFactuur };
   }
 
-  // PDF-PREVIEW zonder te boeken (factuurnummer nog leeg → toont "CONCEPT"). Opent in nieuw tabblad.
+  // PDF-PREVIEW zonder te boeken — server rendert de exacte design-PDF (Chromium). Opent in nieuw tabblad.
   async function previewPdf() {
     setBezig('Opslaan…'); setFout(null);
     const saved = await slaOp();
     if (!saved) { setBezig(null); return; }
-    setBezig('PDF genereren…');
+    setBezig('PDF maken…');
     try {
-      const b64 = await createFactuurPdfBase64(saved.factuur);
-      setPdfBase64(b64);
+      const res = await fetch(`/api/uitgaande-facturen/${saved.id}/render`, { headers: await authHeaders() });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setFout(j.error ?? 'PDF maken mislukt'); setBezig(null); return; }
+      const blob = await res.blob();
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-      const url = URL.createObjectURL(b64ToBlob(b64));
+      const url = URL.createObjectURL(blob);
       setPdfUrl(url);
       window.open(url, '_blank');
     } catch (e) { setFout(`PDF-fout: ${String(e)}`); }
@@ -314,12 +306,8 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
       const definitief = aj.factuur as UitgaandeFactuur;
       setGeboektNummer(definitief.factuurnummer ?? null);
 
-      setBezig('PDF genereren…');
-      const b64 = await createFactuurPdfBase64(definitief);
-      setPdfBase64(b64);
-
-      setBezig('Verzenden…');
-      const vRes = await fetch(`/api/uitgaande-facturen/${werkId}/verzend`, { method: 'POST', headers: h, body: JSON.stringify({ pdfBase64: b64, to: factuurEmail || email }) });
+      setBezig('PDF maken & verzenden…');
+      const vRes = await fetch(`/api/uitgaande-facturen/${werkId}/verzend`, { method: 'POST', headers: h, body: JSON.stringify({ to: factuurEmail || email }) });
       const vj = await vRes.json().catch(() => ({}));
       if (!vRes.ok) { setFout(`Geboekt (nr ${definitief.factuurnummer ?? '?'}), maar versturen mislukte: ${vj.error ?? ''}`); await onSaved(); setBezig(null); return; }
       await onSaved();

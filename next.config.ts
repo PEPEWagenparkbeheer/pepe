@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
     'playwright-core',
     'pino',
     'pino-pretty',
+    '@sparticuz/chromium',
+    'puppeteer-core',
   ],
 
   // Security headers (security review #5). Bewust conservatief: de CSP beperkt
