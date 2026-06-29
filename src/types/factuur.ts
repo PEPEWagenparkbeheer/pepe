@@ -99,6 +99,8 @@ export interface UitgaandeFactuur {
   pdf_storage_path?: string | null;
   verzonden_op?: string | null;
   verzonden_naar?: string | null;
+  bezorging_mislukt?: boolean | null;
+  bezorg_reden?: string | null;
   akkoord_door?: string | null;
   notitie?: string | null;
 }

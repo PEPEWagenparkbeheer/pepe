@@ -59,6 +59,20 @@ export default function FacturatieOverzicht() {
 
   useEffect(() => { void laad(); }, [laad]);
 
+  // Bij openen van Historie: bounce-check (NDR's in info@) en daarna herladen.
+  const [bezorgGecheckt, setBezorgGecheckt] = useState(false);
+  useEffect(() => {
+    if (tab !== 'historie' || bezorgGecheckt) return;
+    setBezorgGecheckt(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/facturatie/bezorgcheck', { headers: await authHeaders() });
+        const j = await res.json().catch(() => ({}));
+        if (res.ok && j.gemarkeerd > 0) await laad();
+      } catch { /* stil */ }
+    })();
+  }, [tab, bezorgGecheckt, laad]);
+
   const [syncStatus, setSyncStatus] = useState('');
   async function syncDebiteuren() {
     if (syncStatus) return; // al bezig
@@ -228,7 +242,9 @@ export default function FacturatieOverzicht() {
                 <td>
                   {f.klant_naam || '—'}
                   {tab === 'historie' && f.verzonden_naar && (
-                    <span style={{ display: 'block', fontSize: 11, color: '#8b8e93' }}>→ {f.verzonden_naar}</span>
+                    <span style={{ display: 'block', fontSize: 11, color: f.bezorging_mislukt ? '#dc2626' : '#8b8e93' }}>
+                      {f.bezorging_mislukt ? '⚠ niet bezorgd' : '→'} {f.verzonden_naar}
+                    </span>
                   )}
                 </td>
                 <td>{f.factuurnummer || '—'}</td>

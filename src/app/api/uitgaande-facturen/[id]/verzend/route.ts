@@ -7,6 +7,7 @@ import { requireFacturatie } from '@/lib/apiAuth';
 import { sendMail } from '@/lib/graph/mail';
 import { getAccessToken, readAzureConfig } from '@/lib/graph/auth';
 import { renderFactuurPdf } from '@/lib/factuur/render';
+import { factuurMailHtml } from '@/lib/factuur/handtekening';
 import type { UitgaandeFactuur } from '@/types/factuur';
 
 export const runtime = 'nodejs';
@@ -60,11 +61,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: `Graph-token mislukt: ${String(e)}`, pdfOpgeslagen: true }, { status: 500 });
   }
 
-  const subject = body.subject || `Factuur ${nummer} — PEPE Wagenparkbeheer`;
-  const bodyHtml = body.bodyHtml || `
-    <p>Beste ${factuur.tav || factuur.klant_naam || 'relatie'},</p>
-    <p>In de bijlage vindt u factuur <strong>${nummer}</strong>.</p>
-    <p>Met vriendelijke groet,<br/>PEPE Wagenparkbeheer</p>`;
+  const subject = body.subject || `Hierbij doen wij u factuur ${nummer} toekomen — PEPE Wagenparkbeheer`;
+  const bodyHtml = body.bodyHtml || factuurMailHtml({
+    type: factuur.type,
+    nummer,
+    tav: factuur.tav || factuur.klant_naam,
+    kenteken: factuur.voertuig?.kenteken,
+    merk: factuur.voertuig?.merk,
+    model: factuur.voertuig?.model,
+    periode: factuur.periode,
+  });
 
   try {
     await sendMail(accessToken, from, to, subject, bodyHtml, [
@@ -82,6 +88,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       verzonden_op: new Date().toISOString(),
       verzonden_naar: to,
       pdf_storage_path: storagePath,
+      bezorging_mislukt: false,
+      bezorg_reden: null,
     })
     .eq('id', id).select('*').single();
 
