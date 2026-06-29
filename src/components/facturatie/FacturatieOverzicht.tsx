@@ -117,6 +117,19 @@ export default function FacturatieOverzicht() {
     else alert(j.error ?? 'Geen PDF beschikbaar');
   }
 
+  async function opnieuwVerzenden(e: MouseEvent, f: UitgaandeFactuur) {
+    e.stopPropagation();
+    const huidig = f.verzonden_naar || f.factuur_email || f.email || '';
+    const to = window.prompt('Factuur (opnieuw) versturen naar e-mailadres:', huidig);
+    if (!to) return;
+    const res = await fetch(`/api/uitgaande-facturen/${f.id}/verzend`, {
+      method: 'POST', headers: await authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ to }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) { await laad(); alert(`Factuur opnieuw verstuurd naar ${to}.`); }
+    else alert(j.error ?? 'Versturen mislukt');
+  }
+
   async function crediteer(e: MouseEvent, f: UitgaandeFactuur) {
     e.stopPropagation();
     const pin = window.prompt(`Pincode om factuur ${f.factuurnummer ?? ''} te crediteren:`);
@@ -194,13 +207,19 @@ export default function FacturatieOverzicht() {
                   {f.soort === 'creditnota' && <span className={styles.credit}>credit</span>}
                 </td>
                 <td><span className={styles.statusChip} data-status={f.status}>{STATUS_LABEL[f.status]}</span></td>
-                <td>{f.klant_naam || '—'}</td>
+                <td>
+                  {f.klant_naam || '—'}
+                  {tab === 'historie' && f.verzonden_naar && (
+                    <span style={{ display: 'block', fontSize: 11, color: '#8b8e93' }}>→ {f.verzonden_naar}</span>
+                  )}
+                </td>
                 <td>{f.factuurnummer || '—'}</td>
                 <td>{f.factuurdatum ? new Date(f.factuurdatum).toLocaleDateString('nl-NL') : '—'}</td>
                 <td className={styles.right}>{euro(f.totaal_incl)}</td>
                 {tab === 'historie' && (
                   <td className={styles.right} onClick={(e) => e.stopPropagation()}>
                     <button className={styles.mini} onClick={(e) => openPdf(e, f.id)}>PDF</button>
+                    <button className={styles.mini} style={{ marginLeft: 6 }} onClick={(e) => opnieuwVerzenden(e, f)}>Mail opnieuw</button>
                     {f.soort !== 'creditnota' && (
                       <button className={styles.mini} style={{ marginLeft: 6 }} onClick={(e) => crediteer(e, f)}>Crediteer</button>
                     )}
