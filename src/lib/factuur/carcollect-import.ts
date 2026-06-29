@@ -139,8 +139,9 @@ export async function verwerkCarCollectInbox(token: string, mailbox: string, top
   gescand: number; nieuw: number; bestond: number; genegeerd: number; fouten: number;
   resultaten: CarCollectImportResult[];
 }> {
-  const { getRecentMessages } = await import('@/lib/graph/mail');
-  const berichten = await getRecentMessages(token, mailbox, top);
+  // Server-side zoeken op afzender + onderwerp — vindt ook oudere mails in een drukke info@-inbox.
+  const { searchMessages } = await import('@/lib/graph/mail');
+  const berichten = await searchMessages(token, mailbox, 'from:noreply@carcollect.com AND subject:Facturatieverzoek', top);
   const verzoeken = berichten.filter(
     (m) => /facturatieverzoek/i.test(m.subject) && /carcollect\.com/i.test(m.afzenderEmail),
   );

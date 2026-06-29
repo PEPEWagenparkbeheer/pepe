@@ -75,6 +75,47 @@ export async function getRecentMessages(
 }
 
 /**
+ * Zoekt berichten in het Postvak IN via Graph KQL-`$search` (bv. afzender + onderwerp).
+ * Vindt ook oudere mails die buiten de "laatste N" vallen — handig voor specifieke afzenders
+ * in een drukke mailbox. `$search` mag niet samen met `$orderby`; vereist ConsistencyLevel: eventual.
+ *
+ * @param query  KQL, bv. `from:noreply@carcollect.com AND subject:Facturatieverzoek`
+ */
+export async function searchMessages(
+  accessToken: string,
+  mailbox: string,
+  query: string,
+  top = 25,
+): Promise<GraphMessage[]> {
+  const select = 'id,subject,from,receivedDateTime,bodyPreview,body,isRead,conversationId'
+  const url =
+    `${GRAPH_BASE}/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages` +
+    `?$search=${encodeURIComponent(`"${query}"`)}&$top=${top}&$select=${select}`
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' },
+  })
+  const data = (await response.json()) as GraphListResponse
+
+  if (!response.ok) {
+    const detail = data?.error?.message ?? 'onbekende fout'
+    throw new Error(`Mailbox doorzoeken mislukt (HTTP ${response.status}): ${detail}`)
+  }
+
+  return (data.value ?? []).map((msg) => ({
+    id: msg.id,
+    subject: msg.subject ?? '(geen onderwerp)',
+    afzenderEmail: msg.from?.emailAddress?.address ?? '(onbekend)',
+    afzenderNaam: msg.from?.emailAddress?.name ?? '',
+    ontvangenOp: msg.receivedDateTime,
+    bodyPreview: msg.bodyPreview ?? '',
+    bodyHtml: msg.body?.content ?? '',
+    isRead: msg.isRead,
+    conversationId: msg.conversationId,
+  }))
+}
+
+/**
  * Haalt recente VERZONDEN berichten op (map "Verzonden items").
  * Gebruikt voor tone-of-voice: live ingelezen als stijlvoorbeeld, niet opgeslagen.
  */
