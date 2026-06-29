@@ -61,18 +61,36 @@ export default function FacturatieOverzicht() {
 
   const [syncStatus, setSyncStatus] = useState('');
   async function syncDebiteuren() {
-    if (!confirm('Twinfield-debiteuren synchroniseren naar de zoek-index? De eerste keer kan dit enkele minuten duren.')) return;
-    let resterend = 1; let totaal = 0; let ronde = 0;
-    setSyncStatus('Synchroniseren…');
-    while (resterend > 0 && ronde < 300) {
-      const res = await fetch('/api/uitgaande-facturen/debiteuren-sync', { method: 'POST', headers: await authHeaders() });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) { setSyncStatus(''); alert(j.error ?? 'Sync mislukt'); return; }
-      totaal = j.totaal ?? totaal; resterend = j.resterend ?? 0; ronde++;
-      setSyncStatus(`Adressen ophalen… nog ${resterend} van ${totaal}`);
-    }
-    setSyncStatus('');
-    alert(`Klaar — ${totaal} Twinfield-debiteuren in de zoek-index (incl. postcode/huisnummer).`);
+    if (syncStatus) return; // al bezig
+    if (!confirm('Twinfield-debiteuren synchroniseren naar de zoek-index? Dit gaat rustig aan (Twinfield-rate-limit) en kan een paar minuten duren. Laat dit tabblad open.')) return;
+    const slp = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const post = async (qs = '') => {
+      const res = await fetch(`/api/uitgaande-facturen/debiteuren-sync${qs}`, { method: 'POST', headers: await authHeaders() });
+      return { ok: res.ok, j: await res.json().catch(() => ({})) };
+    };
+    try {
+      // Fase 1: namen
+      setSyncStatus('Namen ophalen…');
+      let n = await post('?phase=names');
+      while (n.ok && n.j.rateLimited) { setSyncStatus(`Rate limit — pauze ${n.j.retryAfter}s…`); await slp((n.j.retryAfter + 2) * 1000); n = await post('?phase=names'); }
+      if (!n.ok) { setSyncStatus(''); alert(n.j.error ?? 'Sync mislukt'); return; }
+      const totaal = n.j.totaal ?? 0;
+      let resterend = n.j.resterend ?? 0;
+
+      // Fase 2: adressen (batches, met rate-limit-pauze)
+      let ronde = 0;
+      while (resterend > 0 && ronde < 2000) {
+        ronde++;
+        const a = await post();
+        if (!a.ok) { setSyncStatus(''); alert(a.j.error ?? 'Sync mislukt'); return; }
+        if (a.j.rateLimited) { setSyncStatus(`Rate limit — pauze ${a.j.retryAfter}s… (nog ${a.j.resterend})`); await slp((a.j.retryAfter + 2) * 1000); continue; }
+        resterend = a.j.resterend ?? 0;
+        setSyncStatus(`Adressen ophalen… nog ${resterend} van ${totaal}`);
+        await slp(800);
+      }
+      setSyncStatus('');
+      alert(`Klaar — ${totaal} Twinfield-debiteuren in de zoek-index (incl. postcode/huisnummer).`);
+    } catch (e) { setSyncStatus(''); alert(`Sync-fout: ${String(e)}`); }
   }
 
   async function genereerShortlease() {
