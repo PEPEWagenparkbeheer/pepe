@@ -1,6 +1,7 @@
-// GET /api/facturatie/shortlease-cron — Vercel Cron (maandelijks).
+// GET /api/facturatie/shortlease-cron — Vercel Cron (elke 25e van de maand).
 // Zet per debiteur een shortlease-doorbelasting klaar als CONCEPT (ter_controle): één regel per
 // shortlease-auto, NAAR RATO van de dagen dat het contract in de maand liep.
+// VOORUIT factureren: default-periode = VOLGENDE maand (op 25 juni → juli).
 //
 // Vereist in HubSpot: deals met type_aanschaf = "Shortlease via PEPE" + een maandhuur-property
 // (probeert shortlease_maandbedrag/maandhuur/leasebedrag) + inzetdatum/verwachte_einddatum.
@@ -53,9 +54,12 @@ export async function GET(req: NextRequest) {
   if (!(await geautoriseerd(req))) return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 401 });
 
   const url = new URL(req.url);
+  // Shortlease wordt VOORUIT gefactureerd: op de 25e van maand M factureren we maand M+1.
+  // Default-periode = volgende maand; ?periode=YYYY-MM overschrijft dit.
   const now = new Date();
+  const volgende = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const periode = url.searchParams.get('periode')
-    || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    || `${volgende.getFullYear()}-${String(volgende.getMonth() + 1).padStart(2, '0')}`;
   const label = maandLabel(periode);
 
   const deals = await getShortleaseDeals();

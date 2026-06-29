@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/facturatie/shortlease-cron",
-      "schedule": "0 8 1 * *"
+      "schedule": "0 8 25 * *"
     },
     {
       "path": "/api/facturatie/debiteuren-sync-cron",
