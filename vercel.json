@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/facturatie/carcollect-import",
-      "schedule": "23 * * * *"
+      "schedule": "41 7 * * *"
     }
   ]
 }
