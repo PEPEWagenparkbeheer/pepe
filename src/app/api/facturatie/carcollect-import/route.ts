@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   try { token = (await getAccessToken(readAzureConfig())).accessToken; }
   catch (e) { return NextResponse.json({ error: `Graph-token: ${String(e)}` }, { status: 500 }); }
 
-  const top = Math.min(Number(url.searchParams.get('top') ?? 40) || 40, 50);
+  const top = Math.min(Number(url.searchParams.get('top') ?? 200) || 200, 400);
   try {
     const r = await verwerkCarCollectInbox(token, mailbox, top);
     return NextResponse.json({ ok: true, ...r });
