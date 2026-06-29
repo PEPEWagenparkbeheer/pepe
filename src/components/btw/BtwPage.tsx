@@ -10,35 +10,40 @@ import type { FactuurRegel } from '@/types/factuur';
 import BtwModal from './BtwModal';
 import styles from './BtwPage.module.css';
 
-// Bouwt de factuurregels voor een credit. Eén regel per gevuld credit-bedrag
-// (leasemaatschappij / dealer); valt terug op het algemene bedrag als die leeg zijn.
-// BTW staat default op 'hoog' (21%) — controleer/pas aan in de factuur vóór akkoord.
-function bouwCreditRegels(r: BtwRecord): FactuurRegel[] {
+// Notitie met context die in elke afgeleide factuur terechtkomt.
+function creditNotitie(r: BtwRecord, partij: string): string {
+  return [
+    `Doorgezet vanuit BTW/credit-lijst (${partij}).`,
+    r.klant ? `Klant: ${r.klant}.` : '',
+    r.kenteken ? `Kenteken: ${r.kenteken}.` : '',
+    r.opmerkingen ? `Opm.: ${r.opmerkingen}` : '',
+  ].filter(Boolean).join(' ');
+}
+
+// Bouwt de concept-factuur-bodies voor een credit. Bedragen zijn EXCL btw; btw (21%, 'hoog')
+// komt er in de factuur bovenop. Een credit met zowel een LM- als een dealer-bedrag levert TWEE
+// aparte facturen op (twee verschillende debiteuren). Controleer/pas btw + debiteur aan in de
+// FactuurModal vóór akkoord.
+function bouwFactuurBodies(r: BtwRecord): Record<string, unknown>[] {
   const auto = [r.auto, r.kenteken ? `(${r.kenteken})` : ''].filter(Boolean).join(' ').trim();
   const heeftLm = (r.lm_bedrag ?? 0) > 0;
   const heeftDealer = (r.dealer_bedrag ?? 0) > 0;
-  const regels: FactuurRegel[] = [];
-  if (heeftLm) regels.push({ omschrijving: `Credit leasemaatschappij — ${auto}`.trim(), aantal: 1, prijs_excl: r.lm_bedrag!, btw_code: 'hoog' });
-  if (heeftDealer) regels.push({ omschrijving: `Credit dealer — ${auto}`.trim(), aantal: 1, prijs_excl: r.dealer_bedrag!, btw_code: 'hoog' });
-  if (!heeftLm && !heeftDealer) regels.push({ omschrijving: `Credit — ${auto}`.trim(), aantal: 1, prijs_excl: r.bedrag ?? 0, btw_code: 'hoog' });
-  return regels;
-}
 
-function bouwFactuurBody(r: BtwRecord) {
-  return {
+  const body = (klant_naam: string | null, regel: FactuurRegel, partij: string) => ({
     type: 'diensten_overig',
     soort: 'factuur',
     status: 'concept',
     bron: 'btw_credit',
-    klant_naam: r.dealer_verkoper || r.klant || null,
-    regels: bouwCreditRegels(r),
-    notitie: [
-      'Doorgezet vanuit BTW/credit-lijst.',
-      r.klant ? `Klant: ${r.klant}.` : '',
-      r.kenteken ? `Kenteken: ${r.kenteken}.` : '',
-      r.opmerkingen ? `Opm.: ${r.opmerkingen}` : '',
-    ].filter(Boolean).join(' '),
-  };
+    klant_naam,
+    regels: [regel],
+    notitie: creditNotitie(r, partij),
+  });
+
+  const bodies: Record<string, unknown>[] = [];
+  if (heeftLm) bodies.push(body(null, { omschrijving: `Credit leasemaatschappij — ${auto}`.trim(), aantal: 1, prijs_excl: r.lm_bedrag!, btw_code: 'hoog' }, 'leasemaatschappij'));
+  if (heeftDealer) bodies.push(body(r.dealer_verkoper || null, { omschrijving: `Credit dealer — ${auto}`.trim(), aantal: 1, prijs_excl: r.dealer_bedrag!, btw_code: 'hoog' }, 'dealer'));
+  if (!heeftLm && !heeftDealer) bodies.push(body(r.dealer_verkoper || r.klant || null, { omschrijving: `Credit — ${auto}`.trim(), aantal: 1, prijs_excl: r.bedrag ?? 0, btw_code: 'hoog' }, 'credit'));
+  return bodies;
 }
 
 type Tab = 'lopend' | 'archief';
@@ -408,19 +413,22 @@ export default function BtwPage() {
   // Zet een credit door naar de facturatie-module (concept-factuur) en archiveer 'm.
   async function handleNaarFacturatie(r: BtwRecord) {
     if (bezigId) return;
-    if (!confirm(`Credit "${r.auto}" doorzetten naar facturatie?\n\nEr wordt een concept-factuur aangemaakt en de credit gaat naar het archief.`)) return;
+    const bodies = bouwFactuurBodies(r);
+    const meervoud = bodies.length > 1;
+    if (!confirm(`Credit "${r.auto}" doorzetten naar facturatie?\n\nEr ${meervoud ? `worden ${bodies.length} concept-facturen` : 'wordt een concept-factuur'} aangemaakt${meervoud ? ' (leasemaatschappij + dealer, aparte debiteuren)' : ''} en de credit gaat naar het archief.`)) return;
     setBezigId(r.id);
     try {
-      const res = await fetch('/api/uitgaande-facturen', {
-        method: 'POST',
-        headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(bouwFactuurBody(r)),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) { alert(j.error ?? 'Aanmaken concept-factuur mislukt'); return; }
+      const headers = await authHeaders({ 'Content-Type': 'application/json' });
+      let gelukt = 0;
+      for (const body of bodies) {
+        const res = await fetch('/api/uitgaande-facturen', { method: 'POST', headers, body: JSON.stringify(body) });
+        if (res.ok) gelukt++;
+        else { const j = await res.json().catch(() => ({})); alert(j.error ?? 'Aanmaken concept-factuur mislukt'); }
+      }
+      if (gelukt !== bodies.length) { alert(`Let op: ${gelukt} van ${bodies.length} facturen aangemaakt. Credit blijft in de lopende lijst staan.`); return; }
       await save({ ...r, gearchiveerd: true });
       schietConfetti();
-      alert('✅ Concept-factuur aangemaakt in Facturatie. De credit staat nu in het archief — werk de factuur daar verder af.');
+      alert(`✅ ${gelukt > 1 ? `${gelukt} concept-facturen` : 'Concept-factuur'} aangemaakt in Facturatie. De credit staat nu in het archief — werk ${gelukt > 1 ? 'ze' : 'de factuur'} daar verder af.`);
     } catch (e) {
       alert(`Aanmaken concept-factuur mislukt: ${String(e)}`);
     } finally {
