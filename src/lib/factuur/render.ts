@@ -10,7 +10,11 @@ export async function renderFactuurPdf(factuur: UitgaandeFactuur): Promise<Buffe
   const totalen = berekenTotalen(factuur.regels);
   const html = buildFactuurHtml(factuur, totalen);
 
-  const executablePath = process.env.CHROME_PATH || (await chromium.executablePath());
+  // Op Vercel zit @sparticuz/chromium/bin niet in de functie-bundle; daarom laden we de Chromium-pack
+  // via een URL (gedownload + uitgepakt naar /tmp, daarna warm gecachet). Versie = de geïnstalleerde.
+  const PACK = process.env.CHROMIUM_PACK_URL
+    || 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
+  const executablePath = process.env.CHROME_PATH || (await chromium.executablePath(PACK));
   const browser = await puppeteer.launch({
     args: chromium.args,
     executablePath,
