@@ -11,9 +11,9 @@ import { isPepeOpdracht } from '@/lib/werk-derden/richting';
 import { authHeaders } from '@/lib/clientAuth';
 import styles from './WerkDerdenOverzicht.module.css';
 
-// 'afgerond' bestaat nog als status (voertuigprijs-afronden) maar heeft geen tab meer:
-// dat volgen we voortaan in de facturatie-module, niet hier.
-type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgekeurd';
+// 'afgerond' = archief: afgeronde voertuigprijs-werkzaamheden (kosten in de auto, geen factuur)
+// blijven hier terugvindbaar. Doorbelaste werkzaamheden volg je na facturatie in de facturatie-module.
+type Tab = 'open' | 'goedgekeurd' | 'klaar_gemeld' | 'gefactureerd' | 'afgekeurd' | 'afgerond';
 
 function euroFmt(n?: number | null) {
   if (n == null) return '—';
@@ -363,6 +363,7 @@ export default function WerkDerdenOverzicht() {
     klaar_gemeld: 'Klaar gemeld',
     gefactureerd: 'Gefactureerd',
     afgekeurd: 'Afgekeurd',
+    afgerond: 'Archief',
   };
 
   const tabIconen: Record<Tab, string> = {
@@ -371,6 +372,7 @@ export default function WerkDerdenOverzicht() {
     klaar_gemeld: '🔧',
     gefactureerd: '🧾',
     afgekeurd: '✗',
+    afgerond: '📦',
   };
 
   async function openBijlage(rec: WerkDerdenRecord) {
@@ -507,7 +509,7 @@ export default function WerkDerdenOverzicht() {
 
   if (loading) return <div className={styles.laden}>Laden…</div>;
 
-  const tabVolgorde: Tab[] = ['open', 'goedgekeurd', 'klaar_gemeld', 'gefactureerd', 'afgekeurd'];
+  const tabVolgorde: Tab[] = ['open', 'goedgekeurd', 'klaar_gemeld', 'gefactureerd', 'afgekeurd', 'afgerond'];
 
   return (
     <div className={styles.pagina}>
