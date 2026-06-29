@@ -13,6 +13,7 @@
 import { callProcessXml, finderSearch } from './soap';
 import { getValidAccessToken } from './auth';
 import { getCompanyFields, updateCompany } from '../hubspot';
+import { supabaseAdmin } from '../supabaseAdmin';
 import type { BtwCode, FactuurRegel, FactuurType } from '@/types/factuur';
 import type { MatchKandidaat } from '@/types/match';
 
@@ -143,12 +144,6 @@ export async function maakNieuweDebiteur(naam: string, companyId?: string | null
   return code;
 }
 
-/** Leest het adres (postcode + ruwe adrestekst) van een bestaande debiteur uit Twinfield. */
-async function readDebiteurAdres(code: string): Promise<{ postcode?: string; tekst: string }> {
-  const r = await readDebiteurRaw(code);
-  return { postcode: r.postcode, tekst: r.tekst };
-}
-
 async function readDebiteurRaw(code: string): Promise<{ tekst: string; name?: string; postcode?: string; city?: string }> {
   const token = await getValidAccessToken();
   const office = token.companyCode ?? '';
@@ -162,14 +157,19 @@ async function readDebiteurRaw(code: string): Promise<{ tekst: string; name?: st
   };
 }
 
-/** Volledige NAW van een Twinfield-debiteur (voor het invullen van het factuuradres bij selectie). */
-export async function readDebiteur(code: string): Promise<{ code: string; naam: string; adres: string; postcode: string; plaats: string }> {
+/** Volledige NAW van een Twinfield-debiteur (voor invullen factuuradres + matching-index). */
+export async function readDebiteur(code: string): Promise<{ code: string; naam: string; adres: string; postcode: string; plaats: string; huisnummer: string }> {
   const r = await readDebiteurRaw(code);
-  // straat = eerste address-field dat een huisnummer (cijfer) bevat
-  let adres = '';
+  // straat = eerste address-field dat een huisnummer (cijfer) bevat, maar geen postcode (1234 AB)
   const velden = [...r.tekst.matchAll(/<field\d>([^<]*)<\/field\d>/gi)].map((m) => m[1].trim());
-  adres = velden.find((v) => /\d/.test(v) && !/^\d{4}\s?[a-z]{2}$/i.test(v)) ?? '';
-  return { code, naam: r.name ?? '', adres, postcode: r.postcode ?? '', plaats: r.city ?? '' };
+  const adres = velden.find((v) => /\d/.test(v) && !/^\d{4}\s?[a-z]{2}$/i.test(v)) ?? '';
+  const huisnummer = adres.match(/\d+/)?.[0] ?? '';
+  return { code, naam: r.name ?? '', adres, postcode: r.postcode ?? '', plaats: r.city ?? '', huisnummer };
+}
+
+/** Lijst van alle debiteuren (alleen code+naam) — snel, voor de naam-index. */
+export async function listAlleDebiteuren(): Promise<Array<{ code: string; name: string }>> {
+  return finderSearch('DEB', '*', 5000);
 }
 
 export interface DebiteurMatchInput {
@@ -179,59 +179,63 @@ export interface DebiteurMatchInput {
 }
 
 /**
- * Zoekt bestaande Twinfield-debiteuren als match-kandidaten (geen blinde creatie).
- * Scoort op: reeds gekoppelde code (100), naam-gelijkenis (95 exact / 70 bevat) en — voor de
- * top naam-kandidaten — een adres-match op postcode(+huisnummer) (boost naar 90).
+ * Zoekt bestaande Twinfield-debiteuren als match-kandidaten via de lokale index
+ * (twinfield_debiteuren). Matcht op: reeds gekoppelde code (100), naam-exact (95)/vergelijkbaar (70)
+ * ÉN postcode+huisnummer (92, óók als de naam afwijkt). Index leeg → fallback live naam-zoek.
  */
 export async function searchDebiteurCandidates(
   klantNaam: string,
   opts: DebiteurMatchInput = {},
 ): Promise<MatchKandidaat[]> {
-  const items = await finderSearch('DEB', '*', 2000);
-  const kandidaten: MatchKandidaat[] = [];
+  const { data: rows } = await supabaseAdmin
+    .from('twinfield_debiteuren').select('code, naam, postcode, huisnummer, adres');
+
+  const doel = normalizeNaam(klantNaam);
+
+  // Fallback: index nog niet gevuld → live naam-zoek (zonder adres-match). Synchroniseer de index.
+  if (!rows || rows.length === 0) {
+    const items = await finderSearch('DEB', '*', 2000);
+    return items
+      .map((i) => {
+        const n = normalizeNaam(i.name);
+        let score = 0; let reden = '';
+        if (doel && n === doel) { score = 95; reden = 'Naam exact'; }
+        else if (doel && n && (n.includes(doel) || doel.includes(n))) { score = 70; reden = 'Naam vergelijkbaar'; }
+        return { id: i.code, naam: i.name, reden, score };
+      })
+      .filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 6);
+  }
+
+  const pcDoel = normalizeZip(opts.postcode);
+  const hn = (opts.huisnummer ?? '').toString().trim();
+  const out: MatchKandidaat[] = [];
   const seen = new Set<string>();
 
   if (opts.gekoppeldeCode) {
-    const hit = items.find((i) => i.code === opts.gekoppeldeCode);
-    kandidaten.push({ id: opts.gekoppeldeCode, naam: hit?.name ?? klantNaam, reden: 'Al gekoppeld aan deze klant', score: 100 });
+    const hit = rows.find((r) => r.code === opts.gekoppeldeCode);
+    out.push({ id: opts.gekoppeldeCode, naam: hit?.naam ?? klantNaam, reden: 'Al gekoppeld aan deze klant', score: 100 });
     seen.add(opts.gekoppeldeCode);
   }
 
-  const doel = normalizeNaam(klantNaam);
-  const scored = items
-    .filter((i) => !seen.has(i.code))
-    .map((i) => {
-      const n = normalizeNaam(i.name);
+  const scored = rows
+    .filter((r) => !seen.has(r.code))
+    .map((r) => {
+      const n = normalizeNaam(r.naam ?? '');
       let score = 0; let reden = '';
-      if (doel && n && n === doel) { score = 95; reden = 'Naam exact'; }
-      else if (doel && n && (n.includes(doel) || doel.includes(n))) { score = 70; reden = 'Naam vergelijkbaar'; }
-      return { i, score, reden };
+      if (pcDoel && r.postcode && normalizeZip(r.postcode) === pcDoel) {
+        const hnOk = !hn || (r.huisnummer ?? '') === hn || (r.adres ?? '').includes(hn);
+        if (hnOk) { score = 92; reden = 'Adres (postcode + huisnummer)'; }
+      }
+      if (doel && n && n === doel) { reden = score >= 92 ? 'Naam + adres' : 'Naam exact'; score = Math.max(score, 95); }
+      else if (doel && n && (n.includes(doel) || doel.includes(n))) { if (!reden) reden = 'Naam vergelijkbaar'; score = Math.max(score, 70); }
+      return { r, score, reden };
     })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
+    .slice(0, 8);
 
-  // Adres-match (postcode + huisnummer) voor de top naam-kandidaten → boost
-  if (opts.postcode) {
-    const pcDoel = normalizeZip(opts.postcode);
-    for (const x of scored) {
-      try {
-        const adr = await readDebiteurAdres(x.i.code);
-        const pcOk = adr.postcode && normalizeZip(adr.postcode) === pcDoel;
-        const hnOk = !opts.huisnummer || adr.tekst.toLowerCase().includes(String(opts.huisnummer).toLowerCase());
-        if (pcOk && hnOk) {
-          x.score = Math.max(x.score, 90);
-          x.reden = x.reden ? `${x.reden} + adres` : 'Adres match (postcode/huisnummer)';
-        }
-      } catch { /* adres niet leesbaar → negeren */ }
-    }
-    scored.sort((a, b) => b.score - a.score);
-  }
-
-  for (const x of scored) {
-    kandidaten.push({ id: x.i.code, naam: x.i.name, reden: x.reden, score: x.score });
-  }
-  return kandidaten;
+  for (const x of scored) out.push({ id: x.r.code, naam: x.r.naam ?? '', reden: x.reden, score: x.score });
+  return out;
 }
 
 async function writeDebiteurNaarHubSpot(companyId: string, code: string): Promise<void> {

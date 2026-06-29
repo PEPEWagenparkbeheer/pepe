@@ -59,6 +59,22 @@ export default function FacturatieOverzicht() {
 
   useEffect(() => { void laad(); }, [laad]);
 
+  const [syncStatus, setSyncStatus] = useState('');
+  async function syncDebiteuren() {
+    if (!confirm('Twinfield-debiteuren synchroniseren naar de zoek-index? De eerste keer kan dit enkele minuten duren.')) return;
+    let resterend = 1; let totaal = 0; let ronde = 0;
+    setSyncStatus('Synchroniseren…');
+    while (resterend > 0 && ronde < 300) {
+      const res = await fetch('/api/uitgaande-facturen/debiteuren-sync', { method: 'POST', headers: await authHeaders() });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setSyncStatus(''); alert(j.error ?? 'Sync mislukt'); return; }
+      totaal = j.totaal ?? totaal; resterend = j.resterend ?? 0; ronde++;
+      setSyncStatus(`Adressen ophalen… nog ${resterend} van ${totaal}`);
+    }
+    setSyncStatus('');
+    alert(`Klaar — ${totaal} Twinfield-debiteuren in de zoek-index (incl. postcode/huisnummer).`);
+  }
+
   async function genereerShortlease() {
     if (!confirm('Shortlease-concepten voor deze maand klaarzetten?')) return;
     const res = await fetch('/api/facturatie/shortlease-cron', { headers: await authHeaders() });
@@ -131,6 +147,7 @@ export default function FacturatieOverzicht() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link className={styles.secondary} href="/facturatie/wagenparkbeheer">Wagenparkbeheer-config</Link>
+          <button className={styles.secondary} onClick={syncDebiteuren}>{syncStatus || 'Sync debiteuren'}</button>
           <button className={styles.secondary} onClick={genereerShortlease}>Shortlease nu</button>
           <button className={styles.secondary} onClick={importDocusign}>Importeer DocuSign</button>
           <button className={styles.primary} onClick={() => setNieuwOpen(true)}>+ Nieuwe factuur</button>
