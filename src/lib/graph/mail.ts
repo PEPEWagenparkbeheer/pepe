@@ -74,48 +74,48 @@ export async function getRecentMessages(
   }))
 }
 
+export interface GraphMessageHeader {
+  id: string
+  subject: string
+  afzenderEmail: string
+  ontvangenOp: string
+}
+
 /**
- * Zoekt berichten van één afzender in het Postvak IN via Graph KQL-`$search` (`from:<adres>`).
- * `$search` heeft veel betere recall dan een exact `$filter eq` (het exacte From-adres varieert per
- * CarCollect-maitype), en vindt ook oudere mails. `$search` mag niet samen met `$orderby`; vereist
- * ConsistencyLevel: eventual. Client-side sorteren op datum (nieuwste eerst).
- *
- * @param sender  afzender-adres voor de KQL `from:`-operator, bv. `noreply@carcollect.com`
+ * Haalt lichte bericht-headers (id/subject/from/datum, GEEN body) uit het Postvak IN, nieuwste eerst,
+ * met paginatie tot `max` berichten. Deterministisch (op datum) en goedkoop — bedoeld om kandidaten
+ * te filteren; haal de body daarna alleen op voor de berichten die je echt nodig hebt (getMessage).
+ * Betrouwbaarder dan `$search` (dat met eventual consistency wisselende, onvolledige sets teruggeeft).
  */
-export async function getMessagesFromSender(
+export async function listMessageHeaders(
   accessToken: string,
   mailbox: string,
-  sender: string,
-  top = 50,
-): Promise<GraphMessage[]> {
-  const select = 'id,subject,from,receivedDateTime,bodyPreview,body,isRead,conversationId'
-  const url =
+  max = 200,
+): Promise<GraphMessageHeader[]> {
+  const select = 'id,subject,from,receivedDateTime'
+  let url =
     `${GRAPH_BASE}/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages` +
-    `?$search=${encodeURIComponent(`"from:${sender}"`)}&$top=${top}&$select=${select}`
+    `?$top=50&$select=${select}&$orderby=receivedDateTime desc`
 
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}`, ConsistencyLevel: 'eventual' },
-  })
-  const data = (await response.json()) as GraphListResponse
-
-  if (!response.ok) {
-    const detail = data?.error?.message ?? 'onbekende fout'
-    throw new Error(`Mailbox doorzoeken mislukt (HTTP ${response.status}): ${detail}`)
+  const out: GraphMessageHeader[] = []
+  while (url && out.length < max) {
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
+    const data = (await response.json()) as GraphListResponse
+    if (!response.ok) {
+      const detail = data?.error?.message ?? 'onbekende fout'
+      throw new Error(`Mailbox-headers lezen mislukt (HTTP ${response.status}): ${detail}`)
+    }
+    for (const m of data.value ?? []) {
+      out.push({
+        id: m.id,
+        subject: m.subject ?? '',
+        afzenderEmail: m.from?.emailAddress?.address ?? '',
+        ontvangenOp: m.receivedDateTime,
+      })
+    }
+    url = data['@odata.nextLink'] ?? ''
   }
-
-  return (data.value ?? [])
-    .sort((a, b) => (b.receivedDateTime ?? '').localeCompare(a.receivedDateTime ?? ''))
-    .map((msg) => ({
-    id: msg.id,
-    subject: msg.subject ?? '(geen onderwerp)',
-    afzenderEmail: msg.from?.emailAddress?.address ?? '(onbekend)',
-    afzenderNaam: msg.from?.emailAddress?.name ?? '',
-    ontvangenOp: msg.receivedDateTime,
-    bodyPreview: msg.bodyPreview ?? '',
-    bodyHtml: msg.body?.content ?? '',
-    isRead: msg.isRead,
-    conversationId: msg.conversationId,
-  }))
+  return out.slice(0, max)
 }
 
 /**

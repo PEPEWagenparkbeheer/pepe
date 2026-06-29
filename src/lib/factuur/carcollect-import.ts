@@ -150,24 +150,38 @@ export async function verwerkCarCollectInbox(token: string, mailbox: string, top
   gescand: number; nieuw: number; bestond: number; genegeerd: number; fouten: number; resterend: number;
   resultaten: CarCollectImportResult[];
 }> {
-  // Deterministisch op afzender filteren (nieuwste eerst) — vindt ook oudere mails in een drukke
-  // info@-inbox, los van relevantie-ordening. Onderwerp-filter daarna lokaal.
-  const { getMessagesFromSender } = await import('@/lib/graph/mail');
-  const berichten = await getMessagesFromSender(token, mailbox, 'noreply@carcollect.com', top);
-  const verzoeken = berichten.filter(
+  // Deterministisch & compleet: lichte headers (datum-geordend, gepagineerd tot `top`) → kandidaten
+  // filteren → body+AI alleen ophalen voor de écht nieuwe (cap maxNieuw). Betrouwbaarder dan $search.
+  const { listMessageHeaders, getMessage } = await import('@/lib/graph/mail');
+  const headers = await listMessageHeaders(token, mailbox, top);
+  const kandidaten = headers.filter(
     (m) => /facturatieverzoek/i.test(m.subject) && /carcollect\.com/i.test(m.afzenderEmail),
   );
 
-  const resultaten: CarCollectImportResult[] = [];
-  let nieuw = 0, bestond = 0, genegeerd = 0, fouten = 0, resterend = 0;
-  for (const m of verzoeken) {
-    if (nieuw >= maxNieuw) { resterend++; continue; } // cap bereikt → laat de rest voor de volgende cron
-    const r = await importeerCarCollectMail(m).catch((e) => ({ ok: false, error: String(e) } as CarCollectImportResult));
-    resultaten.push(r);
-    if (!r.ok) fouten++;
-    else if (r.bestond) bestond++;
-    else if (r.genegeerd) genegeerd++;
-    else nieuw++;
+  // Welke kandidaten zijn al geïmporteerd? (1 query — bespaart body-ophalen + AI)
+  const refs = kandidaten.map((c) => `carcollect:${c.id}`);
+  const bestaand = new Set<string>();
+  if (refs.length) {
+    const { data } = await supabaseAdmin.from('uitgaande_facturen').select('bron_ref').in('bron_ref', refs);
+    for (const r of data ?? []) if (r.bron_ref) bestaand.add(r.bron_ref);
   }
-  return { gescand: verzoeken.length, nieuw, bestond, genegeerd, fouten, resterend, resultaten };
+
+  const resultaten: CarCollectImportResult[] = [];
+  let nieuw = 0, bestond = bestaand.size, genegeerd = 0, fouten = 0, resterend = 0;
+  for (const c of kandidaten) {
+    if (bestaand.has(`carcollect:${c.id}`)) continue; // al gedaan
+    if (nieuw >= maxNieuw) { resterend++; continue; }  // cap → rest volgt volgende cron
+    try {
+      const full = await getMessage(token, mailbox, c.id);
+      const r = await importeerCarCollectMail(full);
+      resultaten.push(r);
+      if (!r.ok) fouten++;
+      else if (r.bestond) bestond++;
+      else if (r.genegeerd) genegeerd++;
+      else nieuw++;
+    } catch (e) {
+      fouten++; resultaten.push({ ok: false, error: String(e) });
+    }
+  }
+  return { gescand: kandidaten.length, nieuw, bestond, genegeerd, fouten, resterend, resultaten };
 }
