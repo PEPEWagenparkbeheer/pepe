@@ -365,18 +365,13 @@ export async function createTwinfieldFactuur(
     })
     .join('');
 
-  // Bij ICP het land + btw-nummer ook in het customer/factuuradres-blok meegeven (Twinfield leest het
-  // btw-nummer van het factuuradres van de salesinvoice, niet alleen van de debiteur-stamgegevens).
-  const icpCustomerXml = params.performance?.country && params.performance?.vatnumber
-    ? `\n      <country>${escapeXml(params.performance.country)}</country>\n      <vatnumber>${escapeXml(params.performance.vatnumber)}</vatnumber>`
-    : '';
   const xml = `
 <salesinvoice>
   <header>
     <invoicetype>FACTUUR</invoicetype>
     <status>${params.status}</status>
     <customer>
-      <code>${params.debiteurCode}</code>${icpCustomerXml}
+      <code>${params.debiteurCode}</code>
     </customer>
     <currency>EUR</currency>
     <invoicedate>${toDateString(datum)}</invoicedate>
