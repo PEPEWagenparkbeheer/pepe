@@ -319,14 +319,16 @@ export async function createTwinfieldFactuur(
       const subartXml = articleCode !== '0' ? `\n      <subarticle>${ARTIKEL_SUBCODE}</subarticle>` : '';
       const vatcode = artDef ? artDef.vatcode : VATCODE[r.btw_code];
       const dim1 = artDef ? artDef.grootboek : r.grootboek;
+      // Bij een echt artikel mag de omschrijving NIET aangepast worden (Twinfield gebruikt de artikelnaam).
+      // Alleen bij los artikel (0) sturen we onze eigen omschrijving mee.
+      const descXml = articleCode === '0' ? `\n      <description>${escapeXml(r.omschrijving)}</description>` : '';
       return `
     <line id="${i + 1}">
       <article>${escapeXml(articleCode)}</article>${subartXml}
       <quantity>${r.aantal}</quantity>
       <units>1</units>
       <unitspriceexcl>${(sign * r.prijs_excl).toFixed(2)}</unitspriceexcl>
-      <vatcode>${vatcode}</vatcode>
-      <description>${escapeXml(r.omschrijving)}</description>
+      <vatcode>${vatcode}</vatcode>${descXml}
       <dim1>${dim1}</dim1>
     </line>`;
     })
@@ -343,6 +345,7 @@ export async function createTwinfieldFactuur(
     <currency>EUR</currency>
     <invoicedate>${toDateString(datum)}</invoicedate>
     <duedate>${toDateString(vervaldatum)}</duedate>
+    <performancedate>${toDateString(datum)}</performancedate>
     <headertext>${escapeXml(params.headertext ?? '')}</headertext>
   </header>
   <lines>${regelsXml}
