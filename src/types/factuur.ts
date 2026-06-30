@@ -77,6 +77,7 @@ export interface UitgaandeFactuur {
   factuur_email?: string | null;
   kvk?: string | null;
   btw_nummer?: string | null;
+  land?: string | null;
   twinfield_debiteur_code?: string | null;
 
   factuurnummer?: string | null;

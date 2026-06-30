@@ -15,12 +15,13 @@ interface Config {
   betaaldag: number;
   actief: boolean;
   notitie: string | null;
+  per_entiteit: boolean; // true = aparte factuur per dochteronderneming; false = één factuur aan de moeder
   laatst_aantal?: number | null;
 }
 
 const leeg = (): Config => ({
   id: '', parent_hubspot_company_id: '', klant_naam: '', fee_per_voertuig: 15,
-  child_company_ids: [], betaaldag: 1, actief: true, notitie: '',
+  child_company_ids: [], betaaldag: 1, actief: true, notitie: '', per_entiteit: false,
 });
 
 export default function WagenparkbeheerConfig() {
@@ -250,6 +251,11 @@ function ConfigModal({
             <div className={styles.veld}><span className={styles.label}>Actief</span>
               <select className={styles.select} value={cfg.actief ? 'ja' : 'nee'} onChange={(e) => setCfg({ ...cfg, actief: e.target.value === 'ja' })}>
                 <option value="ja">Ja</option><option value="nee">Nee</option>
+              </select></div>
+            <div className={styles.veld}><span className={styles.label}>Factureren aan</span>
+              <select className={styles.select} value={cfg.per_entiteit ? 'entiteit' : 'moeder'} onChange={(e) => setCfg({ ...cfg, per_entiteit: e.target.value === 'entiteit' })}>
+                <option value="moeder">Moedermaatschappij (1 factuur)</option>
+                <option value="entiteit">Per entiteit (aparte factuur per dochter)</option>
               </select></div>
           </div>
 

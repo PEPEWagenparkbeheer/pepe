@@ -76,13 +76,16 @@ export function buildFactuurHtml(factuur: UitgaandeFactuur, totalen: FactuurTota
     </tr>`).join('');
 
   const mc = (v?.chassis ?? '').replace(/\s/g, '').slice(-4); // meldcode = laatste 4 van chassisnummer
+  const isHandel = isAuto && !!factuur.handelsconditie;
   const paynote = isAuto
     ? `Gelieve te verzekeren (<b>${esc(v?.kenteken || '—')}</b>${mc ? `, mc. <b>${esc(mc)}</b>` : ''}) en te betalen <b>vóór levering</b> op rekeningnummer <span class="iban">NL02INGB0106922696</span> onder vermelding van het factuurnummer.`
     : `Gelieve te betalen binnen <b>${factuur.betaaltermijn_dagen ?? 14} dagen</b> na factuurdatum op rekeningnummer <span class="iban">NL02INGB0106922696</span> onder vermelding van het factuurnummer.`;
+  // Bij handelscondities vervangt de handelscondities-box de "gelieve te verzekeren"-paynote (niet dubbel).
+  const paynoteHtml = isHandel ? '' : `<div class="paynote">${paynote}</div>`;
 
-  // Handelscondities-disclaimer (handels-/CarCollect-auto's): geen garantie.
-  const handelsnote = (isAuto && factuur.handelsconditie)
-    ? `<div class="handelsnote">Verkocht onder <b>handelscondities</b> — verkoop tussen handelaren. Op dit voertuig is <b>geen enkele vorm van garantie</b> van toepassing; het wordt voetstoots geleverd in de staat waarin het zich ten tijde van verkoop bevindt.</div>`
+  // Handelscondities-disclaimer (handels-/CarCollect-auto's): geen garantie + betaalinstructie.
+  const handelsnote = isHandel
+    ? `<div class="handelsnote">Verkocht onder <b>handelscondities</b> — verkoop tussen handelaren. Op dit voertuig is <b>geen enkele vorm van garantie</b> van toepassing; het wordt voetstoots geleverd in de staat waarin het zich ten tijde van verkoop bevindt. Te betalen <b>vóór levering</b> op rekeningnummer <span class="iban">NL02INGB0106922696</span> onder vermelding van het factuurnummer.</div>`
     : '';
 
   // Intracommunautaire levering (0% btw): buitenlands btw-nummer, btw = 0 en geen margeregeling.
@@ -170,7 +173,7 @@ export function buildFactuurHtml(factuur: UitgaandeFactuur, totalen: FactuurTota
       </div>
     </section>
     <div class="vspace"></div>
-    <div class="paynote">${paynote}</div>
+    ${paynoteHtml}
     ${intraNote}
     ${handelsnote}
     <footer class="foot">

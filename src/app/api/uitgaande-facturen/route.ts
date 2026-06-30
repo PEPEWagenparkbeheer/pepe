@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     factuur_email: body.factuur_email ?? null,
     kvk: body.kvk ?? null,
     btw_nummer: body.btw_nummer ?? null,
+    land: body.land ?? 'NL',
     betaaltermijn_dagen: body.betaaltermijn_dagen ?? 14,
     regels,
     totaal_excl: totalen.totaal_excl,

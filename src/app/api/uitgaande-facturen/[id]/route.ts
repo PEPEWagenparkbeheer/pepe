@@ -12,7 +12,7 @@ const VELDEN = [
   'type', 'soort', 'status', 'hubspot_company_id', 'twinfield_debiteur_code', 'klant_naam', 'tav', 'adres',
   'postcode', 'plaats', 'telefoon', 'email', 'factuur_email', 'kvk', 'btw_nummer',
   'factuurdatum', 'vervaldatum', 'betaaltermijn_dagen', 'voertuig', 'bijlage',
-  'periode', 'notitie', 'handelsconditie',
+  'periode', 'notitie', 'handelsconditie', 'land',
 ] as const;
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

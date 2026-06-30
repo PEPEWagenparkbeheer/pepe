@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 
 const VELDEN = [
   'parent_hubspot_company_id', 'klant_naam', 'fee_per_voertuig',
-  'child_company_ids', 'betaaldag', 'actief', 'notitie',
+  'child_company_ids', 'betaaldag', 'actief', 'notitie', 'per_entiteit',
 ] as const;
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

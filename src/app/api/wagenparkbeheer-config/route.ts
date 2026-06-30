@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     betaaldag: Number(b.betaaldag) || 1,
     actief: b.actief !== false,
     notitie: b.notitie ?? null,
+    per_entiteit: b.per_entiteit === true,
   };
   const { data, error } = await supabaseAdmin
     .from('wagenparkbeheer_config').insert(insert).select('*').single();

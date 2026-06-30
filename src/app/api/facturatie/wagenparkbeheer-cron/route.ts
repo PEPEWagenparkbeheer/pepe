@@ -52,18 +52,48 @@ export async function GET(req: NextRequest) {
 
   const resultaat: { klant: string; status: string; aantal?: number }[] = [];
 
-  for (const cfg of configs ?? []) {
-    const recurringKey = `wpb-${cfg.parent_hubspot_company_id}-${periode}`;
+  const PF_VELDEN = ['name', 'address', 'zip', 'city', 'phone', 'kvk_nummer', 'twinfield_debiteur_code'];
 
-    // Idempotent: bestaat deze al?
+  for (const cfg of configs ?? []) {
+    const childs: { hubspot_company_id: string; naam?: string }[] = Array.isArray(cfg.child_company_ids)
+      ? cfg.child_company_ids : [];
+    const fee = Number(cfg.fee_per_voertuig) || 15;
+
+    // ── Per entiteit: aparte factuur per dochteronderneming (eigen debiteur) ──
+    if (cfg.per_entiteit) {
+      for (const child of childs) {
+        const childKey = `wpb-${child.hubspot_company_id}-${periode}`;
+        const { data: al } = await supabaseAdmin
+          .from('uitgaande_facturen').select('id').eq('recurring_key', childKey).maybeSingle();
+        if (al) { resultaat.push({ klant: child.naam ?? child.hubspot_company_id, status: 'bestond al' }); continue; }
+        const { kentekens, aantal } = await getRijdendeDealsForCompany(child.hubspot_company_id);
+        if (aantal === 0) { resultaat.push({ klant: child.naam ?? child.hubspot_company_id, status: 'geen voertuigen', aantal: 0 }); continue; }
+        const cf = await getCompanyFields(child.hubspot_company_id, PF_VELDEN).catch(() => ({} as Record<string, string>));
+        const cRegels: FactuurRegel[] = [{ omschrijving: `Wagenparkbeheer — periode ${label}`, aantal, prijs_excl: fee, btw_code: 'hoog' }];
+        const cTot = berekenTotalen(cRegels);
+        const { error: cErr } = await supabaseAdmin.from('uitgaande_facturen').insert({
+          type: 'wagenparkbeheer', soort: 'factuur', status: 'ter_controle',
+          hubspot_company_id: child.hubspot_company_id,
+          klant_naam: (cf.name as string) ?? child.naam ?? null,
+          adres: (cf.address as string) ?? null, postcode: (cf.zip as string) ?? null, plaats: (cf.city as string) ?? null,
+          telefoon: (cf.phone as string) ?? null, kvk: (cf.kvk_nummer as string) ?? null,
+          twinfield_debiteur_code: (cf.twinfield_debiteur_code as string) ?? null,
+          betaaltermijn_dagen: 14, regels: cRegels,
+          totaal_excl: cTot.totaal_excl, totaal_btw: cTot.totaal_btw, totaal_incl: cTot.totaal_incl,
+          bijlage: { entiteiten: [{ naam: child.naam ?? child.hubspot_company_id, aantal, bedrag: aantal * fee, kentekens }] },
+          bron: 'recurring', periode, recurring_key: childKey,
+        });
+        resultaat.push({ klant: (cf.name as string) ?? child.naam ?? child.hubspot_company_id, status: cErr ? `fout: ${cErr.message}` : 'klaargezet', aantal });
+      }
+      continue;
+    }
+
+    // ── Moedermaatschappij: één factuur met bijlage per dochter (default) ──
+    const recurringKey = `wpb-${cfg.parent_hubspot_company_id}-${periode}`;
     const { data: bestaat } = await supabaseAdmin
       .from('uitgaande_facturen').select('id').eq('recurring_key', recurringKey).maybeSingle();
     if (bestaat) { resultaat.push({ klant: cfg.klant_naam ?? cfg.parent_hubspot_company_id, status: 'bestond al' }); continue; }
 
-    // Voertuigen per dochteronderneming tellen
-    const childs: { hubspot_company_id: string; naam?: string }[] = Array.isArray(cfg.child_company_ids)
-      ? cfg.child_company_ids : [];
-    const fee = Number(cfg.fee_per_voertuig) || 15;
     const entiteiten: BijlageEntiteit[] = [];
     let totaalAantal = 0;
 

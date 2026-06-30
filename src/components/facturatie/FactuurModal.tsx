@@ -30,6 +30,16 @@ const BTW_OPTIES: { value: BtwCode; label: string }[] = [
   { value: 'marge', label: 'Margeregeling' },
 ];
 
+// Land van de klant (NL = binnenland; EU-landen → intracommunautair 0%, btw-nummer verplicht).
+const LANDEN: [string, string][] = [
+  ['NL', 'Nederland'], ['BE', 'België'], ['DE', 'Duitsland'], ['FR', 'Frankrijk'], ['LU', 'Luxemburg'],
+  ['ES', 'Spanje'], ['IT', 'Italië'], ['PT', 'Portugal'], ['AT', 'Oostenrijk'], ['PL', 'Polen'],
+  ['DK', 'Denemarken'], ['SE', 'Zweden'], ['IE', 'Ierland'], ['FI', 'Finland'], ['CZ', 'Tsjechië'],
+  ['HU', 'Hongarije'], ['RO', 'Roemenië'], ['GR', 'Griekenland'], ['SK', 'Slowakije'], ['BG', 'Bulgarije'],
+  ['HR', 'Kroatië'], ['SI', 'Slovenië'], ['LT', 'Litouwen'], ['LV', 'Letland'], ['EE', 'Estland'],
+  ['CY', 'Cyprus'], ['MT', 'Malta'],
+];
+
 const leegRegel = (): FactuurRegel => ({ omschrijving: '', aantal: 1, prijs_excl: 0, btw_code: 'hoog' });
 
 function euro(n: number) {
@@ -55,6 +65,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [factuurEmail, setFactuurEmail] = useState(factuur?.factuur_email ?? '');
   const [kvk, setKvk] = useState(factuur?.kvk ?? '');
   const [btwNummer, setBtwNummer] = useState(factuur?.btw_nummer ?? '');
+  const [land, setLand] = useState(factuur?.land ?? 'NL');
   const [zoekKvk, setZoekKvk] = useState('');
   const [zoekNaam, setZoekNaam] = useState('');
   const [zoekBezig, setZoekBezig] = useState(false);
@@ -138,6 +149,16 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
       ? rs.map(r => (r.btw_code === 'hoog' ? { ...r, btw_code: 'geen' as BtwCode } : r))
       : rs);
   }, [intra]);
+
+  // Ontstickeren-regel (€0): vinkbox voegt 'm toe/verwijdert 'm uit de regels.
+  const ONTSTICKEREN_TEKST = 'Ontstickeren alvorens doorlevering (handel / veiling / online doorverkoop)';
+  const ontstickeren = regels.some(r => (r.omschrijving ?? '').startsWith('Ontstickeren'));
+  function toggleOntstickeren(aan: boolean) {
+    setRegels(rs => {
+      const zonder = rs.filter(r => !(r.omschrijving ?? '').startsWith('Ontstickeren'));
+      return aan ? [...zonder, { omschrijving: ONTSTICKEREN_TEKST, aantal: 1, prijs_excl: 0, btw_code: 'geen' as BtwCode }] : zonder;
+    });
+  }
 
   // ── Klant zoeken ──
   async function zoekKlant(veld: 'kvk' | 'naam') {
@@ -256,6 +277,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
       factuur_email: factuurEmail || null,
       kvk: kvk || null,
       btw_nummer: btwNummer || null,
+      land: land || 'NL',
       betaaltermijn_dagen: betaaltermijn,
       regels: alleRegels,
       voertuig: isAuto ? {
@@ -331,6 +353,12 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   // "Akkoord & verstuur": eerst debiteur matchen (geen blinde creatie). Credit → bron-debiteur, geen modal.
   async function startAkkoord() {
     if (!klantNaam.trim()) { setFout('Vul de klantnaam in.'); return; }
+    // Buitenlandse klant (land ≠ NL) → btw-nummer verplicht (anders fout factureren bij intracommunautair).
+    if (land && land !== 'NL' && !btwNummer.trim()) {
+      setTab('klant');
+      setFout(`Klant in het buitenland (${land}) — vul het btw-nummer in voordat je factureert.`);
+      return;
+    }
     // Guard: een auto-factuur zonder kenteken levert GEEN HubSpot-deal op (sync hangt op kenteken).
     // Bevestigen zodat niemand per ongeluk een auto-verkoop boekt die niet in HubSpot belandt.
     if (isAuto && !kenteken.trim() && !window.confirm(
@@ -449,6 +477,15 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                   </div>
                 ))}
                 <div className={styles.veld}>
+                  <label className={styles.label}>Land</label>
+                  <select className={styles.input} value={land} onChange={e => setLand(e.target.value)} disabled={!kanAanpassen}>
+                    {LANDEN.map(([code, naam]) => <option key={code} value={code}>{naam}</option>)}
+                  </select>
+                  {land !== 'NL' && (
+                    <span style={{ fontSize: 11, color: '#b45309' }}>Buitenland → btw-nummer verplicht (intracommunautair 0%).</span>
+                  )}
+                </div>
+                <div className={styles.veld}>
                   <label className={styles.label}>Betaaltermijn (dagen)</label>
                   <input className={styles.input} type="number" value={betaaltermijn} onChange={e => setBetaaltermijn(Number(e.target.value))} readOnly={!kanAanpassen} />
                 </div>
@@ -541,6 +578,20 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                 <span style={{ fontSize: 13, lineHeight: 1.4 }}>
                   Verkocht onder <strong>handelscondities</strong> — toont op de factuur: <em>geen enkele vorm van garantie van toepassing</em>.
                   <br /><span style={{ color: '#6b7280', fontSize: 12 }}>Staat standaard aan bij CarCollect/handelsauto&apos;s.</span>
+                </span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 10, cursor: kanAanpassen ? 'pointer' : 'default', width: 'fit-content' }}>
+                <input
+                  type="checkbox"
+                  checked={ontstickeren}
+                  onChange={e => toggleOntstickeren(e.target.checked)}
+                  disabled={!kanAanpassen}
+                  style={{ marginTop: 2 }}
+                />
+                <span style={{ fontSize: 13, lineHeight: 1.4 }}>
+                  <strong>Ontstickeren</strong> alvorens doorlevering (handel / veiling / online doorverkoop).
+                  <br /><span style={{ color: '#6b7280', fontSize: 12 }}>Komt als €0-regel op de factuur.</span>
                 </span>
               </label>
             </>

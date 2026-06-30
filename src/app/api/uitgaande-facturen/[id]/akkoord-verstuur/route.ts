@@ -61,9 +61,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       // Nieuwe debiteur: NAW + (bij buitenlands btw-nr) land + btw meegeven — verplicht voor ICP.
       const nieuwBtw = (factuur.btw_nummer ?? '').trim();
       const buitenland = nieuwBtw !== '' && !nieuwBtw.toUpperCase().startsWith('NL');
+      // Land uit het expliciete land-veld; val terug op de btw-prefix (FR123… → FR), anders NL.
+      const debLand = (factuur.land && factuur.land.trim()) || (buitenland ? nieuwBtw.slice(0, 2).toUpperCase() : 'NL');
       debiteurCode = await maakNieuweDebiteur(factuur.klant_naam ?? '', factuur.hubspot_company_id, {
         vatnumber: nieuwBtw || undefined,
-        land: buitenland ? nieuwBtw.slice(0, 2).toUpperCase() : 'NL',
+        land: debLand,
         adres: factuur.adres ?? undefined,
         postcode: factuur.postcode ?? undefined,
         plaats: factuur.plaats ?? undefined,
