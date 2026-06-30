@@ -6,11 +6,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createTwinfieldFactuur, ARTIKELEN } from '@/lib/twinfield/factuur';
 
 export const runtime = 'nodejs';
-const SECRET = process.env.CRON_SECRET ?? '';
+const SECRETS = [process.env.CRON_SECRET, process.env.ARTIKEL_TEST_SECRET].filter(Boolean);
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
-  if (!SECRET || url.searchParams.get('secret') !== SECRET) {
+  const s = url.searchParams.get('secret') ?? '';
+  if (!SECRETS.length || !SECRETS.includes(s)) {
     return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 401 });
   }
   const artikel = (url.searchParams.get('artikel') || 'DIVERSEN').toUpperCase();
