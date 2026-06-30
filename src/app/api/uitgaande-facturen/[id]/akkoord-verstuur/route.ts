@@ -11,6 +11,7 @@ import {
   createTwinfieldFactuur,
   maakNieuweDebiteur,
   readDebiteur,
+  bepaalArtikel,
   GROOTBOEK,
   type TwinfieldFactuurRegelInput,
 } from '@/lib/twinfield/factuur';
@@ -91,14 +92,28 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   }
 
-  // Regels → Twinfield (grootboek per regel, anders standaard per type)
-  const tfRegels: TwinfieldFactuurRegelInput[] = (factuur.regels as FactuurRegel[]).map((r) => ({
-    omschrijving: r.omschrijving,
-    aantal: r.aantal,
-    prijs_excl: r.prijs_excl,
-    btw_code: r.btw_code,
-    grootboek: r.grootboek || GROOTBOEK[factuur.type] || GROOTBOEK.diensten_overig,
-  }));
+  // Regels → Twinfield: boeken op ARTIKELCODE (type + marge/handel + intracommunautair).
+  // intra = buitenlands (niet-NL) btw-nummer → buitenland-artikelen (ICP 0%, marge blijft VN).
+  const btwNr = (naw.btw_nummer ?? '').trim();
+  const intra = btwNr !== '' && !btwNr.toUpperCase().startsWith('NL');
+  const tfRegels: TwinfieldFactuurRegelInput[] = (factuur.regels as FactuurRegel[]).map((r) => {
+    const isBpm = (r.omschrijving ?? '').trim().toUpperCase() === 'BPM';
+    const article = bepaalArtikel({
+      type: factuur.type,
+      handelsconditie: factuur.handelsconditie ?? false,
+      intra,
+      btw_code: r.btw_code,
+      isBpm,
+    });
+    return {
+      omschrijving: r.omschrijving,
+      aantal: r.aantal,
+      prijs_excl: r.prijs_excl,
+      btw_code: r.btw_code,
+      grootboek: r.grootboek || GROOTBOEK[factuur.type] || GROOTBOEK.diensten_overig,
+      article: article || undefined, // leeg (BPM zonder artikel) → los artikel fallback
+    };
+  });
 
   const datum = new Date();
   const res = await createTwinfieldFactuur({

@@ -62,12 +62,59 @@ export const GROOTBOEK: Record<FactuurType, string> = {
   diensten_overig: '3540',
 };
 
+// ── Twinfield-ARTIKELEN (boekhouder-export 2026-06-30, admin 202500005) ──────────────────
+// We boeken op ARTIKELCODE (+ subarticle 1); Twinfield leidt grootboek + vatcode af van het artikel.
+// grootboek/vatcode hier = referentie (matcht de artikeldefinitie). BPM-artikel volgt nog (env-override).
+export const ARTIKEL_SUBCODE = '1';
+export const ARTIKELEN: Record<string, { grootboek: string; vatcode: string }> = {
+  BTWAUTO:     { grootboek: '8030', vatcode: 'VH' },
+  BTWAUTOBL:   { grootboek: '8056', vatcode: 'ICP' },
+  HANDELBTW:   { grootboek: '8030', vatcode: 'VH' },
+  HANDELMARGE: { grootboek: '8053', vatcode: 'VN' },
+  MARGE:       { grootboek: '8053', vatcode: 'VN' },
+  MARGEAUTOBL: { grootboek: '8056', vatcode: 'VN' },  // marge blijft margeregeling, ook buitenland (VN)
+  DERDEN:      { grootboek: '8033', vatcode: 'VH' },
+  DERDENBL:    { grootboek: '8056', vatcode: 'ICP' },
+  DIVERSEN:    { grootboek: '8054', vatcode: 'VH' },
+  DIVERSENBL:  { grootboek: '8075', vatcode: 'ICP' },
+  SHORT:       { grootboek: '8031', vatcode: 'VH' },
+  VERHUUR:     { grootboek: '8032', vatcode: 'VH' },
+  WPB:         { grootboek: '8034', vatcode: 'VH' },
+  WPBBL:       { grootboek: '8055', vatcode: 'ICP' },
+};
+// BPM-regel: nog geen artikel in Twinfield. Tijdelijke override via env tot 't artikel bestaat.
+export const BPM_ARTIKEL = process.env.TWINFIELD_BPM_ARTIKEL || '';
+
+// Bepaalt de Twinfield-artikelcode voor één factuurregel op basis van factuurtype + context.
+// intra = buitenlands (niet-NL) btw-nummer → buitenland-artikel (ICP 0%, m.u.v. marge = VN).
+export function bepaalArtikel(opts: {
+  type: FactuurType;
+  handelsconditie?: boolean;
+  intra: boolean;
+  btw_code: BtwCode;
+  isBpm?: boolean;
+}): string {
+  if (opts.isBpm) return BPM_ARTIKEL; // leeg → caller valt terug op los artikel tot BPM-artikel bestaat
+  const { intra, handelsconditie } = opts;
+  switch (opts.type) {
+    case 'auto':
+      if (opts.btw_code === 'marge') return intra ? 'MARGEAUTOBL' : (handelsconditie ? 'HANDELMARGE' : 'MARGE');
+      return intra ? 'BTWAUTOBL' : (handelsconditie ? 'HANDELBTW' : 'BTWAUTO');
+    case 'werk_derden':     return intra ? 'DERDENBL' : 'DERDEN';
+    case 'wagenparkbeheer': return intra ? 'WPBBL' : 'WPB';
+    case 'shortlease':      return 'SHORT'; // geen buitenland-variant
+    case 'diensten_overig':
+    default:                return intra ? 'DIVERSENBL' : 'DIVERSEN';
+  }
+}
+
 export interface TwinfieldFactuurRegelInput {
   omschrijving: string;
   aantal: number;
   prijs_excl: number;
   btw_code: BtwCode;
   grootboek: string;
+  article?: string; // Twinfield-artikelcode (leeg → los artikel 0 met grootboek+vatcode, fallback)
 }
 
 export interface CreateFactuurParams {
@@ -264,18 +311,25 @@ export async function createTwinfieldFactuur(
   const sign = params.credit ? -1 : 1;
 
   const regelsXml = params.regels
-    .map(
-      (r, i) => `
+    .map((r, i) => {
+      // Echte artikelcode? Dan boeken op article + subarticle, met vatcode/grootboek uit de artikeldefinitie.
+      // Geen/0 → los artikel (fallback): vatcode uit btw_code + grootboek per regel.
+      const artDef = r.article ? ARTIKELEN[r.article] : undefined;
+      const articleCode = r.article && r.article !== '0' ? r.article : '0';
+      const subartXml = articleCode !== '0' ? `\n      <subarticle>${ARTIKEL_SUBCODE}</subarticle>` : '';
+      const vatcode = artDef ? artDef.vatcode : VATCODE[r.btw_code];
+      const dim1 = artDef ? artDef.grootboek : r.grootboek;
+      return `
     <line id="${i + 1}">
-      <article>0</article>
+      <article>${escapeXml(articleCode)}</article>${subartXml}
       <quantity>${r.aantal}</quantity>
       <units>1</units>
       <unitspriceexcl>${(sign * r.prijs_excl).toFixed(2)}</unitspriceexcl>
-      <vatcode>${VATCODE[r.btw_code]}</vatcode>
+      <vatcode>${vatcode}</vatcode>
       <description>${escapeXml(r.omschrijving)}</description>
-      <dim1>${r.grootboek}</dim1>
-    </line>`,
-    )
+      <dim1>${dim1}</dim1>
+    </line>`;
+    })
     .join('');
 
   const xml = `

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:type="MailApp">
+  <Id>B0188867-CA86-4841-9FA3-AC8239FACEB2</Id>
+  <Version>1.0.3.0</Version>
+  <ProviderName>PEPE Wagenparkbeheer</ProviderName>
+  <DefaultLocale>nl-NL</DefaultLocale>
+  <DisplayName DefaultValue="PEPE BREIN" />
+  <Description DefaultValue="Genereer concept-antwoorden op berijdersmails." />
+  <IconUrl DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
+  <HighResolutionIconUrl DefaultValue="https://flow.pepewagenparkbeheer.nl/pepe-logo-rgb.png" />
+  <SupportUrl DefaultValue="https://flow.pepewagenparkbeheer.nl" />
+  <AppDomains>
+    <AppDomain>flow.pepewagenparkbeheer.nl</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Mailbox" />
+  </Hosts>
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.1" />
+    </Sets>
+  </Requirements>
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://flow.pepewagenparkbeheer.nl/addin" />
+        <RequestedHeight>450</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+  <Permissions>ReadWriteItem</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read" />
+  </Rule>
+</OfficeApp>
