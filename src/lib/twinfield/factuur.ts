@@ -81,9 +81,10 @@ export const ARTIKELEN: Record<string, { grootboek: string; vatcode: string }> =
   VERHUUR:     { grootboek: '8032', vatcode: 'VH' },
   WPB:         { grootboek: '8034', vatcode: 'VH' },
   WPBBL:       { grootboek: '8055', vatcode: 'ICP' },
+  BPM:         { grootboek: '7810', vatcode: 'VN' },  // BPM-regel auto-factuur (0%, buiten btw)
 };
-// BPM-regel: nog geen artikel in Twinfield. Tijdelijke override via env tot 't artikel bestaat.
-export const BPM_ARTIKEL = process.env.TWINFIELD_BPM_ARTIKEL || '';
+// BPM-regel → artikel 'BPM' (env-override mogelijk).
+export const BPM_ARTIKEL = process.env.TWINFIELD_BPM_ARTIKEL || 'BPM';
 
 // Bepaalt de Twinfield-artikelcode voor één factuurregel op basis van factuurtype + context.
 // intra = buitenlands (niet-NL) btw-nummer → buitenland-artikel (ICP 0%, m.u.v. marge = VN).
