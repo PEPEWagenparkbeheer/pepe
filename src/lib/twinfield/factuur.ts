@@ -126,6 +126,9 @@ export interface CreateFactuurParams {
   betaaltermijnDagen?: number;
   headertext?: string;
   credit?: boolean;
+  // Intracommunautair (ICP): verplichte performance-velden op ICP-regels. country/vatnumber mogen weg
+  // als ze op de Twinfield-debiteur staan; we geven ze mee zodat het altijd werkt.
+  performance?: { type: 'goods' | 'services'; country?: string; vatnumber?: string };
 }
 
 export interface CreateFactuurResult {
@@ -323,13 +326,23 @@ export async function createTwinfieldFactuur(
       // Bij een echt artikel mag de omschrijving NIET aangepast worden (Twinfield gebruikt de artikelnaam).
       // Alleen bij los artikel (0) sturen we onze eigen omschrijving mee.
       const descXml = articleCode === '0' ? `\n      <description>${escapeXml(r.omschrijving)}</description>` : '';
+      // Intracommunautair (ICP-regel): verplichte performance-velden op de regel zelf.
+      // performancetype (goods/services); date alleen verplicht bij diensten; country/vatnumber uit btw-nr.
+      let perfXml = '';
+      if (vatcode === 'ICP' && params.performance) {
+        const p = params.performance;
+        perfXml += `\n      <performancetype>${p.type}</performancetype>`;
+        if (p.country) perfXml += `\n      <performancecountry>${escapeXml(p.country)}</performancecountry>`;
+        if (p.vatnumber) perfXml += `\n      <performancevatnumber>${escapeXml(p.vatnumber)}</performancevatnumber>`;
+        if (p.type === 'services') perfXml += `\n      <performancedate>${toDateString(datum)}</performancedate>`;
+      }
       return `
     <line id="${i + 1}">
       <article>${escapeXml(articleCode)}</article>${subartXml}
       <quantity>${r.aantal}</quantity>
       <units>1</units>
       <unitspriceexcl>${(sign * r.prijs_excl).toFixed(2)}</unitspriceexcl>
-      <vatcode>${vatcode}</vatcode>${descXml}
+      <vatcode>${vatcode}</vatcode>${descXml}${perfXml}
       <dim1>${dim1}</dim1>
     </line>`;
     })

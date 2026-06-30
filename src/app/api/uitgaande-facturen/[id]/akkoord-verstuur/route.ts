@@ -116,6 +116,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   });
 
   const datum = new Date();
+  // ICP: auto = goederen, overige (diensten/werk-derden/wpb) = diensten. Land uit btw-nummer (FR123… → FR).
+  const performance = intra
+    ? { type: (factuur.type === 'auto' ? 'goods' : 'services') as 'goods' | 'services', country: btwNr.slice(0, 2).toUpperCase(), vatnumber: btwNr }
+    : undefined;
   const res = await createTwinfieldFactuur({
     debiteurCode,
     regels: tfRegels,
@@ -124,6 +128,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     betaaltermijnDagen: factuur.betaaltermijn_dagen ?? 14,
     headertext: HEADERTEXT[factuur.type](factuur),
     credit: factuur.soort === 'creditnota',
+    performance,
   });
 
   if (!res.ok) {
