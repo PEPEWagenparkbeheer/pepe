@@ -161,13 +161,16 @@ async function readDebiteurRaw(code: string): Promise<{ tekst: string; name?: st
 }
 
 /** Volledige NAW van een Twinfield-debiteur (voor invullen factuuradres + matching-index). */
-export async function readDebiteur(code: string): Promise<{ code: string; naam: string; adres: string; postcode: string; plaats: string; huisnummer: string }> {
+export async function readDebiteur(code: string): Promise<{ code: string; naam: string; adres: string; postcode: string; plaats: string; huisnummer: string; kvk: string; btw: string }> {
   const r = await readDebiteurRaw(code);
   // straat = eerste address-field dat een huisnummer (cijfer) bevat, maar geen postcode (1234 AB)
   const velden = [...r.tekst.matchAll(/<field\d>([^<]*)<\/field\d>/gi)].map((m) => m[1].trim());
   const adres = velden.find((v) => /\d/.test(v) && !/^\d{4}\s?[a-z]{2}$/i.test(v)) ?? '';
   const huisnummer = adres.match(/\d+/)?.[0] ?? '';
-  return { code, naam: r.name ?? '', adres, postcode: r.postcode ?? '', plaats: r.city ?? '', huisnummer };
+  // KvK (cocnumber) en BTW-nummer (vatnumber) — best-effort; Twinfield levert ze niet altijd.
+  const kvk = r.tekst.match(/<cocnumber>([^<]+)<\/cocnumber>/i)?.[1]?.trim() ?? '';
+  const btw = r.tekst.match(/<vatnumber>([^<]+)<\/vatnumber>/i)?.[1]?.trim() ?? '';
+  return { code, naam: r.name ?? '', adres, postcode: r.postcode ?? '', plaats: r.city ?? '', huisnummer, kvk, btw };
 }
 
 /** Lijst van alle debiteuren (alleen code+naam) — snel, voor de naam-index. */

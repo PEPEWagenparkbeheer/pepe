@@ -9,19 +9,26 @@ const NIEUW = '__nieuw__';
 export interface DebiteurKeuze { debiteurCode?: string; maakNieuw?: boolean }
 
 export default function DebiteurMatchModal({
-  klantNaam, kandidaten, onBevestig, onAnnuleer, busy,
+  klantNaam, kandidaten, onBevestig, onNeemOver, onAnnuleer, busy,
 }: {
   klantNaam: string;
   kandidaten: MatchKandidaat[];
   onBevestig: (keuze: DebiteurKeuze) => void;
+  onNeemOver: (code: string, naam: string) => void;
   onAnnuleer: () => void;
   busy?: boolean;
 }) {
   const [gekozen, setGekozen] = useState<string>(kandidaten[0]?.id ?? NIEUW);
+  const isNieuw = gekozen === NIEUW;
 
   function bevestig() {
-    if (gekozen === NIEUW) onBevestig({ maakNieuw: true });
-    else onBevestig({ debiteurCode: gekozen });
+    if (isNieuw) {
+      onBevestig({ maakNieuw: true });
+    } else {
+      // Bestaande debiteur: eerst NAW overnemen + controleren, niet meteen boeken.
+      const k = kandidaten.find((x) => x.id === gekozen);
+      onNeemOver(gekozen, k?.naam ?? klantNaam);
+    }
   }
 
   return (
@@ -62,7 +69,7 @@ export default function DebiteurMatchModal({
         <footer className={styles.modalFooter}>
           <button className={styles.secondary} onClick={onAnnuleer} disabled={busy}>Annuleren</button>
           <button className={styles.primary} onClick={bevestig} disabled={busy}>
-            {busy ? 'Bezig…' : 'Bevestig & boek'}
+            {busy ? 'Bezig…' : isNieuw ? 'Nieuwe debiteur & boek' : 'Gegevens overnemen & controleren'}
           </button>
         </footer>
       </div>

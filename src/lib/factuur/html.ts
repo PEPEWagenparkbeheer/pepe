@@ -85,6 +85,14 @@ export function buildFactuurHtml(factuur: UitgaandeFactuur, totalen: FactuurTota
     ? `<div class="handelsnote">Verkocht onder <b>handelscondities</b> — verkoop tussen handelaren. Op dit voertuig is <b>geen enkele vorm van garantie</b> van toepassing; het wordt voetstoots geleverd in de staat waarin het zich ten tijde van verkoop bevindt.</div>`
     : '';
 
+  // Intracommunautaire levering (0% btw): buitenlands btw-nummer, btw = 0 en geen margeregeling.
+  const btwNr = (factuur.btw_nummer ?? '').trim();
+  const intracommunautair = btwNr !== '' && !btwNr.toUpperCase().startsWith('NL')
+    && totalen.totaal_btw === 0 && !factuur.regels.some((r) => r.btw_code === 'marge');
+  const intraNote = intracommunautair
+    ? `<div class="handelsnote"><b>Intracommunautaire levering — 0% btw.</b> BTW verlegd naar de afnemer. BTW-identificatienummer afnemer: <b>${esc(btwNr)}</b>.</div>`
+    : '';
+
   const bijlage = (factuur.type === 'wagenparkbeheer' && factuur.bijlage?.entiteiten?.length)
     ? `<div class="page">
         <header class="head" style="align-items:center;"><div><img class="logo" src="${ASSETS}/logo.png"></div>
@@ -163,6 +171,7 @@ export function buildFactuurHtml(factuur: UitgaandeFactuur, totalen: FactuurTota
     </section>
     <div class="vspace"></div>
     <div class="paynote">${paynote}</div>
+    ${intraNote}
     ${handelsnote}
     <footer class="foot">
       <div class="foot-row">

@@ -99,26 +99,45 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [werkId, setWerkId] = useState<string | null>(factuur?.id ?? null);
   const [matchOpen, setMatchOpen] = useState(false);
   const [matchKandidaten, setMatchKandidaten] = useState<MatchKandidaat[]>([]);
+  const [melding, setMelding] = useState<string | null>(null);
 
   // Auto: de auto-regels (Levering + BPM) worden AFGELEID uit Toe te betalen + BPM. Het toe-te-betalen
   // bedrag blijft VAST; bij BPM-wijziging herrekent de voertuigprijs (en btw) automatisch.
   //  - BTW-auto:  voertuigprijs excl = (toe te betalen − BPM) / 1,21 @21%, + BPM @0%
   //  - Marge-auto: geen btw-uitsplitsing → één regel @marge = toe te betalen
+  // Intracommunautaire levering: btw-nummer ingevuld én NIET met "NL" → 0% btw (m.u.v. marge-auto).
+  const intra = btwNummer.trim() !== '' && !btwNummer.trim().toUpperCase().startsWith('NL');
+
   const derivedRegels = useMemo<FactuurRegel[]>(() => {
     if (!isAuto) return [];
     const ttb = Number(toeTeBetalen) || 0;
     const bpm = Number(restBpm) || 0;
     const naam = `Levering ${merk} ${model}`.trim() || 'Levering voertuig';
     if (btwSoort === 'marge') return [{ omschrijving: naam, aantal: 1, prijs_excl: ttb, btw_code: 'marge' }];
+    if (intra) {
+      // Intracommunautair 0%: geen btw uit de prijs halen, leveringsregel + BPM beide op 0%.
+      const arr: FactuurRegel[] = [{ omschrijving: naam, aantal: 1, prijs_excl: Math.max(ttb - bpm, 0), btw_code: 'geen' }];
+      if (bpm > 0) arr.push({ omschrijving: 'BPM', aantal: 1, prijs_excl: bpm, btw_code: 'geen' });
+      return arr;
+    }
     const netto = ttb > 0 ? Math.round(((ttb - bpm) / 1.21) * 100) / 100 : 0;
     const arr: FactuurRegel[] = [{ omschrijving: naam, aantal: 1, prijs_excl: netto, btw_code: 'hoog' }];
     if (bpm > 0) arr.push({ omschrijving: 'BPM', aantal: 1, prijs_excl: bpm, btw_code: 'geen' });
     return arr;
-  }, [isAuto, btwSoort, toeTeBetalen, restBpm, merk, model]);
+  }, [isAuto, btwSoort, toeTeBetalen, restBpm, merk, model, intra]);
 
   // Volledige regelset = auto-regels + extra regels (voor auto), anders gewoon `regels`.
   const alleRegels = isAuto ? [...derivedRegels, ...regels] : regels;
   const totalen = berekenTotalen(alleRegels);
+
+  // Intracommunautair (niet-NL btw-nr): forceer alle handmatige regels naar 0% (btw_code 'geen').
+  // (Auto-regels lopen al via derivedRegels.) Marge-regels blijven ongemoeid.
+  useEffect(() => {
+    if (!intra) return;
+    setRegels(rs => rs.some(r => r.btw_code === 'hoog')
+      ? rs.map(r => (r.btw_code === 'hoog' ? { ...r, btw_code: 'geen' as BtwCode } : r))
+      : rs);
+  }, [intra]);
 
   // ── Klant zoeken ──
   async function zoekKlant(veld: 'kvk' | 'naam') {
@@ -169,8 +188,21 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
         if (j.debiteur.adres) setAdres(j.debiteur.adres);
         if (j.debiteur.postcode) setPostcode(j.debiteur.postcode);
         if (j.debiteur.plaats) setPlaats(j.debiteur.plaats);
+        if (j.debiteur.kvk) setKvk(j.debiteur.kvk);
+        if (j.debiteur.btw) setBtwNummer(j.debiteur.btw);
       }
     } catch { /* NAW best-effort */ }
+  }
+
+  // Match-modal: bestaande Twinfield-debiteur gekozen → NAW overnemen op de factuur en TERUG naar het
+  // controle-scherm (niet meteen boeken), zodat de gebruiker de overgenomen gegevens kan controleren.
+  async function neemDebiteurOver(code: string, naam: string) {
+    setMatchOpen(false);
+    setBezig('Gegevens uit Twinfield ophalen…');
+    await kiesDebiteur(code, naam);
+    setBezig(null);
+    setTab('klant');
+    setMelding('✓ Gegevens overgenomen uit Twinfield. Controleer de klantgegevens en klik daarna opnieuw op “Akkoord & verstuur”.');
   }
 
   // ── RDW lookup ──
@@ -305,7 +337,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
       'Geen kenteken ingevuld. Er wordt dan GEEN HubSpot-deal aangemaakt voor deze auto ' +
       '(de Twinfield-debiteur wordt wel teruggeschreven). Toch boeken en versturen?'
     )) { return; }
-    setBezig('Opslaan…'); setFout(null);
+    setBezig('Opslaan…'); setFout(null); setMelding(null);
     const saved = await slaOp();
     if (!saved) { setBezig(null); return; }
     if (soort === 'creditnota') { setBezig(null); await boekEnVerstuur({}); return; }
@@ -477,7 +509,16 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                 </div>
               </div>
               <div className={styles.infoBox}>
-                {btwSoort === 'btw' ? (
+                {btwSoort === 'marge' ? (
+                  <>Marge-auto: alleen de verkoopprijs op de factuur, geen btw-uitsplitsing.</>
+                ) : intra ? (
+                  <>
+                    <strong>Intracommunautaire levering — 0% btw</strong> (buitenlands btw-nummer {btwNummer.trim().slice(0, 2).toUpperCase()}…).
+                    {' '}Voertuigprijs: <strong>{euro(Math.max(Number(toeTeBetalen || 0) - Number(restBpm || 0), 0))}</strong>
+                    {' · '}BPM: <strong>{euro(Number(restBpm || 0))}</strong>
+                    {' · '}Totaal: <strong>{euro(Number(toeTeBetalen || 0))}</strong>. Geen btw — btw verlegd naar de afnemer.
+                  </>
+                ) : (
                   <>
                     Voertuigprijs excl.: <strong>{euro((Number(toeTeBetalen || 0) - Number(restBpm || 0)) / 1.21)}</strong>
                     {' · '}BTW 21%: <strong>{euro(((Number(toeTeBetalen || 0) - Number(restBpm || 0)) / 1.21) * 0.21)}</strong>
@@ -485,8 +526,6 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                     {' · '}Toe te betalen: <strong>{euro(Number(toeTeBetalen || 0))}</strong>.
                     {' '}Pas de BPM aan → voertuigprijs en btw herrekenen automatisch; toe te betalen blijft gelijk.
                   </>
-                ) : (
-                  <>Marge-auto: alleen de verkoopprijs op de factuur, geen btw-uitsplitsing.</>
                 )}
               </div>
 
@@ -553,7 +592,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                         <td><input type="number" value={r.aantal} onChange={e => setRegels(rs => rs.map((x, j) => j === i ? { ...x, aantal: Number(e.target.value) } : x))} readOnly={!kanAanpassen} /></td>
                         <td><input type="number" step="0.01" value={r.prijs_excl} onChange={e => setRegels(rs => rs.map((x, j) => j === i ? { ...x, prijs_excl: Number(e.target.value) } : x))} readOnly={!kanAanpassen} /></td>
                         <td>
-                          <select value={r.btw_code} onChange={e => setRegels(rs => rs.map((x, j) => j === i ? { ...x, btw_code: e.target.value as BtwCode } : x))} disabled={!kanAanpassen}>
+                          <select value={r.btw_code} onChange={e => setRegels(rs => rs.map((x, j) => j === i ? { ...x, btw_code: e.target.value as BtwCode } : x))} disabled={!kanAanpassen || (intra && r.btw_code !== 'marge')} title={intra ? 'Intracommunautair: 0% btw' : undefined}>
                             {BTW_OPTIES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>
                         </td>
@@ -564,8 +603,13 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                   })}
                 </tbody>
               </table>
+              {intra && (
+                <p className={styles.sub} style={{ color: '#b45309', marginTop: 6 }}>
+                  ℹ️ Buitenlands btw-nummer ({btwNummer.trim().slice(0, 2).toUpperCase()}…) → intracommunautaire levering: <b>0% btw</b>{isAuto ? ' (m.u.v. marge-auto)' : ''}.
+                </p>
+              )}
               {kanAanpassen && (
-                <button className={styles.addBtn} onClick={() => setRegels(rs => [...rs, { ...leegRegel(), btw_code: 'hoog' }])}>
+                <button className={styles.addBtn} onClick={() => setRegels(rs => [...rs, { ...leegRegel(), btw_code: intra ? 'geen' : 'hoog' }])}>
                   + {isAuto ? 'Extra regel' : 'Regel'} toevoegen
                 </button>
               )}
@@ -602,6 +646,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
 
         {/* Footer */}
         <div className={styles.modalFooter}>
+          {melding && <span style={{ color: '#15803d', fontSize: 12, fontWeight: 600, marginRight: 'auto' }}>{melding}</span>}
           {fout && <span className={styles.foutTekst}>⚠️ {fout}</span>}
           {factuur && kanAanpassen && !['definitief', 'verzonden'].includes(factuur.status) && (
             <button
@@ -656,6 +701,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
           kandidaten={matchKandidaten}
           busy={!!bezig}
           onBevestig={boekEnVerstuur}
+          onNeemOver={neemDebiteurOver}
           onAnnuleer={() => setMatchOpen(false)}
         />
       )}

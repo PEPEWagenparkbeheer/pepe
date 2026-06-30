@@ -76,6 +76,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     adres: factuur.adres ?? null,
     postcode: factuur.postcode ?? null,
     plaats: factuur.plaats ?? null,
+    kvk: factuur.kvk ?? null,
+    btw_nummer: factuur.btw_nummer ?? null,
   };
   if (!debiteurNieuw) {
     const tf = await readDebiteur(debiteurCode).catch(() => null);
@@ -84,6 +86,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       naw.adres = tf.adres || naw.adres;
       naw.postcode = tf.postcode || naw.postcode;
       naw.plaats = tf.plaats || naw.plaats;
+      naw.kvk = tf.kvk || naw.kvk;
+      naw.btw_nummer = tf.btw || naw.btw_nummer;
     }
   }
 
@@ -126,6 +130,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       adres: naw.adres,
       postcode: naw.postcode,
       plaats: naw.plaats,
+      kvk: naw.kvk,
+      btw_nummer: naw.btw_nummer,
       factuurdatum: datum.toISOString().slice(0, 10),
       vervaldatum: vervaldatum.toISOString().slice(0, 10),
       akkoord_door: akkoordDoor,
