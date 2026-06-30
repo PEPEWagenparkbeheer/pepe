@@ -10,6 +10,7 @@ import { requireFacturatie } from '@/lib/apiAuth';
 import {
   createTwinfieldFactuur,
   maakNieuweDebiteur,
+  readDebiteur,
   GROOTBOEK,
   type TwinfieldFactuurRegelInput,
 } from '@/lib/twinfield/factuur';
@@ -51,11 +52,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // de debiteur van de bronfactuur. NOOIT meer blind aanmaken.
   const body = await req.json().catch(() => ({}));
   let debiteurCode: string;
+  let debiteurNieuw = false; // true = nieuw aangemaakt → factuur-NAW is de bron (niet overschrijven)
   try {
     if (body.debiteurCode) {
       debiteurCode = String(body.debiteurCode);
     } else if (body.maakNieuw) {
       debiteurCode = await maakNieuweDebiteur(factuur.klant_naam ?? '', factuur.hubspot_company_id);
+      debiteurNieuw = true;
     } else if (factuur.twinfield_debiteur_code) {
       debiteurCode = factuur.twinfield_debiteur_code;
     } else {
@@ -63,6 +66,25 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   } catch (e) {
     return NextResponse.json({ error: `Debiteur Twinfield: ${String(e)}` }, { status: 502 });
+  }
+
+  // Twinfield is leidend: bij een BESTAANDE debiteur de NAW uit Twinfield overnemen op de factuur
+  // (overschrijft waar Twinfield een waarde heeft, factuur vult de gaten). Zo staat op de PDF altijd
+  // het adres zoals het in Twinfield bekend is. Bij een nieuw aangemaakte debiteur is de factuur de bron.
+  const naw = {
+    klant_naam: factuur.klant_naam ?? null,
+    adres: factuur.adres ?? null,
+    postcode: factuur.postcode ?? null,
+    plaats: factuur.plaats ?? null,
+  };
+  if (!debiteurNieuw) {
+    const tf = await readDebiteur(debiteurCode).catch(() => null);
+    if (tf) {
+      naw.klant_naam = tf.naam || naw.klant_naam;
+      naw.adres = tf.adres || naw.adres;
+      naw.postcode = tf.postcode || naw.postcode;
+      naw.plaats = tf.plaats || naw.plaats;
+    }
   }
 
   // Regels → Twinfield (grootboek per regel, anders standaard per type)
@@ -99,6 +121,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       factuurnummer: res.invoice_id ?? null,
       twinfield_invoice_id: res.invoice_id ?? null,
       twinfield_debiteur_code: debiteurCode,
+      // Twinfield-leidende NAW (overgenomen bij bestaande debiteur) → komt zo ook op de PDF.
+      klant_naam: naw.klant_naam,
+      adres: naw.adres,
+      postcode: naw.postcode,
+      plaats: naw.plaats,
       factuurdatum: datum.toISOString().slice(0, 10),
       vervaldatum: vervaldatum.toISOString().slice(0, 10),
       akkoord_door: akkoordDoor,
@@ -123,11 +150,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Houd de debiteuren-zoekindex actueel: voeg deze debiteur (incl. NAW) meteen toe/bij.
   void supabaseAdmin.from('twinfield_debiteuren').upsert({
     code: debiteurCode,
-    naam: factuur.klant_naam ?? null,
-    adres: factuur.adres ?? null,
-    postcode: factuur.postcode || '',
-    plaats: factuur.plaats ?? null,
-    huisnummer: factuur.adres?.match(/\d+/)?.[0] ?? null,
+    naam: naw.klant_naam ?? null,
+    adres: naw.adres ?? null,
+    postcode: naw.postcode || '',
+    plaats: naw.plaats ?? null,
+    huisnummer: naw.adres?.match(/\d+/)?.[0] ?? null,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'code' });
 

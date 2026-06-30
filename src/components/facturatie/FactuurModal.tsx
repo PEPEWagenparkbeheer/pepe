@@ -131,15 +131,18 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
       const res = await fetch(`/api/uitgaande-facturen/klant-lookup?${veld}=${encodeURIComponent(q)}`, { headers: h });
       const json = await res.json();
       if (json.gevonden) {
-        if (json.klant_naam) setKlantNaam(json.klant_naam);
+        if (json.klant_naam) { setKlantNaam(json.klant_naam); setZoekNaam(json.klant_naam); }
         if (json.adres) setAdres(json.adres);
         if (json.postcode) setPostcode(json.postcode);
         if (json.plaats) setPlaats(json.plaats);
         if (json.email) setEmail(json.email);
         if (json.kvk) setKvk(json.kvk);
         if (json.hubspot_company_id) setHubspotCompanyId(json.hubspot_company_id);
+        // Kent HubSpot al een Twinfield-debiteur voor deze klant? Dan meteen koppelen (geen nieuwe aanmaken).
+        if (json.twinfield_debiteur_code) setTwinfieldDebiteurCode(json.twinfield_debiteur_code);
+        setDebSug([]);
       } else {
-        setFout('Klant niet gevonden in HubSpot.');
+        setFout(veld === 'kvk' ? 'Klant niet gevonden in HubSpot/KVK.' : 'Klant niet gevonden in HubSpot.');
       }
     } catch { setFout('Fout bij opzoeken klant.'); }
     setZoekBezig(false);
@@ -380,6 +383,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
             <>
               <div className={styles.zoekRij}>
                 <input placeholder="Zoek debiteur in Twinfield (typ naam)…" value={zoekNaam} onChange={e => zoekDebiteur(e.target.value)} />
+                <button className={styles.secondary} onClick={() => zoekKlant('naam')} disabled={zoekBezig || zoekNaam.trim().length < 2} title="Klant niet in Twinfield? Neem NAW over uit HubSpot">🔍 HubSpot</button>
                 <input placeholder="KVK-nummer…" value={zoekKvk} onChange={e => setZoekKvk(e.target.value)} onKeyDown={e => e.key === 'Enter' && zoekKlant('kvk')} />
                 <button className={styles.secondary} onClick={() => zoekKlant('kvk')} disabled={zoekBezig}>Zoek KVK</button>
               </div>
