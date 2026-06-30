@@ -58,7 +58,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (body.debiteurCode) {
       debiteurCode = String(body.debiteurCode);
     } else if (body.maakNieuw) {
-      debiteurCode = await maakNieuweDebiteur(factuur.klant_naam ?? '', factuur.hubspot_company_id);
+      // Nieuwe debiteur: NAW + (bij buitenlands btw-nr) land + btw meegeven — verplicht voor ICP.
+      const nieuwBtw = (factuur.btw_nummer ?? '').trim();
+      const buitenland = nieuwBtw !== '' && !nieuwBtw.toUpperCase().startsWith('NL');
+      debiteurCode = await maakNieuweDebiteur(factuur.klant_naam ?? '', factuur.hubspot_company_id, {
+        vatnumber: nieuwBtw || undefined,
+        land: buitenland ? nieuwBtw.slice(0, 2).toUpperCase() : 'NL',
+        adres: factuur.adres ?? undefined,
+        postcode: factuur.postcode ?? undefined,
+        plaats: factuur.plaats ?? undefined,
+      });
       debiteurNieuw = true;
     } else if (factuur.twinfield_debiteur_code) {
       debiteurCode = factuur.twinfield_debiteur_code;

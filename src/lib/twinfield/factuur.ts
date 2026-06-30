@@ -173,14 +173,31 @@ export async function findOrCreateDebtorByCompany(
 }
 
 /** Maakt een Twinfield-debiteur (DEB-dimensie) aan met een gegeven code + naam. */
-async function schrijfDebiteur(code: string, naam: string): Promise<void> {
+export interface DebiteurStamgegevens {
+  vatnumber?: string;   // btw-nummer (verplicht op debiteur bij ICP)
+  land?: string;        // ISO-landcode (NL, FR, DE…) — verplicht op factuuradres bij ICP
+  adres?: string;
+  postcode?: string;
+  plaats?: string;
+}
+
+async function schrijfDebiteur(code: string, naam: string, opts?: DebiteurStamgegevens): Promise<void> {
+  const o = opts ?? {};
+  const heeftAdres = !!(o.land || o.adres || o.postcode || o.plaats);
+  const vatXml = o.vatnumber ? `\n    <vatnumber>${escapeXml(o.vatnumber)}</vatnumber>` : '';
+  const adresXml = heeftAdres ? `
+    <addresses>
+      <address id="1" type="invoice" default="true">
+        <name>${escapeXml(naam)}</name>${o.land ? `\n        <country>${escapeXml(o.land)}</country>` : ''}${o.plaats ? `\n        <city>${escapeXml(o.plaats)}</city>` : ''}${o.postcode ? `\n        <postcode>${escapeXml(o.postcode)}</postcode>` : ''}${o.adres ? `\n        <field1>${escapeXml(o.adres)}</field1>` : ''}
+      </address>
+    </addresses>` : '';
   const xml = `
 <dimensions>
   <dimension>
     <type>DEB</type>
     <code>${code}</code>
     <name>${escapeXml(naam)}</name>
-    <shortname>${escapeXml(naam.slice(0, 20))}</shortname>
+    <shortname>${escapeXml(naam.slice(0, 20))}</shortname>${vatXml}${adresXml}
   </dimension>
 </dimensions>`.trim();
   const response = await callProcessXml(xml);
@@ -189,11 +206,11 @@ async function schrijfDebiteur(code: string, naam: string): Promise<void> {
   }
 }
 
-/** Maakt expliciet een NIEUWE debiteur (na bevestiging in de match-modal). */
-export async function maakNieuweDebiteur(naam: string, companyId?: string | null): Promise<string> {
+/** Maakt expliciet een NIEUWE debiteur (na bevestiging in de match-modal). opts = land/btw/adres (ICP). */
+export async function maakNieuweDebiteur(naam: string, companyId?: string | null, opts?: DebiteurStamgegevens): Promise<string> {
   const items = await finderSearch('DEB', '*', 2000);
   const code = volgendDebiteurNummer(items);
-  await schrijfDebiteur(code, naam);
+  await schrijfDebiteur(code, naam, opts);
   if (companyId) void writeDebiteurNaarHubSpot(companyId, code);
   return code;
 }
