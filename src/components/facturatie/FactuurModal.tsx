@@ -75,6 +75,9 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
   const [btwSoort, setBtwSoort] = useState<'btw' | 'marge'>((factuur?.voertuig?.btw_soort as 'btw' | 'marge') ?? 'btw');
   const [toeTeBetalen, setToeTeBetalen] = useState(factuur?.voertuig?.toe_te_betalen?.toString() ?? '');
   const [rdwBezig, setRdwBezig] = useState(false);
+  // Handelscondities-disclaimer ("geen garantie") op de PDF. Standaard AAN bij CarCollect/handelsauto's,
+  // UIT bij normale auto's. Altijd handmatig te wijzigen.
+  const [handelsconditie, setHandelsconditie] = useState(factuur?.handelsconditie ?? (factuur?.bron === 'carcollect'));
 
   // Regels. Voor auto bevat `regels` ALLEEN de EXTRA regels (poetsen/transport/inbouw); de auto-regels
   // (Levering + BPM) worden afgeleid (derivedRegels). Voor andere types is `regels` de volledige lijst.
@@ -235,6 +238,7 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
       } : null,
       status: isAuto && !kenteken ? 'aanvullen' : 'concept',
       notitie: notitie || null,
+      handelsconditie: isAuto ? handelsconditie : false,
     };
   }
 
@@ -481,6 +485,21 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                   <>Marge-auto: alleen de verkoopprijs op de factuur, geen btw-uitsplitsing.</>
                 )}
               </div>
+
+              <div className={styles.sectieKop}>Handelscondities</div>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: kanAanpassen ? 'pointer' : 'default', width: 'fit-content' }}>
+                <input
+                  type="checkbox"
+                  checked={handelsconditie}
+                  onChange={e => setHandelsconditie(e.target.checked)}
+                  disabled={!kanAanpassen}
+                  style={{ marginTop: 2 }}
+                />
+                <span style={{ fontSize: 13, lineHeight: 1.4 }}>
+                  Verkocht onder <strong>handelscondities</strong> — toont op de factuur: <em>geen enkele vorm van garantie van toepassing</em>.
+                  <br /><span style={{ color: '#6b7280', fontSize: 12 }}>Staat standaard aan bij CarCollect/handelsauto&apos;s.</span>
+                </span>
+              </label>
             </>
           )}
 

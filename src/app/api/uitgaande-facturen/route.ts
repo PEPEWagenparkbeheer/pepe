@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     type: body.type ?? 'diensten_overig',
     soort: body.soort ?? 'factuur',
     status: body.status ?? 'concept',
+    handelsconditie: body.handelsconditie ?? false,
     hubspot_company_id: body.hubspot_company_id ?? null,
     twinfield_debiteur_code: body.twinfield_debiteur_code ?? null,
     klant_naam: body.klant_naam ?? null,

@@ -80,6 +80,11 @@ export function buildFactuurHtml(factuur: UitgaandeFactuur, totalen: FactuurTota
     ? `Gelieve te verzekeren (<b>${esc(v?.kenteken || '—')}</b>${mc ? `, mc. <b>${esc(mc)}</b>` : ''}) en te betalen <b>vóór levering</b> op rekeningnummer <span class="iban">NL02INGB0106922696</span> onder vermelding van het factuurnummer.`
     : `Gelieve te betalen binnen <b>${factuur.betaaltermijn_dagen ?? 14} dagen</b> na factuurdatum op rekeningnummer <span class="iban">NL02INGB0106922696</span> onder vermelding van het factuurnummer.`;
 
+  // Handelscondities-disclaimer (handels-/CarCollect-auto's): geen garantie.
+  const handelsnote = (isAuto && factuur.handelsconditie)
+    ? `<div class="handelsnote">Verkocht onder <b>handelscondities</b> — verkoop tussen handelaren. Op dit voertuig is <b>geen enkele vorm van garantie</b> van toepassing; het wordt voetstoots geleverd in de staat waarin het zich ten tijde van verkoop bevindt.</div>`
+    : '';
+
   const bijlage = (factuur.type === 'wagenparkbeheer' && factuur.bijlage?.entiteiten?.length)
     ? `<div class="page">
         <header class="head" style="align-items:center;"><div><img class="logo" src="${ASSETS}/logo.png"></div>
@@ -158,6 +163,7 @@ export function buildFactuurHtml(factuur: UitgaandeFactuur, totalen: FactuurTota
     </section>
     <div class="vspace"></div>
     <div class="paynote">${paynote}</div>
+    ${handelsnote}
     <footer class="foot">
       <div class="foot-row">
         <span><span class="lab">T</span>0165 794 100</span>

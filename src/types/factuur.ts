@@ -63,6 +63,9 @@ export interface UitgaandeFactuur {
   soort: FactuurSoort;
   status: FactuurStatus;
 
+  // Auto onder handelscondities (handels-/CarCollect-auto's): toont disclaimer "geen garantie" op de PDF.
+  handelsconditie?: boolean;
+
   hubspot_company_id?: string | null;
   klant_naam?: string | null;
   tav?: string | null;

@@ -108,6 +108,7 @@ export async function importeerCarCollectMail(msg: GraphMessage): Promise<CarCol
     status: 'concept',
     bron: 'carcollect',
     bron_ref: ref,
+    handelsconditie: true, // CarCollect = handelsauto → handelscondities-disclaimer standaard aan
     hubspot_company_id: null,
     klant_naam: d.koper?.bedrijf || d.koper?.naam || null,
     tav: d.koper?.naam || null,

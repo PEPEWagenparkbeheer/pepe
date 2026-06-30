@@ -464,6 +464,8 @@ export const FACTUUR_CSS = `/* vietnamese */
   .paynote{border-left:3px solid var(--burg);background:var(--tint);padding:11px 14px;margin-bottom:14px;font-size:10.5px;line-height:1.6;color:var(--ink);text-align:center;}
   .paynote b{color:var(--burg);font-weight:700;}
   .paynote .iban{font-family:"Archivo",sans-serif;font-weight:700;letter-spacing:.02em;}
+  .handelsnote{border:1px solid var(--burg);border-radius:3px;padding:8px 12px;margin-bottom:12px;font-size:9px;line-height:1.5;color:var(--ink);text-align:center;}
+  .handelsnote b{color:var(--burg);font-weight:700;}
 
   /* ---------- footer ---------- */
   .vspace{flex:1 1 0;min-height:0;}
