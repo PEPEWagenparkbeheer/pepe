@@ -344,8 +344,8 @@ export async function createTwinfieldFactuur(
     </customer>
     <currency>EUR</currency>
     <invoicedate>${toDateString(datum)}</invoicedate>
-    <duedate>${toDateString(vervaldatum)}</duedate>
     <performancedate>${toDateString(datum)}</performancedate>
+    <duedate>${toDateString(vervaldatum)}</duedate>
     <headertext>${escapeXml(params.headertext ?? '')}</headertext>
   </header>
   <lines>${regelsXml}
