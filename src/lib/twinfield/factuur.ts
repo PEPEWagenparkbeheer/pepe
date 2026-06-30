@@ -328,12 +328,12 @@ export async function createTwinfieldFactuur(
       const descXml = articleCode === '0' ? `\n      <description>${escapeXml(r.omschrijving)}</description>` : '';
       // Intracommunautair (ICP-regel): verplichte performance-velden op de regel zelf.
       // performancetype (goods/services); date alleen verplicht bij diensten; country/vatnumber uit btw-nr.
+      // Bij een SALESINVOICE mogen alleen performancetype (+ performancedate bij diensten) op de regel;
+      // land + btw-nummer NIET (die staan op de debiteur-stamgegevens, anders weigert Twinfield ze).
       let perfXml = '';
       if (vatcode === 'ICP' && params.performance) {
         const p = params.performance;
         perfXml += `\n      <performancetype>${p.type}</performancetype>`;
-        if (p.country) perfXml += `\n      <performancecountry>${escapeXml(p.country)}</performancecountry>`;
-        if (p.vatnumber) perfXml += `\n      <performancevatnumber>${escapeXml(p.vatnumber)}</performancevatnumber>`;
         if (p.type === 'services') perfXml += `\n      <performancedate>${toDateString(datum)}</performancedate>`;
       }
       return `
