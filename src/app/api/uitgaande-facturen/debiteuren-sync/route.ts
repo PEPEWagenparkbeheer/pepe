@@ -22,6 +22,16 @@ function retrySeconden(e: unknown): number | null {
   return Number(s.match(/(\d+)\s*second/i)?.[1] ?? 40);
 }
 
+// Zet een Twinfield-fout om in een korte, leesbare melding (geen ruwe HTML-foutpagina in een alert).
+function schoonTwinfieldFout(e: unknown): string {
+  const s = String(e);
+  if (/502|bad gateway/i.test(s)) return 'Twinfield is momenteel niet bereikbaar (502 Bad Gateway). Dit ligt aan Twinfield zelf — probeer het over een paar minuten opnieuw.';
+  if (/503|service unavailable/i.test(s)) return 'Twinfield is tijdelijk niet beschikbaar (503). Probeer het later opnieuw.';
+  if (/504|gateway timeout/i.test(s)) return 'Twinfield reageerde niet op tijd (504). Probeer het later opnieuw.';
+  if (/<html|<!doctype/i.test(s)) return 'Twinfield gaf een onverwachte respons (waarschijnlijk tijdelijk niet bereikbaar). Probeer het later opnieuw.';
+  return s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+}
+
 async function aantalZonderAdres(): Promise<number> {
   const { count } = await supabaseAdmin
     .from('twinfield_debiteuren').select('code', { count: 'exact', head: true }).is('postcode', null);
@@ -46,7 +56,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       const wacht = retrySeconden(e);
       if (wacht) return NextResponse.json({ fase: 'names', rateLimited: true, retryAfter: wacht, resterend: await aantalZonderAdres() });
-      return NextResponse.json({ error: `Debiteurenlijst ophalen: ${String(e)}` }, { status: 502 });
+      return NextResponse.json({ error: schoonTwinfieldFout(e) }, { status: 502 });
     }
   }
 

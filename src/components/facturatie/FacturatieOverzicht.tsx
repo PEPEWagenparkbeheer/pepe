@@ -91,7 +91,7 @@ export default function FacturatieOverzicht() {
   const [syncStatus, setSyncStatus] = useState('');
   async function syncDebiteuren() {
     if (syncStatus) return; // al bezig
-    if (!confirm('Twinfield-debiteuren synchroniseren naar de zoek-index? Dit gaat rustig aan (Twinfield-rate-limit) en kan een paar minuten duren. Laat dit tabblad open.')) return;
+    if (!confirm('Twinfield-debiteuren synchroniseren naar de zoek-index?\n\nDit is zelden nodig — de index wordt elke nacht automatisch bijgewerkt en nieuwe debiteuren worden bij het boeken meteen toegevoegd. Klik dit alleen als een debiteur niet in de zoeksuggesties verschijnt.\n\nHet gaat rustig aan (Twinfield-rate-limit) en kan een paar minuten duren. Laat dit tabblad open.')) return;
     const slp = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const post = async (qs = '') => {
       const res = await fetch(`/api/uitgaande-facturen/debiteuren-sync${qs}`, { method: 'POST', headers: await authHeaders() });
