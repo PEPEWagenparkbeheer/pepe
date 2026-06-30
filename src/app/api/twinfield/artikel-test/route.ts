@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
   const perftype = (url.searchParams.get('perftype') || 'services') as 'goods' | 'services';
   const def = ARTIKELEN[artikel];
   if (!def) return NextResponse.json({ error: `Onbekend artikel: ${artikel}` }, { status: 400 });
-  const debiteur = await maakNieuweDebiteur(`TEST ICP ${vat.slice(0, 2)}`, null, {
+  const bestaand = url.searchParams.get('book'); // boek op bestaande debiteur (aparte request)
+  const debiteur = bestaand ?? await maakNieuweDebiteur(`TEST ICP ${vat.slice(0, 2)}`, null, {
     vatnumber: vat, land: vat.slice(0, 2).toUpperCase(), adres: 'Rue de Test 1', postcode: '75001', plaats: 'Paris',
   });
   const res = await createTwinfieldFactuur({
