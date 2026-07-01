@@ -71,6 +71,9 @@ export interface AfterSalesAuto {
   bin_ontvangen?: boolean;
   kentekenbewijzen?: boolean;
   gelangenbest?: boolean;
+  chassis?: string;              // volledig VIN/chassisnummer (import) — matchsleutel BPM-bericht/transport
+  rest_bpm?: number;             // definitief rest-BPM-bedrag uit Belastingdienst-betaalbericht
+  rest_bpm_bron_ref?: string;    // 'bpmbericht:<message-id>' — idempotentie BPM-mailverwerker
 
   // Extra basisinfo
   email_klant?: string;

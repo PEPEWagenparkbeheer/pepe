@@ -2,10 +2,26 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/clientAuth';
 import type { AfterSalesAuto, ASKlacht } from '@/types';
 
 const AS_SK = 'pepe_as_v1';
 const NAL_SK = 'pepe_nal_v1';
+
+/** Fire-and-forget: synct de gekoppelde pijplijn-factuur met de actuele after_sales-data.
+ *  No-op als de import-auto geen gekoppelde factuur heeft; faalt de call, dan haalt de
+ *  TransConnect-cron de sync alsnog in. Mag de UI nooit blokkeren. */
+function triggerImportSync(id: string) {
+  void (async () => {
+    try {
+      await fetch('/api/facturatie/import-sync', {
+        method: 'POST',
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ after_sales_id: id }),
+      });
+    } catch { /* fire-and-forget */ }
+  })();
+}
 
 // ── Bool helper ───────────────────────────────────────────────
 const bool = (v: unknown) => v === true || v === 'TRUE' || v === 'true';
@@ -164,7 +180,11 @@ export function useAfterSales() {
     if (error) {
       console.error('after_sales update fout:', error.message, error.details);
       if (typeof window !== 'undefined') alert('Opslaan mislukt: ' + (error.message || 'onbekende fout'));
+      return;
     }
+    // Import-auto's: laat de gekoppelde pijplijn-factuur meebewegen (kenteken/chassis/rest-BPM,
+    // en de rijklaar-transitie). No-op zonder koppeling.
+    if (rec.type === 'import') triggerImportSync(rec.id);
   }, []);
 
   const removeAuto = useCallback(async (id: string) => {

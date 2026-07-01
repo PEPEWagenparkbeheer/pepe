@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { authHeaders } from '@/lib/clientAuth';
 import type { UitgaandeFactuur, FactuurStatus, FactuurType } from '@/types/factuur';
 import FactuurModal from './FactuurModal';
+import PijplijnOverzicht from './PijplijnOverzicht';
 import styles from './Facturatie.module.css';
 
 const STATUS_LABEL: Record<FactuurStatus, string> = {
+  pijplijn: 'Pijplijn',
   concept: 'Concept',
   aanvullen: 'Aanvullen',
   ter_controle: 'Ter controle',
@@ -31,6 +33,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'ter_controle', label: 'Ter controle' },
   { key: 'concept', label: 'Concept' },
   { key: 'aanvullen', label: 'Aanvullen' },
+  { key: 'pijplijn', label: 'Pijplijn' },
   { key: 'historie', label: 'Historie' },
 ];
 
@@ -142,7 +145,7 @@ export default function FacturatieOverzicht() {
       body: JSON.stringify({ envelopeId: env.trim() }),
     });
     const j = await res.json().catch(() => ({}));
-    if (res.ok) { await laad(); setTab('open'); alert(j.bestond ? 'Was al geïmporteerd.' : 'Geïmporteerd — staat onder “Aanvullen”.'); }
+    if (res.ok) { await laad(); setTab('pijplijn'); alert(j.bestond ? 'Was al geïmporteerd.' : 'Geïmporteerd — geparkeerd onder “Pijplijn” tot rijklaar.'); }
     else alert(j.error ?? 'Import mislukt');
   }
 
@@ -248,6 +251,8 @@ export default function FacturatieOverzicht() {
 
       {loading ? (
         <p className={styles.empty}>Laden…</p>
+      ) : tab === 'pijplijn' ? (
+        <PijplijnOverzicht />
       ) : zichtbaar.length === 0 ? (
         <p className={styles.empty}>Geen facturen in deze weergave.</p>
       ) : (

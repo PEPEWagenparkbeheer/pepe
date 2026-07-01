@@ -10,6 +10,7 @@ import { schietConfetti } from '@/lib/confetti';
 import type { Zoekopdracht } from '@/types';
 import type { AutoType, BrutoNetto } from './AkkoordModal';
 import AkkoordModal from './AkkoordModal';
+import KoppelFactuurModal from '@/components/facturatie/KoppelFactuurModal';
 import ZoekenFilters, { type FilterOptie } from './ZoekenFilters';
 import ZoekenKPI from './ZoekenKPI';
 import ZoekenModal from './ZoekenModal';
@@ -48,6 +49,7 @@ export default function ZoekenPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<Zoekopdracht | null>(null);
   const [akkoordRecord, setAkkoordRecord] = useState<Zoekopdracht | null>(null);
+  const [koppelAuto, setKoppelAuto] = useState<{ id: string; klant: string } | null>(null);
 
   const rijen = useMemo(() => {
     const q = zoekterm.toLowerCase();
@@ -121,9 +123,10 @@ export default function ZoekenPage() {
       });
     }
 
+    let nieuwAfterSalesId: string | null = null;
     if (ookAfterSales) {
       const delen = rec.auto.trim().split(/\s+/);
-      await supabase.from('after_sales').insert({
+      const { data: asRow } = await supabase.from('after_sales').insert({
         kenteken: '',
         merk: delen[0] ?? '',
         model: delen.slice(1).join(' '),
@@ -132,11 +135,18 @@ export default function ZoekenPage() {
         type: autoType === 'voorraad' ? 'voorraad' : autoType === 'import' ? 'import' : 'nl',
         binnen: false,
         gearchiveerd: false,
-      });
+      }).select('id').single();
+      nieuwAfterSalesId = asRow?.id ?? null;
     }
 
     schietConfetti();
     setAkkoordRecord(null);
+
+    // Import-auto: bied direct aan de bijbehorende geparkeerde DocuSign-factuur te koppelen
+    // (met klantnaam-suggestie). "Komt later" is geldig — koppelen kan ook vanuit after-sales.
+    if (autoType === 'import' && nieuwAfterSalesId) {
+      setKoppelAuto({ id: nieuwAfterSalesId, klant: rec.klant });
+    }
   }
 
   return (
@@ -194,6 +204,13 @@ export default function ZoekenPage() {
         onBevestig={handleAkkoordBevestig}
         onSluiten={() => setAkkoordRecord(null)}
       />
+      {koppelAuto && (
+        <KoppelFactuurModal
+          afterSalesId={koppelAuto.id}
+          klantNaam={koppelAuto.klant}
+          onSluiten={() => setKoppelAuto(null)}
+        />
+      )}
     </div>
   );
 }

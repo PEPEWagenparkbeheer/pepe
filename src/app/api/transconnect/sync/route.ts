@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requirePepe } from '@/lib/apiAuth';
 import { getOrderStatus, mapTcOrderToPatch } from '@/lib/transconnect';
+import { syncAfterSalesNaarFactuur } from '@/lib/factuur/import-sync';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,6 +51,8 @@ async function runSync() {
 
         const patch = mapTcOrderToPatch(order as Record<string, unknown>);
         await supabase.from('after_sales').update(patch).eq('id', rec.id);
+        // Laat de gekoppelde pijplijn-factuur meebewegen met transport-updates (no-op zonder koppeling).
+        await syncAfterSalesNaarFactuur(rec.id);
         updated++;
       } catch (e) {
         fouten.push(`${rec.transport_order_id}: ${String(e)}`);

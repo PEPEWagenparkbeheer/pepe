@@ -10,6 +10,7 @@ export type FactuurType =
 export type FactuurSoort = 'factuur' | 'creditnota';
 
 export type FactuurStatus =
+  | 'pijplijn'       // import-auto: geparkeerd tijdens after-sales-traject, buiten de werklijst
   | 'concept'
   | 'aanvullen'      // auto: wacht op kenteken/BPM/chassis
   | 'ter_controle'   // recurring: klaargezet, wacht op akkoord
@@ -100,6 +101,8 @@ export interface UitgaandeFactuur {
   /** Deeplink uit de CarCollect-mail om de factuur in CarCollect te uploaden. Tijdelijk — vervalt zodra de API-upload werkt. */
   carcollect_upload_url?: string | null;
   docusign_envelope_id?: string | null;
+  /** Koppeling naar de after_sales-rij (import-flow). Data stroomt van after-sales naar deze factuur. */
+  after_sales_id?: string | null;
   periode?: string | null;
   recurring_key?: string | null;
 

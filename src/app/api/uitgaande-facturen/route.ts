@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
     .limit(500);
   if (status) q = q.eq('status', status);
   if (type) q = q.eq('type', type);
+  // Nog niet aan een after-sales-auto gekoppeld (voor de koppel-modal).
+  if (url.searchParams.get('ongekoppeld') === '1') q = q.is('after_sales_id', null);
 
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

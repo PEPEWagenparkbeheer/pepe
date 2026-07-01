@@ -12,6 +12,7 @@ import { usePartnerLijst } from '@/hooks/usePartnerLijst';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
 import KentekenPlaat from './KentekenPlaat';
 import AfterSalesModal from './AfterSalesModal';
+import KoppelFactuurModal from '@/components/facturatie/KoppelFactuurModal';
 import styles from './AfterSalesPage.module.css';
 
 
@@ -463,6 +464,7 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
   onUpdate: (r: AfterSalesAuto) => Promise<void>;
 }) {
   const [binPopup, setBinPopup] = useState<AfterSalesAuto | null>(null);
+  const [koppelAuto, setKoppelAuto] = useState<{ id: string; klant: string } | null>(null);
   const [kentekentje, setKentekentje] = useState('');
 
   // Sorteer-rang: binnen bovenaan, dan TransConnect-status (gepland →
@@ -501,6 +503,13 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
   if (!rijen.length) return <div className={styles.leeg}>Geen importauto's</div>;
   return (
     <>
+      {koppelAuto && (
+        <KoppelFactuurModal
+          afterSalesId={koppelAuto.id}
+          klantNaam={koppelAuto.klant}
+          onSluiten={() => setKoppelAuto(null)}
+        />
+      )}
       {binPopup && (
         <div className={styles.overlay}>
           <div className={styles.modal} style={{ maxWidth: 340 }}>
@@ -553,7 +562,16 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
                 <tr key={r.id} onClick={() => onEdit(r)} style={{ opacity: r.bin_ontvangen ? 0.65 : 1 }}>
                   <td><KentekenPlaat kenteken={r.kenteken ?? ''} /></td>
                   <td><div className={styles.kn}>{r.merk}</div><div className={styles.ks}>{r.model}</div></td>
-                  <td>{r.klant}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{r.klant}</span>
+                      <button
+                        title="Koppel DocuSign-factuur aan deze auto"
+                        onClick={(e) => { e.stopPropagation(); setKoppelAuto({ id: r.id, klant: r.klant ?? '' }); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: 2, opacity: 0.55 }}
+                      >🔗</button>
+                    </div>
+                  </td>
                   <td className={styles.chk}><CbMeta aan={!!r.aangevraagd} onClick={() => onToggle(r.id, 'aangevraagd')} meta={r.veld_meta?.['aangevraagd']} /></td>
                   <td>
                     <span style={{ fontSize: 12, whiteSpace: 'nowrap', color: r.geplande_afhaaldatum ? 'inherit' : 'var(--muted)' }}>

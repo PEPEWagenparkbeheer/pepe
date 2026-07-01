@@ -35,13 +35,23 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   // Definitieve/verzonden facturen niet meer wijzigen (Twinfield is leidend).
   const { data: huidig } = await supabaseAdmin
-    .from('uitgaande_facturen').select('status').eq('id', id).maybeSingle();
+    .from('uitgaande_facturen').select('status, after_sales_id').eq('id', id).maybeSingle();
   if (huidig && ['definitief', 'verzonden'].includes(huidig.status)) {
     return NextResponse.json({ error: 'Definitieve factuur kan niet meer gewijzigd worden' }, { status: 409 });
   }
 
   const patch: Record<string, unknown> = {};
   for (const v of VELDEN) if (v in body) patch[v] = body[v];
+
+  // Koppeling aan een after-sales-auto: guard tegen dubbele koppeling.
+  let gekoppeldeId: string | null = null;
+  if ('after_sales_id' in body) {
+    gekoppeldeId = body.after_sales_id ? String(body.after_sales_id) : null;
+    if (gekoppeldeId && huidig?.after_sales_id && huidig.after_sales_id !== gekoppeldeId) {
+      return NextResponse.json({ error: 'Deze factuur is al aan een andere auto gekoppeld' }, { status: 409 });
+    }
+    patch.after_sales_id = gekoppeldeId;
+  }
 
   if ('regels' in body && Array.isArray(body.regels)) {
     const regels = body.regels as FactuurRegel[];
@@ -54,6 +64,21 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   const { data, error } = await supabaseAdmin
     .from('uitgaande_facturen').update(patch).eq('id', id).select('*').single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // Partial unique index op after_sales_id → die auto hangt al aan een andere factuur.
+    if ((error as { code?: string }).code === '23505') {
+      return NextResponse.json({ error: 'Die auto is al aan een andere factuur gekoppeld' }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Zojuist gekoppeld → reeds bekende after-sales-data (kenteken/chassis/rest-BPM) direct laten instromen.
+  if (gekoppeldeId) {
+    try {
+      const { syncAfterSalesNaarFactuur } = await import('@/lib/factuur/import-sync');
+      await syncAfterSalesNaarFactuur(gekoppeldeId);
+    } catch { /* niet fataal */ }
+  }
+
   return NextResponse.json({ factuur: data });
 }

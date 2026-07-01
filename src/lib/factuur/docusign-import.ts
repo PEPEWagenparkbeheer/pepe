@@ -127,13 +127,13 @@ export async function importeerAutoUitEnvelope(envelopeId: string): Promise<Impo
     isBtwAuto ? 'BTW-auto met BPM.' : 'Marge-auto.',
     toeTeBetalen != null ? `Toe te betalen: € ${toeTeBetalen.toFixed(2)} (blijft vast).` : '',
     bedrijfsinvestering != null ? `Bedrijfsinvestering: € ${bedrijfsinvestering.toFixed(2)}.` : '',
-    'Kenteken, definitieve BPM en chassisnummer nog aanvullen.',
+    'Geparkeerd in de pijplijn — kenteken, chassis en definitieve rest-BPM stromen automatisch in vanuit after-sales; materialiseert bij rijklaar-melding.',
   ].filter(Boolean).join(' ');
 
   const { data, error } = await supabaseAdmin.from('uitgaande_facturen').insert({
     type: 'auto',
     soort: 'factuur',
-    status: 'aanvullen',
+    status: 'pijplijn',
     bron: 'docusign',
     docusign_envelope_id: env,
     hubspot_company_id: companyId,
