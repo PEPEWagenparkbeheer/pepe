@@ -542,6 +542,58 @@ export async function getRijdendeDealsForCompany(
   return { kentekens, aantal: kentekens.length };
 }
 
+/** Rijdende deals van een company mét deal-id (voor dedup over meerdere entiteiten). */
+export async function getRijdendeDealsMetId(companyId: string): Promise<{ id: string; kenteken: string }[]> {
+  const id = String(companyId ?? '').trim();
+  if (!id) return [];
+  const assoc = await hsFetch<{ results?: { toObjectId: string | number }[] }>(
+    `${HS_BASE}/crm/v4/objects/companies/${id}/associations/deals?limit=500`,
+  ).catch(() => ({ results: [] as { toObjectId: string | number }[] }));
+  const ids = (assoc.results ?? []).map((r) => String(r.toObjectId));
+  if (!ids.length) return [];
+  const out: { id: string; kenteken: string }[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const batch = await hsFetch<{ results?: { id: string; properties?: Record<string, string> }[] }>(
+      `${HS_BASE}/crm/v3/objects/deals/batch/read`,
+      { method: 'POST', body: JSON.stringify({ properties: ['dealname', 'dealstage'], inputs: ids.slice(i, i + 100).map((x) => ({ id: x })) }) },
+    ).catch(() => ({ results: [] as { id: string; properties?: Record<string, string> }[] }));
+    for (const d of batch.results ?? []) {
+      if (d.properties?.dealstage !== DEALSTAGE_RIJDEND) continue;
+      out.push({ id: d.id, kenteken: (d.properties?.dealname ?? '').toUpperCase() });
+    }
+  }
+  return out;
+}
+
+/**
+ * Verdeelt de rijdende voertuigen over moeder + dochters ZONDER dubbeltelling.
+ * Een deal die aan meerdere entiteiten hangt telt bij de meest specifieke: eerst de dochters,
+ * de moeder houdt alleen de deals die aan géén enkele (opgegeven) dochter hangen.
+ * Retourneert per company-id { kentekens, aantal } van de aan die entiteit toegewezen voertuigen.
+ */
+export async function verdeelWagenparkVoertuigen(
+  parentId: string,
+  childIds: string[],
+): Promise<Record<string, { kentekens: string[]; aantal: number }>> {
+  const parent = String(parentId ?? '').trim();
+  const kinderen = [...new Set(childIds.map((c) => String(c ?? '').trim()).filter((c) => c && c !== parent))];
+  const dealsVan = new Map<string, { id: string; kenteken: string }[]>();
+  await Promise.all([parent, ...kinderen].map(async (id) => { dealsVan.set(id, await getRijdendeDealsMetId(id)); }));
+
+  const result: Record<string, { kentekens: string[]; aantal: number }> = {};
+  const toegewezen = new Set<string>();
+  // Dochters eerst: elke deal telt bij de (eerste) dochter waar 'ie aan hangt.
+  for (const cid of kinderen) {
+    const eigen = (dealsVan.get(cid) ?? []).filter((d) => !toegewezen.has(d.id));
+    eigen.forEach((d) => toegewezen.add(d.id));
+    result[cid] = { kentekens: eigen.map((d) => d.kenteken).filter(Boolean).sort(), aantal: eigen.length };
+  }
+  // Moeder: alleen de deals die niet al aan een dochter zijn toegewezen.
+  const moederEigen = (dealsVan.get(parent) ?? []).filter((d) => !toegewezen.has(d.id));
+  result[parent] = { kentekens: moederEigen.map((d) => d.kenteken).filter(Boolean).sort(), aantal: moederEigen.length };
+  return result;
+}
+
 /** Live bedrijf-zoeken op (deel van) naam — voor autocomplete. */
 export async function searchCompaniesByNameLike(
   q: string,

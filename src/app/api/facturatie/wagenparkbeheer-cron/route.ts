@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireFacturatie } from '@/lib/apiAuth';
-import { getCompanyFields, getRijdendeDealsForCompany } from '@/lib/hubspot';
+import { getCompanyFields, verdeelWagenparkVoertuigen } from '@/lib/hubspot';
 import { berekenTotalen } from '@/lib/factuur/btw';
 import type { FactuurRegel, BijlageEntiteit } from '@/types/factuur';
 
@@ -58,15 +58,24 @@ export async function GET(req: NextRequest) {
     const childs: { hubspot_company_id: string; naam?: string }[] = Array.isArray(cfg.child_company_ids)
       ? cfg.child_company_ids : [];
     const fee = Number(cfg.fee_per_voertuig) || 15;
+    const parentId = cfg.parent_hubspot_company_id;
 
-    // ── Per entiteit: aparte factuur per dochteronderneming (eigen debiteur) ──
+    // Verdeel voertuigen zonder dubbeltelling (dochter houdt eigen auto's, moeder alleen de rest).
+    // Alle entiteiten = moeder (altijd) + dochters — dedup op id.
+    const verdeling = await verdeelWagenparkVoertuigen(parentId, childs.map((c) => c.hubspot_company_id));
+    const alleEntiteiten: { hubspot_company_id: string; naam?: string }[] = [
+      { hubspot_company_id: parentId, naam: `${cfg.klant_naam ?? 'Moedermaatschappij'} (hoofd)` },
+      ...childs.filter((c) => c.hubspot_company_id !== parentId),
+    ];
+
+    // ── Per entiteit: aparte factuur per entiteit (eigen debiteur) ──
     if (cfg.per_entiteit) {
-      for (const child of childs) {
+      for (const child of alleEntiteiten) {
         const childKey = `wpb-${child.hubspot_company_id}-${periode}`;
         const { data: al } = await supabaseAdmin
           .from('uitgaande_facturen').select('id').eq('recurring_key', childKey).maybeSingle();
         if (al) { resultaat.push({ klant: child.naam ?? child.hubspot_company_id, status: 'bestond al' }); continue; }
-        const { kentekens, aantal } = await getRijdendeDealsForCompany(child.hubspot_company_id);
+        const { kentekens, aantal } = verdeling[child.hubspot_company_id] ?? { kentekens: [], aantal: 0 };
         if (aantal === 0) { resultaat.push({ klant: child.naam ?? child.hubspot_company_id, status: 'geen voertuigen', aantal: 0 }); continue; }
         const cf = await getCompanyFields(child.hubspot_company_id, PF_VELDEN).catch(() => ({} as Record<string, string>));
         const cRegels: FactuurRegel[] = [{ omschrijving: `Wagenparkbeheer — periode ${label}`, aantal, prijs_excl: fee, btw_code: 'hoog' }];
@@ -97,8 +106,9 @@ export async function GET(req: NextRequest) {
     const entiteiten: BijlageEntiteit[] = [];
     let totaalAantal = 0;
 
-    for (const child of childs) {
-      const { kentekens, aantal } = await getRijdendeDealsForCompany(child.hubspot_company_id);
+    for (const child of alleEntiteiten) {
+      const { kentekens, aantal } = verdeling[child.hubspot_company_id] ?? { kentekens: [], aantal: 0 };
+      if (aantal === 0) continue; // entiteiten zonder eigen voertuigen niet in de bijlage
       entiteiten.push({ naam: child.naam ?? child.hubspot_company_id, aantal, bedrag: aantal * fee, kentekens });
       totaalAantal += aantal;
     }
