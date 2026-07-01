@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import { loadRgbLogoAsPng, loadWitLogoAsPng } from '@/lib/factuur/pepePdf';
 import { authHeaders } from '@/lib/clientAuth';
 import { useMedewerkers } from '@/hooks/useMedewerkers';
+import { supabase } from '@/lib/supabase';
 import styles from './ConsignatieModal.module.css';
 
 interface Props {
@@ -106,8 +107,7 @@ interface HubSpotNaw {
   email?: string;
 }
 
-const STORAGE_KEY = 'pepe_inkoopfacturen';
-const SEQ_KEY = 'pepe_inkoop_volgnr';
+const STORAGE_KEY = 'pepe_inkoopfacturen'; // alleen nog gelezen voor eenmalige migratie naar Supabase
 
 const BTW = 0.21;
 
@@ -118,29 +118,62 @@ const INKOPER_FALLBACK = [
 ];
 
 // Inkoopverklaringen starten per jaar op nummer 2001, zodat ze nooit botsen met
-// de facturen-nummering (die op 0001 begint). Teller loopt op en nooit terug
-// (ook niet na verwijderen), reset per jaar naar 2001. Opgeslagen in localStorage.
+// de facturen-nummering (die op 0001 begint). Het volgnummer wordt nu centraal
+// (atomair) bepaald via de Supabase-RPC next_inkoopverklaring_nummer, zodat
+// collega's nooit hetzelfde nummer krijgen.
 const SEQ_START = 2001;
 
-function nextInkoopNummer(): string {
-  const jaar = new Date().getFullYear();
-  let laatste = 0;
-  try {
-    const raw = localStorage.getItem(SEQ_KEY);
-    const parsed = raw ? (JSON.parse(raw) as { jaar: number; volgnr: number }) : null;
-    laatste = parsed && parsed.jaar === jaar ? parsed.volgnr : 0;
-  } catch {
-    laatste = 0;
+async function nextInkoopNummer(): Promise<string> {
+  const { data, error } = await supabase.rpc('next_inkoopverklaring_nummer');
+  if (error || !data) {
+    // Fallback (mag in theorie botsen, maar blokkeert het opslaan niet).
+    return `${new Date().getFullYear()}-${String(SEQ_START).padStart(4, '0')}`;
   }
-  // Floor op SEQ_START: een leeg/nieuw jaar of een oude lage testteller
-  // springt meteen naar 2001; daarna gewoon +1.
-  const volgnr = Math.max(laatste + 1, SEQ_START);
-  try {
-    localStorage.setItem(SEQ_KEY, JSON.stringify({ jaar, volgnr }));
-  } catch {
-    // fail silently
-  }
-  return `${jaar}-${String(volgnr).padStart(4, '0')}`;
+  return data as string;
+}
+
+// --- Mapping tussen Supabase-rij en SavedInkoop -----------------------------
+const INKOOP_KEYS = Object.keys(INKOOP_LEEG) as (keyof InkoopForm)[];
+const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
+function pickInkoopForm(rec: Partial<InkoopForm>): InkoopForm {
+  const out: InkoopForm = { ...INKOOP_LEEG };
+  for (const k of INKOOP_KEYS) if (rec[k] != null) out[k] = rec[k] as string;
+  return out;
+}
+
+interface InkoopRow {
+  id: string;
+  nummer: string | null;
+  data: Partial<InkoopForm> | null;
+  docusign_envelope_id: string | null;
+  docusign_status: string | null;
+  docusign_sent_at: string | null;
+  created_at: string;
+}
+
+function rowToSaved(r: InkoopRow): SavedInkoop {
+  return {
+    ...pickInkoopForm(r.data ?? {}),
+    id: r.id,
+    nummer: r.nummer ?? undefined,
+    createdAt: r.created_at,
+    docusignEnvelopeId: r.docusign_envelope_id ?? undefined,
+    docusignStatus: r.docusign_status ?? undefined,
+    docusignSentAt: r.docusign_sent_at ?? undefined,
+  };
+}
+
+function savedToInsert(rec: SavedInkoop): Record<string, unknown> {
+  return {
+    ...(isUuid(rec.id) ? { id: rec.id } : {}),
+    nummer: rec.nummer ?? null,
+    data: pickInkoopForm(rec),
+    docusign_envelope_id: rec.docusignEnvelopeId ?? null,
+    docusign_status: rec.docusignStatus ?? null,
+    docusign_sent_at: rec.docusignSentAt ?? null,
+    created_at: rec.createdAt,
+  };
 }
 
 // Leesbare DocuSign-status voor in de app.
@@ -311,10 +344,10 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
   const [inkoopNummer, setInkoopNummer] = useState<string | null>(null);
   const [savedInkoop, setSavedInkoop] = useState<SavedInkoop[]>([]);
 
-  // Geeft het huidige documentnummer terug, of kent er één toe als dat nog niet bestaat.
-  function ensureInkoopNummer(): string {
+  // Geeft het huidige documentnummer terug, of kent er één toe (centraal via RPC) als dat nog niet bestaat.
+  async function ensureInkoopNummer(): Promise<string> {
     if (inkoopNummer) return inkoopNummer;
-    const nummer = nextInkoopNummer();
+    const nummer = await nextInkoopNummer();
     setInkoopNummer(nummer);
     return nummer;
   }
@@ -327,21 +360,37 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
 
   useEffect(() => {
     if (!open) return;
-    let saved: SavedInkoop[] = [];
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      saved = raw ? JSON.parse(raw) : [];
-    } catch {
-      saved = [];
-    }
-    setSavedInkoop(saved);
     // Standalone-tegel: meteen het inkoopverklaring-scherm tonen
     if (directInkoop) {
       setKlaar(true);
       setToonInkoop(true);
     }
-    // Status van openstaande envelopes verversen (zodat 'voltooid' vanzelf verschijnt)
-    void refreshPendingStatuses(saved);
+    let actief = true;
+    void (async () => {
+      const laad = async (): Promise<SavedInkoop[]> => {
+        const { data, error } = await supabase
+          .from('inkoopverklaringen')
+          .select('*')
+          .order('created_at', { ascending: false });
+        return error || !data ? [] : (data as InkoopRow[]).map(rowToSaved);
+      };
+      let saved = await laad();
+      // Eenmalige migratie van oude localStorage-verklaringen naar de gedeelde tabel
+      // (dedup op nummer), zodat bestaande verklaringen niet verloren gaan.
+      let ls: SavedInkoop[] = [];
+      try { ls = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as SavedInkoop[]; } catch { ls = []; }
+      const bestaand = new Set(saved.map((s) => s.nummer).filter(Boolean));
+      const teMigreren = ls.filter((r) => r.nummer && !bestaand.has(r.nummer));
+      if (teMigreren.length) {
+        const { error } = await supabase.from('inkoopverklaringen').insert(teMigreren.map(savedToInsert));
+        if (!error) saved = await laad();
+      }
+      if (!actief) return;
+      setSavedInkoop(saved);
+      // Status van openstaande envelopes verversen (zodat 'voltooid' vanzelf verschijnt)
+      void refreshPendingStatuses(saved);
+    })();
+    return () => { actief = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, directInkoop]);
 
@@ -400,15 +449,12 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
 
     const map = new Map(updates.filter(Boolean).map((u) => [u!.id, u!.status]));
     if (map.size === 0) return;
-    setSavedInkoop((prev) => {
-      const next = prev.map((r) => (map.has(r.id) ? { ...r, docusignStatus: map.get(r.id)! } : r));
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // fail silently
-      }
-      return next;
-    });
+    // Status centraal bijwerken zodat collega's dezelfde status zien.
+    await Promise.all(
+      [...map.entries()].map(([id, status]) =>
+        supabase.from('inkoopverklaringen').update({ docusign_status: status }).eq('id', id)),
+    );
+    setSavedInkoop((prev) => prev.map((r) => (map.has(r.id) ? { ...r, docusignStatus: map.get(r.id)! } : r)));
   }
 
   async function checkSavedStatus(id: string) {
@@ -421,7 +467,8 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
       const res = await fetch(`/api/consignatie/docusign/status?envelopeId=${encodeURIComponent(record.docusignEnvelopeId)}`, { headers: await authHeaders() });
       const j = (await res.json()) as { ok?: boolean; status?: string; error?: string };
       if (!res.ok || !j.ok || !j.status) throw new Error(j.error || 'Status ophalen mislukt');
-      persistSavedInkoop(savedInkoop.map((r) => (r.id === id ? { ...r, docusignStatus: j.status } : r)));
+      await supabase.from('inkoopverklaringen').update({ docusign_status: j.status }).eq('id', id);
+      setSavedInkoop((prev) => prev.map((r) => (r.id === id ? { ...r, docusignStatus: j.status } : r)));
     } catch (err) {
       alert(`Status ophalen mislukt: ${err instanceof Error ? err.message : 'fout'}`);
     } finally {
@@ -444,13 +491,9 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     setInkoop((f) => ({ ...f, [veld]: w }));
   }
 
+  // Alleen lokale state; de bron is de gedeelde Supabase-tabel (writes gebeuren per actie).
   function persistSavedInkoop(entries: SavedInkoop[]) {
     setSavedInkoop(entries);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    } catch {
-      // fail silently
-    }
   }
 
   const cijfers = useMemo(() => {
@@ -684,7 +727,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     doc.text('INKOOPVERKLARING', col2, 16, { align: 'right', charSpace: 0.5 });
 
     const datum = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const nr = data.nummer || nextInkoopNummer();
+    const nr = data.nummer || (await nextInkoopNummer());
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...MUT);
@@ -955,7 +998,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
   }
 
   async function downloadInkoopPdf() {
-    const nummer = ensureInkoopNummer();
+    const nummer = await ensureInkoopNummer();
     const doc = await createInkoopPdf({ ...inkoop, nummer });
     const safe = (inkoop.merk || inkoop.kenteken || 'auto').replace(/[^a-zA-Z0-9\-_\s]/g, '').trim().replace(/\s+/g, '-');
     doc.save(`PEPE-Inkoopverklaring-${nummer}-${safe}.pdf`);
@@ -1052,21 +1095,29 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     }
   }
 
-  function saveInkoopfactuur() {
+  async function saveInkoopfactuur() {
     if (!inkoop.kenteken.trim()) return alert('Vul het kenteken in voor de inkoopverklaring.');
     if (!inkoop.verkoperNaam.trim()) return alert('Vul de naam van de verkoper in.');
 
+    const nummer = await ensureInkoopNummer();
     const record: SavedInkoop = {
       ...inkoop,
       id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
         : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
-      nummer: ensureInkoopNummer(),
+      nummer,
       createdAt: new Date().toISOString(),
     };
 
-    persistSavedInkoop([record, ...savedInkoop]);
-    alert('Inkoopverklaring opgeslagen. Je kunt deze later terughalen en opnieuw via DocuSign aanbieden.');
+    // Opslaan in de gedeelde tabel; de teruggegeven rij is leidend (id).
+    const { data: row, error } = await supabase
+      .from('inkoopverklaringen')
+      .insert(savedToInsert(record))
+      .select()
+      .single();
+    if (error || !row) return alert('Opslaan mislukt: ' + (error?.message ?? 'onbekende fout'));
+    persistSavedInkoop([rowToSaved(row as InkoopRow), ...savedInkoop]);
+    alert('Inkoopverklaring opgeslagen. Je collega’s zien deze nu ook. Je kunt ’m later terughalen en opnieuw via DocuSign aanbieden.');
   }
 
   function openSavedInkoop(id: string) {
@@ -1078,8 +1129,10 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     setSendResult(null);
   }
 
-  function deleteSavedInkoop(id: string) {
+  async function deleteSavedInkoop(id: string) {
     if (!window.confirm('Weet je zeker dat je deze opgeslagen inkoopverklaring wilt verwijderen?')) return;
+    const { error } = await supabase.from('inkoopverklaringen').delete().eq('id', id);
+    if (error) return alert('Verwijderen mislukt: ' + error.message);
     persistSavedInkoop(savedInkoop.filter((item) => item.id !== id));
   }
 
@@ -1087,7 +1140,7 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
   // Het documentnummer komt in de bestandsnaam + onderwerp zodat de boekhouder (Basecone)
   // het meekrijgt; ontbreekt het (los verzenden zonder opslaan), dan genereren we er één.
   async function postDocuSign(data: InkoopForm & { nummer?: string }): Promise<{ envelopeId: string; status: string }> {
-    const nummer = data.nummer || nextInkoopNummer();
+    const nummer = data.nummer || (await nextInkoopNummer());
     const naam = [data.merk, data.model].filter(Boolean).join(' ').trim() || data.kenteken;
     const titel = `Inkoopverklaring ${nummer} — ${naam}`.trim();
 
@@ -1120,7 +1173,8 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     setIsSending(true);
     setSendResult(null);
     try {
-      const result = await postDocuSign({ ...inkoop, nummer: ensureInkoopNummer() });
+      const nummer = await ensureInkoopNummer();
+      const result = await postDocuSign({ ...inkoop, nummer });
       setSendResult(result);
       alert(`DocuSign-verzoek verstuurd: ${result.envelopeId}`);
     } catch (err) {
@@ -1142,9 +1196,14 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     setSendingId(id);
     try {
       const result = await postDocuSign(record);
+      const sentAt = new Date().toISOString();
+      await supabase
+        .from('inkoopverklaringen')
+        .update({ docusign_envelope_id: result.envelopeId, docusign_status: result.status, docusign_sent_at: sentAt })
+        .eq('id', id);
       const updated = savedInkoop.map((item) =>
         item.id === id
-          ? { ...item, docusignEnvelopeId: result.envelopeId, docusignStatus: result.status, docusignSentAt: new Date().toISOString() }
+          ? { ...item, docusignEnvelopeId: result.envelopeId, docusignStatus: result.status, docusignSentAt: sentAt }
           : item
       );
       persistSavedInkoop(updated);
