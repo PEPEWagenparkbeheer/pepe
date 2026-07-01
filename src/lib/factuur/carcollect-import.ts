@@ -12,6 +12,27 @@ import type { FactuurRegel } from '@/types/factuur';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
+/**
+ * Haalt de "Upload factuur"-deeplink uit de CarCollect-mail (tracking-URL). Deterministisch
+ * (regex op de <a>-tekst) — geen AI. Fallback: "Mijn order"-link. Null als niets gevonden.
+ * TIJDELIJK: vervalt zodra de CarCollect-API-upload werkt.
+ */
+export function extractCarCollectUploadUrl(html: string | null | undefined): string | null {
+  if (!html) return null;
+  const links: { label: string; href: string }[] = [];
+  const re = /<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const href = m[1].replace(/&amp;/g, '&');
+    const label = m[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    links.push({ label, href });
+  }
+  const upload = links.find((l) => /upload\s*factuur/i.test(l.label));
+  if (upload) return upload.href;
+  const order = links.find((l) => /mijn\s*order/i.test(l.label));
+  return order?.href ?? null;
+}
+
 export interface CarCollectImportResult {
   ok: boolean;
   id?: string;
@@ -108,6 +129,7 @@ export async function importeerCarCollectMail(msg: GraphMessage): Promise<CarCol
     status: 'concept',
     bron: 'carcollect',
     bron_ref: ref,
+    carcollect_upload_url: extractCarCollectUploadUrl(msg.bodyHtml), // deeplink om factuur in CarCollect te uploaden
     handelsconditie: true, // CarCollect = handelsauto → handelscondities-disclaimer standaard aan
     hubspot_company_id: null,
     klant_naam: d.koper?.bedrijf || d.koper?.naam || null,

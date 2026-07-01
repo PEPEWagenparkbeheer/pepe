@@ -97,6 +97,8 @@ export interface UitgaandeFactuur {
 
   bron?: 'handmatig' | 'docusign' | 'recurring' | 'carcollect' | 'btw_credit' | 'werk_derden';
   bron_ref?: string | null;
+  /** Deeplink uit de CarCollect-mail om de factuur in CarCollect te uploaden. Tijdelijk — vervalt zodra de API-upload werkt. */
+  carcollect_upload_url?: string | null;
   docusign_envelope_id?: string | null;
   periode?: string | null;
   recurring_key?: string | null;

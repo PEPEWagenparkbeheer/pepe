@@ -425,6 +425,17 @@ export default function FactuurModal({ factuur, onClose, onSaved }: Props) {
                 {TYPE_OPTIES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             )}
+            {factuur?.bron === 'carcollect' && factuur?.carcollect_upload_url && (
+              <a
+                href={factuur.carcollect_upload_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Opent de uploadpagina van dit voertuig in CarCollect (inloggen vereist)"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, fontWeight: 600, color: '#7c3aed', background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.35)', borderRadius: 6, padding: '4px 10px', textDecoration: 'none', width: 'fit-content' }}
+              >
+                📤 Upload in CarCollect
+              </a>
+            )}
           </div>
           <button className={styles.closeBtn} onClick={onClose}>×</button>
         </div>
