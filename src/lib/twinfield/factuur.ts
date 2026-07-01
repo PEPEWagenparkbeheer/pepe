@@ -183,12 +183,13 @@ export interface DebiteurStamgegevens {
 
 async function schrijfDebiteur(code: string, naam: string, opts?: DebiteurStamgegevens): Promise<void> {
   const o = opts ?? {};
-  const heeftAdres = !!(o.land || o.adres || o.postcode || o.plaats);
-  const vatXml = o.vatnumber ? `\n    <vatnumber>${escapeXml(o.vatnumber)}</vatnumber>` : '';
+  const heeftAdres = !!(o.land || o.adres || o.postcode || o.plaats || o.vatnumber);
+  // Twinfield leest het ICP-btw-nummer uit het FACTUURADRES (field4), NIET uit <vatnumber> op debiteur-niveau.
+  // Bevestigd via werkende debiteur (Micro-Tech DE): land in <country>, btw in <field4> van het invoice-adres.
   const adresXml = heeftAdres ? `
     <addresses>
       <address id="1" type="invoice" default="true">
-        <name>${escapeXml(naam)}</name>${o.land ? `\n        <country>${escapeXml(o.land)}</country>` : ''}${o.plaats ? `\n        <city>${escapeXml(o.plaats)}</city>` : ''}${o.postcode ? `\n        <postcode>${escapeXml(o.postcode)}</postcode>` : ''}${o.adres ? `\n        <field1>${escapeXml(o.adres)}</field1>` : ''}
+        <name>${escapeXml(naam)}</name>${o.land ? `\n        <country>${escapeXml(o.land)}</country>` : ''}${o.plaats ? `\n        <city>${escapeXml(o.plaats)}</city>` : ''}${o.postcode ? `\n        <postcode>${escapeXml(o.postcode)}</postcode>` : ''}${o.adres ? `\n        <field1>${escapeXml(o.adres)}</field1>` : ''}${o.vatnumber ? `\n        <field4>${escapeXml(o.vatnumber)}</field4>` : ''}
       </address>
     </addresses>` : '';
   const xml = `
@@ -197,7 +198,7 @@ async function schrijfDebiteur(code: string, naam: string, opts?: DebiteurStamge
     <type>DEB</type>
     <code>${code}</code>
     <name>${escapeXml(naam)}</name>
-    <shortname>${escapeXml(naam.slice(0, 20))}</shortname>${vatXml}${adresXml}
+    <shortname>${escapeXml(naam.slice(0, 20))}</shortname>${adresXml}
   </dimension>
 </dimensions>`.trim();
   const response = await callProcessXml(xml);
