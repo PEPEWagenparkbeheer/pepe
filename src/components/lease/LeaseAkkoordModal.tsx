@@ -49,7 +49,7 @@ export default function LeaseAkkoordModal({ record, open, onBevestig, onSluiten 
   }
 
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modalSm}>
         <div className={styles.modalHeader}>
           <div className={styles.modalTitel}>✅ Lease akkoord bevestigen</div>

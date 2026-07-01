@@ -68,7 +68,7 @@ export default function LeaseKlantModal({ record, open, onSluiten, onOpslaan, on
   if (!open) return null;
 
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modalSm}>
         <div className={styles.modalHeader}>
           <div className={styles.modalTitel}>{record ? record.naam : 'Klant / Norm toevoegen'}</div>

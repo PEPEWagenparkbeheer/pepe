@@ -111,7 +111,7 @@ export default function ZoekenModal({ record, open, onSluiten, onOpslaan, onVerw
 
   return (
     <>
-      <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+      <div className={styles.overlay}>
         <div className={styles.modal}>
           {/* Header */}
           <div className={styles.header}>

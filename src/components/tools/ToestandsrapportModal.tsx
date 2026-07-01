@@ -84,7 +84,7 @@ export default function ToestandsrapportModal({ open, onSluiten }: Props) {
   }
 
   return (
-    <div className={styles.overlay} onClick={onSluiten}>
+    <div className={styles.overlay}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <div>

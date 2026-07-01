@@ -170,7 +170,7 @@ function VerkoopprijsDialog({ record, prefill, onOpslaan, onLeegmaken, onSluiten
           </div>
         )}
         <div className={styles.dialogKnoppen}>
-          <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
+          <button className={styles.annuleerKnop} disabled={bezig}>Annuleren</button>
           {prefill && (
             <button className={styles.annuleerKnop} onClick={handlerLeeg} disabled={bezig}>Leegmaken</button>
           )}
@@ -220,7 +220,7 @@ function GoedkeurenDialog({ record, onBevestigen, onSluiten }: GoedkeurenDialogP
   }
 
   return (
-    <div className={styles.dialogOverlay} onClick={onSluiten}>
+    <div className={styles.dialogOverlay}>
       <div className={styles.dialog} onClick={e => e.stopPropagation()}>
         <h2 className={styles.dialogTitel}>
           {metVoorwaarden ? 'Goedkeuren met voorwaarden' : 'Werkzaamheden goedkeuren'}
@@ -276,7 +276,7 @@ function GoedkeurenDialog({ record, onBevestigen, onSluiten }: GoedkeurenDialogP
           </>
         )}
         <div className={styles.dialogKnoppen}>
-          <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
+          <button className={styles.annuleerKnop} disabled={bezig}>Annuleren</button>
           {!metVoorwaarden && (
             <button
               type="button"
@@ -316,7 +316,7 @@ function AfkeurenDialog({ record, onBevestigen, onSluiten }: AfkeurenDialogProps
   }
 
   return (
-    <div className={styles.dialogOverlay} onClick={onSluiten}>
+    <div className={styles.dialogOverlay}>
       <div className={styles.dialog} onClick={e => e.stopPropagation()}>
         <h2 className={styles.dialogTitel}>Werkzaamheden afkeuren</h2>
         <div className={styles.dialogInfo}>
@@ -335,7 +335,7 @@ function AfkeurenDialog({ record, onBevestigen, onSluiten }: AfkeurenDialogProps
           />
         </div>
         <div className={styles.dialogKnoppen}>
-          <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
+          <button className={styles.annuleerKnop} disabled={bezig}>Annuleren</button>
           <button className={styles.bevestigenKnop} onClick={handlerKlik} disabled={bezig || !reden.trim()}>
             {bezig ? 'Verwerken…' : 'Afkeuren'}
           </button>
@@ -399,7 +399,7 @@ function FacurerenDialog({ record, intern, onBevestigen, onSluiten }: FacurerenD
   });
 
   return (
-    <div className={styles.dialogOverlay} onClick={onSluiten}>
+    <div className={styles.dialogOverlay}>
       <div className={styles.dialog} onClick={e => e.stopPropagation()}>
         <h2 className={styles.dialogTitel}>Doorzetten naar facturatie</h2>
         <div className={styles.dialogInfo}>
@@ -484,7 +484,7 @@ function FacurerenDialog({ record, intern, onBevestigen, onSluiten }: FacurerenD
 
         <div style={{ marginTop: 16 }}>
           <div className={styles.dialogKnoppen}>
-            <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
+            <button className={styles.annuleerKnop} disabled={bezig}>Annuleren</button>
             <button
               className={styles.bevestigenKnop}
               onClick={handlerKlik}

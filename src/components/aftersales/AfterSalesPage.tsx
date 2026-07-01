@@ -383,7 +383,7 @@ function AfleveringPopup({ auto, isBewerken, onOpslaan, onSluiten }: {
   }
 
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modal} style={{ maxWidth: 500 }}>
         <div className={styles.modalHeader}>
           <div className={styles.modalTitel}>Aflevering plannen</div>
@@ -500,8 +500,8 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
   return (
     <>
       {binPopup && (
-        <div className={styles.overlay} onClick={() => setBinPopup(null)}>
-          <div className={styles.modal} style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.overlay}>
+          <div className={styles.modal} style={{ maxWidth: 340 }}>
             <div className={styles.modalHeader}>
               <span className={styles.modalTitel}>📦 BIN ontvangen</span>
               <button className={styles.sluitKnop} onClick={() => setBinPopup(null)}>×</button>
@@ -1059,7 +1059,6 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
               zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: 20, backdropFilter: 'blur(2px)',
             }}
-            onClick={() => setAccPopupId(null)}
           >
             <div
               style={{
@@ -1147,7 +1146,6 @@ function TabRijklaar({ autos, zoek, kpiFilter, onEdit, onUpdate, onToggleMeta }:
               zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: 20, backdropFilter: 'blur(2px)',
             }}
-            onClick={() => setPartnerPopupId(null)}
           >
             <div
               style={{
@@ -1592,7 +1590,7 @@ function TabNalevering({ klachten, autos, zoek, onAddKlacht, onUpdateKlacht, onR
 
       {/* Klacht modal */}
       {klachtModal && (
-        <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && setKlachtModal(false)}>
+        <div className={styles.overlay}>
           <div className={styles.modal}>
             <div className={styles.modalHeader}>
               <div className={styles.modalTitel}>{editKlacht ? 'Nalevering bewerken' : 'Nalevering toevoegen'}</div>
@@ -1731,7 +1729,7 @@ function BtwCreditNieuwPopup({ auto, onBevestig, onAnnuleer }: {
   }
 
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onAnnuleer()}>
+    <div className={styles.overlay}>
       <div className={styles.modal} style={{ maxWidth: 480 }}>
         <div className={styles.modalHeader}>
           <div className={styles.modalTitel}>📋 BTW / Credit toevoegen</div>

@@ -114,7 +114,7 @@ export default function BijtellingModal({ open, onSluiten }: Props) {
   if (!open) return null;
 
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && handleSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.modalHeader}>
           <div>

@@ -132,7 +132,7 @@ export default function AfterSalesModal({ record, open, onSluiten, onOpslaan, on
   const isImport = form.type === 'import';
 
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.modalHeader}>
           <div className={styles.modalTitel}>

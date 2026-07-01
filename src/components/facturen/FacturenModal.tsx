@@ -451,7 +451,7 @@ export default function FacturenModal({
 
   return (
     <>
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.header}>
           <div className={styles.titel}>

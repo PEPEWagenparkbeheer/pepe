@@ -70,7 +70,7 @@ export default function WhatsAppModal({ open, onParse, onSluiten }: Props) {
   if (!open) return null;
 
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.header}>
           <span className={styles.titel}>WhatsApp bericht inlezen</span>

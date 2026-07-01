@@ -101,7 +101,7 @@ export default function SchadeDiagram({ punten, onChange }: Props) {
       {/* Popup type kiezen */}
       {popup && (
         <>
-          <div className={styles.popupOverlay} onClick={() => setPopup(null)} />
+          <div className={styles.popupOverlay} />
           <div className={styles.schadePopup}>
             <div className={styles.schadePopupTitel}>Type schade</div>
             {SCHADE_TYPES.map(t => (

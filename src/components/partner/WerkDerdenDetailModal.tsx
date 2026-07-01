@@ -83,7 +83,7 @@ export default function WerkDerdenDetailModal({ record, bijlageUrl, onSluiten, o
   const voertuig = record.kenteken ?? record.meldcode ?? '—';
 
   return createPortal(
-    <div className={styles.overlay} onClick={onSluiten}>
+    <div className={styles.overlay}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}

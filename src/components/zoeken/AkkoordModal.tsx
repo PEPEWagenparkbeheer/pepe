@@ -60,7 +60,7 @@ export default function AkkoordModal({ record, open, onBevestig, onSluiten }: Pr
   }
 
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.box}>
         <h3 className={styles.titel}>✉ Klant akkoord — After Sales</h3>
         <p className={styles.sub}>Stap 1: type auto. Stap 2: bij import ook inkoop aangeven.</p>

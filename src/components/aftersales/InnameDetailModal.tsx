@@ -26,7 +26,7 @@ export default function InnameDetailModal({ inname, onSluiten }: Props) {
   const punten = inname.schade_diagram ?? [];
 
   return (
-    <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onSluiten()}>
+    <div className={styles.overlay}>
       <div className={styles.modal} style={{ maxWidth: 560 }}>
         <div className={styles.modalHeader}>
           <div className={styles.modalTitel}>

@@ -64,7 +64,7 @@ export default function MatchBevestigModal({ suggesties, onBevestig, onAnnuleer 
   }
 
   return (
-    <div className={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) onAnnuleer(); }}>
+    <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.header}>
           <strong>Mogelijk bestaande records gevonden</strong>
