@@ -123,7 +123,7 @@ export default function WagenparkbeheerConfig() {
 
       <table className={styles.table}>
         <thead>
-          <tr><th>Moedermaatschappij</th><th>Fee/voertuig</th><th>Dochters</th><th>Auto&apos;s rijdend</th><th>Betaaldag</th><th>Actief</th><th></th></tr>
+          <tr><th>Moedermaatschappij</th><th>Fee/voertuig</th><th>Dochters</th><th>Factureren aan</th><th>Auto&apos;s rijdend</th><th>Betaaldag</th><th>Actief</th><th></th></tr>
         </thead>
         <tbody>
           {configs.map((c) => (
@@ -131,6 +131,7 @@ export default function WagenparkbeheerConfig() {
               <td onClick={() => setBewerk({ ...c, child_company_ids: (c.child_company_ids ?? []).map((x) => ({ ...x, checked: true })) })}>{c.klant_naam || c.parent_hubspot_company_id}</td>
               <td>€ {Number(c.fee_per_voertuig).toFixed(2)}</td>
               <td>{(c.child_company_ids ?? []).length}</td>
+              <td>{c.per_entiteit ? 'Per entiteit' : 'Moeder'}</td>
               <td>{(() => {
                 const h = huidig[c.id];
                 const vorig = c.laatst_aantal;
