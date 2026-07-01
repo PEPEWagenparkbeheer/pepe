@@ -471,8 +471,10 @@ function TabImport({ autos, zoek, onEdit, onToggle, onUpdate }: {
     if (r.bin_ontvangen) return 5;            // geïmporteerd → onderaan
     if (r.binnen) return 0;                   // binnen → bovenaan
     const ts = (r.transport_status ?? '').toLowerCase();
-    if (ts.includes('gepland')) return 1;
-    if (ts.includes('uitvoering')) return 2;
+    // TC-status is Engels (Planned/In Transit/Delivered/Fault/Cancelled); NL-varianten
+    // meegenomen voor oudere data.
+    if (ts.includes('gepland') || ts.includes('planned')) return 1;
+    if (ts.includes('uitvoering') || ts.includes('transit') || ts.includes('progress') || ts.includes('loading')) return 2;
     if (r.aangevraagd) return 3;              // aangevraagd
     return 4;                                 // geen status
   }

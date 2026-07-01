@@ -110,10 +110,17 @@ export function mapTcOrderToPatch(order: Record<string, unknown>): TcOrderPatch 
   if (plannedArrival) patch.transportdatum = plannedArrival;
   if (plannedPickup) patch.geplande_afhaaldatum = plannedPickup;
 
-  // binnen = auto daadwerkelijk aangekomen/gelost (arrival_date gevuld of status zegt het)
-  const isBinnen = !!arrival ||
+  // binnen = auto daadwerkelijk afgeleverd. TC's order_status is Engels
+  // (Delivered/Planned/Fault/Cancelled); NL-varianten meegenomen voor oudere data.
+  // Een gevulde arrival_date telt alleen als de order NIET mislukt/geannuleerd is —
+  // bij Fault/Cancelled vult TC soms alsnog een arrival_date, wat anders een vals
+  // 'binnen' zou opleveren.
+  const isAfgeleverd =
     status.includes('delivered') || status.includes('afgeleverd') ||
     status.includes('aangekomen') || status.includes('gelost') || status.includes('unloaded');
+  const isMislukt =
+    status.includes('cancel') || status.includes('annul') || status.includes('fault');
+  const isBinnen = isAfgeleverd || (!!arrival && !isMislukt);
   if (isBinnen) {
     patch.binnen = true;
     patch.binnen_op = arrival ?? new Date().toISOString().slice(0, 10);
