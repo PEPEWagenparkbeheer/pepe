@@ -978,6 +978,7 @@ export default function WerkDerdenOverzicht() {
         <WerkDerdenModal
           addRecord={addRecord}
           pepeNaam={stamper}
+          onPrijsIntern={(id, data) => saveIntern(id, data, stamper).then(() => undefined)}
           onSluiten={() => setNieuwOpen(false)}
           onIngediend={() => toonMelding('Kosten ingediend ✓', true)}
         />

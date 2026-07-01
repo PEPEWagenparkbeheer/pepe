@@ -124,7 +124,7 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
   const actieCount = records.filter((r) => r.status === 'open').length;
 
   const addRecord = useCallback(
-    async (rec: Omit<WerkDerdenRecord, 'id' | 'created_at'>): Promise<{ ok: boolean; error?: string }> => {
+    async (rec: Omit<WerkDerdenRecord, 'id' | 'created_at'>): Promise<{ ok: boolean; error?: string; id?: string }> => {
       const { data, error } = await supabase
         .from('werk_derden')
         .insert(rec)
@@ -136,7 +136,7 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
       // PEPE-opdracht → partner moet accepteren (mail naar partner);
       // partner-indiening → PEPE moet goedkeuren (mail naar info@).
       notify(inserted.id, isPepeOpdracht(inserted) ? 'opdracht' : 'ingediend');
-      return { ok: true };
+      return { ok: true, id: inserted.id };
     },
     [],
   );

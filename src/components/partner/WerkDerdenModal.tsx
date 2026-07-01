@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { WerkRegel, WerkDerdenRecord, AfterSalesAuto, WerkDerdenBestemming } from '@/types';
+import type { WerkRegel, WerkDerdenRecord, AfterSalesAuto, WerkDerdenBestemming, WerkDerdenMargeType } from '@/types';
 import { usePartnerLijst } from '@/hooks/usePartnerLijst';
 import { PEPE_TOEGEVOEGD_DOOR } from '@/lib/werk-derden/richting';
 import { authHeaders } from '@/lib/clientAuth';
@@ -15,8 +15,10 @@ interface Props {
   record?: WerkDerdenRecord;
   onSluiten: () => void;
   onIngediend: () => void;
-  addRecord: (rec: Omit<WerkDerdenRecord, 'id' | 'created_at'>) => Promise<{ ok: boolean; error?: string }>;
+  addRecord: (rec: Omit<WerkDerdenRecord, 'id' | 'created_at'>) => Promise<{ ok: boolean; error?: string; id?: string }>;
   updateRecord?: (id: string, patch: Partial<WerkDerdenRecord>) => Promise<{ ok: boolean; error?: string }>;
+  /** PEPE-only: interne verkoopprijs/marge opslaan bij aanmaak (partner ziet dit nooit). Alleen meegegeven aan PEPE-zijde. */
+  onPrijsIntern?: (werkDerdenId: string, data: { marge_type: WerkDerdenMargeType; marge_waarde: number; btw_pct: number; notitie?: string }) => Promise<void>;
   /** Eigen After Sales auto's van de partner — voor koppeling voertuigprijs */
   afterSalesAutos?: AfterSalesAuto[];
   /** Vaste auto uit After Sales — toont compacte "Offerte versturen"-modus, vast gekoppeld */
@@ -25,7 +27,7 @@ interface Props {
   pepeNaam?: string;
 }
 
-export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, addRecord, updateRecord, afterSalesAutos = [], vastAuto, pepeNaam }: Props) {
+export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, addRecord, updateRecord, onPrijsIntern, afterSalesAutos = [], vastAuto, pepeNaam }: Props) {
   const isBewerken = !!record;
   const isNieuwVoorstel = record?.status === 'afgekeurd';
   // Compacte offerte-modus: vaste auto uit After Sales, alleen kostenregels/bijlage/toelichting
@@ -39,6 +41,11 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
   const [opzoeken, setOpzoeken] = useState(false);
   const [regels, setRegels] = useState<WerkRegel[]>(record?.regels?.length ? record.regels : [{ omschrijving: '', bedrag: 0 }]);
   const [notitie, setNotitie] = useState(record?.notitie ?? '');
+  // PEPE-only: vooraf afgesproken interne verkoopprijs/marge (partner ziet dit nooit).
+  const [prijsAan, setPrijsAan] = useState(false);
+  const [prijsType, setPrijsType] = useState<WerkDerdenMargeType>('verkoop');
+  const [prijsWaarde, setPrijsWaarde] = useState('');
+  const [prijsBtw, setPrijsBtw] = useState(21);
   const [bijlageFile, setBijlageFile] = useState<File | null>(null);
   const [bijlagePreview, setBijlagePreview] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
@@ -180,6 +187,12 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
       if (!result.ok) {
         setFout(result.error ?? 'Opslaan mislukt');
         return;
+      }
+
+      // PEPE-only: vooraf afgesproken interne prijs opslaan (partner ziet dit nooit).
+      const pw = parseFloat(prijsWaarde.replace(',', '.'));
+      if (!wie && prijsAan && onPrijsIntern && result.id && !afterSalesId && !isNaN(pw) && pw >= 0) {
+        await onPrijsIntern(result.id, { marge_type: prijsType, marge_waarde: pw, btw_pct: prijsBtw });
       }
 
       onIngediend();
@@ -447,6 +460,57 @@ export default function WerkDerdenModal({ wie, record, onSluiten, onIngediend, a
               onChange={e => setNotitie(e.target.value)}
             />
           </section>
+
+          {/* PEPE-only: vooraf afgesproken interne verkoopprijs/marge. Partner ziet dit NOOIT. */}
+          {!wie && !isBewerken && !afterSalesId && (
+            <section className={styles.sectie}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14, width: 'fit-content' }}>
+                <input type="checkbox" checked={prijsAan} onChange={e => setPrijsAan(e.target.checked)} />
+                💶 Verkoopprijs vooraf vastleggen <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(intern — partner ziet dit niet)</span>
+              </label>
+
+              {prijsAan && (() => {
+                const inkoop = inkoopBedrag;
+                const pw = parseFloat(prijsWaarde.replace(',', '.'));
+                const verkoop = isNaN(pw) || pw < 0
+                  ? null
+                  : prijsType === 'verkoop' ? pw : prijsType === 'pct' ? inkoop * (1 + pw / 100) : inkoop + pw;
+                const tgl = (active: boolean) => ({
+                  flex: 1, padding: '8px', borderRadius: 7, cursor: 'pointer' as const, fontWeight: 600, fontSize: 13,
+                  border: active ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                  background: active ? 'rgba(59,130,246,0.08)' : 'var(--surface)',
+                  color: active ? 'var(--accent)' : 'var(--text)',
+                });
+                return (
+                  <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" onClick={() => setPrijsType('verkoop')} style={tgl(prijsType === 'verkoop')}>Verkoopprijs (€)</button>
+                      <button type="button" onClick={() => setPrijsType('pct')} style={tgl(prijsType === 'pct')}>Marge (%)</button>
+                      <button type="button" onClick={() => setPrijsType('bedrag')} style={tgl(prijsType === 'bedrag')}>Marge (€)</button>
+                    </div>
+                    <input
+                      className={styles.invoer}
+                      type="number" min="0" step={prijsType === 'pct' ? '0.1' : '1'}
+                      placeholder={prijsType === 'verkoop' ? 'Afgesproken verkoopprijs excl. BTW, bijv. 1500' : prijsType === 'pct' ? 'Marge % bijv. 15' : 'Marge € bijv. 250'}
+                      value={prijsWaarde}
+                      onChange={e => setPrijsWaarde(e.target.value)}
+                    />
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>BTW:</span>
+                      {[21, 0].map(p => (
+                        <button key={p} type="button" onClick={() => setPrijsBtw(p)} style={{ ...tgl(prijsBtw === p), flex: 'none', padding: '6px 14px' }}>{p}%</button>
+                      ))}
+                    </div>
+                    {verkoop != null && (
+                      <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+                        Verkoop excl. BTW: <strong>{verkoop.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' })}</strong>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </section>
+          )}
 
           {fout && <div className={styles.foutmelding}>{fout}</div>}
         </div>
