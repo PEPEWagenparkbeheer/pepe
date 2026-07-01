@@ -1120,9 +1120,30 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
     alert('Inkoopverklaring opgeslagen. Je collega’s zien deze nu ook. Je kunt ’m later terughalen en opnieuw via DocuSign aanbieden.');
   }
 
+  // Getekende verklaring → PDF openen (definitief, niet bewerkbaar).
+  async function openSavedPdf(record: SavedInkoop) {
+    // Synchroon een tab openen (vóór de await) om popup-blokkering te voorkomen.
+    const w = window.open('', '_blank');
+    try {
+      const doc = await createInkoopPdf({ ...INKOOP_LEEG, ...record });
+      const url = String(doc.output('bloburl'));
+      if (w) w.location.href = url;
+      else window.open(url, '_blank');
+    } catch {
+      if (w) w.close();
+      alert('PDF openen mislukt.');
+    }
+  }
+
   function openSavedInkoop(id: string) {
     const record = savedInkoop.find((item) => item.id === id);
     if (!record) return;
+    // Zodra een verklaring getekend is, is hij definitief: niet meer inladen/bewerken,
+    // alleen de PDF tonen.
+    if (record.docusignStatus === 'completed') {
+      void openSavedPdf(record);
+      return;
+    }
     setInkoop({ ...INKOOP_LEEG, ...record });
     setInkoopNummer(record.nummer ?? null);
     setShowSavedList(false);
@@ -1261,16 +1282,18 @@ export default function ConsignatieModal({ open, onSluiten, directInkoop = false
                         </div>
                         <div className={styles.savedActions}>
                           <button className="btn btn-a" type="button" onClick={() => openSavedInkoop(item.id)}>
-                            Openen
+                            {item.docusignStatus === 'completed' ? '📄 Bekijk PDF' : 'Openen'}
                           </button>
-                          <button
-                            className="btn"
-                            type="button"
-                            onClick={() => sendSavedToDocuSign(item.id)}
-                            disabled={sendingId === item.id}
-                          >
-                            {sendingId === item.id ? 'Versturen…' : '📤 DocuSign'}
-                          </button>
+                          {item.docusignStatus !== 'completed' && (
+                            <button
+                              className="btn"
+                              type="button"
+                              onClick={() => sendSavedToDocuSign(item.id)}
+                              disabled={sendingId === item.id}
+                            >
+                              {sendingId === item.id ? 'Versturen…' : '📤 DocuSign'}
+                            </button>
+                          )}
                           {item.docusignEnvelopeId && (
                             <button
                               className="btn"
