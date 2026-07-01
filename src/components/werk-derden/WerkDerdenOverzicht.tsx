@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useWerkDerden } from '@/hooks/useWerkDerden';
+import { useWerkDerdenIntern } from '@/hooks/useWerkDerdenIntern';
 import { useAuth } from '@/hooks/useAuth';
 import WerkDerdenModal from '@/components/partner/WerkDerdenModal';
 import WerkDerdenDetailModal from '@/components/partner/WerkDerdenDetailModal';
-import type { WerkDerdenRecord, WerkRegel } from '@/types';
+import type { WerkDerdenRecord, WerkRegel, WerkDerdenIntern, WerkDerdenMargeType } from '@/types';
 import { medewerkerNaam } from '@/lib/naam';
 import { isPepeOpdracht } from '@/lib/werk-derden/richting';
 import { authHeaders } from '@/lib/clientAuth';
@@ -20,9 +21,170 @@ function euroFmt(n?: number | null) {
   return n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' });
 }
 
+// Verkoopprijs (excl. BTW) o.b.v. de interne marge/verkoop-instelling.
+function internVerkoop(inkoop: number, it?: WerkDerdenIntern): number | null {
+  if (!it || it.marge_type == null || it.marge_waarde == null) return null;
+  if (it.marge_type === 'verkoop') return it.marge_waarde;
+  if (it.marge_type === 'pct') return inkoop * (1 + it.marge_waarde / 100);
+  return inkoop + it.marge_waarde; // 'bedrag'
+}
+
 function datumFmt(d?: string | null) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+// --- VerkoopprijsDialog ------------------------------------------------------
+// PEPE-intern: vastleggen van de vooraf afgesproken verkoopprijs/marge.
+// Wordt opgeslagen in werk_derden_intern — partner ziet dit NOOIT.
+
+interface VerkoopprijsDialogProps {
+  record: WerkDerdenRecord;
+  prefill?: WerkDerdenIntern;
+  onOpslaan: (data: { marge_type: WerkDerdenMargeType; marge_waarde: number; btw_pct: number; notitie?: string }) => Promise<void>;
+  onLeegmaken: () => Promise<void>;
+  onSluiten: () => void;
+}
+
+function VerkoopprijsDialog({ record, prefill, onOpslaan, onLeegmaken, onSluiten }: VerkoopprijsDialogProps) {
+  const inkoopTotaal = record.inkoop_bedrag ?? record.regels.reduce((s, r) => s + r.bedrag, 0);
+  // Default 'verkoop' = vaste afgesproken verkoopprijs (meest voorkomend); 'pct'/'bedrag' = marge.
+  const [margeType, setMargeType] = useState<WerkDerdenMargeType>(prefill?.marge_type ?? 'verkoop');
+  const [margeWaarde, setMargeWaarde] = useState<string>(
+    prefill?.marge_waarde != null ? String(prefill.marge_waarde) : '',
+  );
+  const [btwPct, setBtwPct] = useState(prefill?.btw_pct ?? record.btw_pct ?? 21);
+  const [notitie, setNotitie] = useState(prefill?.notitie ?? '');
+  const [bezig, setBezig] = useState(false);
+  const voertuig = record.kenteken ?? record.meldcode ?? '—';
+
+  const margeNum = parseFloat(margeWaarde.replace(',', '.'));
+  const verkoopBerekend =
+    isNaN(margeNum) || margeNum < 0
+      ? null
+      : margeType === 'verkoop'
+        ? margeNum
+        : margeType === 'pct'
+          ? inkoopTotaal * (1 + margeNum / 100)
+          : inkoopTotaal + margeNum;
+
+  const toggleStyle = (active: boolean) => ({
+    flex: 1, padding: '8px', borderRadius: 7, cursor: 'pointer' as const,
+    fontWeight: 600, fontSize: 14,
+    border: active ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+    background: active ? 'rgba(59,130,246,0.08)' : 'var(--surface)',
+    color: active ? 'var(--accent)' : 'var(--text)',
+  });
+
+  async function handlerKlik() {
+    if (isNaN(margeNum) || margeNum < 0) return;
+    setBezig(true);
+    try {
+      await onOpslaan({ marge_type: margeType, marge_waarde: margeNum, btw_pct: btwPct, notitie: notitie.trim() || undefined });
+      onSluiten();
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  async function handlerLeeg() {
+    setBezig(true);
+    try {
+      await onLeegmaken();
+      onSluiten();
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  return (
+    <div className={styles.dialogOverlay}>
+      <div className={styles.dialog}>
+        <h2 className={styles.dialogTitel}>
+          💶 Verkoopprijs instellen{' '}
+          <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--muted)' }}>(intern)</span>
+        </h2>
+        <div className={styles.dialogInfo}>
+          <div className={styles.dialogRij}><span>Voertuig</span>{voertuig}</div>
+          <div className={styles.dialogRij}><span>Partner</span>{record.partner}</div>
+          <div className={styles.dialogRij}><span>Inkoop</span>{euroFmt(inkoopTotaal)}</div>
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 12px 0' }}>
+          De partner ziet dit nooit. Wordt automatisch ingevuld bij factureren.
+        </p>
+        <div className={styles.dialogVeld}>
+          <label className={styles.dialogLabel}>Prijs bepalen</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => setMargeType('verkoop')} style={toggleStyle(margeType === 'verkoop')}>
+              Verkoopprijs (€)
+            </button>
+            <button type="button" onClick={() => setMargeType('pct')} style={toggleStyle(margeType === 'pct')}>
+              Marge (%)
+            </button>
+            <button type="button" onClick={() => setMargeType('bedrag')} style={toggleStyle(margeType === 'bedrag')}>
+              Marge (€)
+            </button>
+          </div>
+        </div>
+        <div className={styles.dialogVeld}>
+          <label className={styles.dialogLabel}>
+            {margeType === 'verkoop' ? 'Afgesproken verkoopprijs (excl. BTW)' : `Marge ${margeType === 'pct' ? '(%)' : '(€)'}`}
+          </label>
+          <div className={styles.bedragWrapper}>
+            <span className={styles.euroPrefix}>{margeType === 'pct' ? '%' : '€'}</span>
+            <input
+              className={styles.bedragInput}
+              type="number" min="0"
+              step={margeType === 'pct' ? '0.1' : '1'}
+              placeholder={margeType === 'pct' ? '15' : margeType === 'verkoop' ? '1500' : '250'}
+              value={margeWaarde}
+              onChange={e => setMargeWaarde(e.target.value)}
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className={styles.dialogVeld}>
+          <label className={styles.dialogLabel}>BTW op verkoopfactuur</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[21, 0].map(pct => (
+              <button key={pct} type="button" onClick={() => setBtwPct(pct)} style={toggleStyle(btwPct === pct)}>
+                {pct}%
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className={styles.dialogVeld}>
+          <label className={styles.dialogLabel}>Interne notitie (optioneel)</label>
+          <input
+            className={styles.dialogInput}
+            placeholder="Bijv. afgesproken met directeur…"
+            value={notitie}
+            onChange={e => setNotitie(e.target.value)}
+          />
+        </div>
+        {verkoopBerekend != null && (
+          <div className={`${styles.margeInfo} ${styles.margePos}`}>
+            Verkoop excl. BTW: {euroFmt(verkoopBerekend)}
+            {margeType === 'pct' && !isNaN(margeNum) && ` (+${margeNum}%)`}
+            {' · '}incl. BTW: {euroFmt(verkoopBerekend * (1 + btwPct / 100))}
+          </div>
+        )}
+        <div className={styles.dialogKnoppen}>
+          <button className={styles.annuleerKnop} onClick={onSluiten} disabled={bezig}>Annuleren</button>
+          {prefill && (
+            <button className={styles.annuleerKnop} onClick={handlerLeeg} disabled={bezig}>Leegmaken</button>
+          )}
+          <button
+            className={styles.bevestigenKnop}
+            onClick={handlerKlik}
+            disabled={bezig || isNaN(margeNum) || margeNum < 0}
+          >
+            {bezig ? 'Opslaan…' : prefill ? '✓ Bijwerken' : '✓ Opslaan'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // --- GoedkeurenDialog --------------------------------------------------------
@@ -187,17 +349,20 @@ function AfkeurenDialog({ record, onBevestigen, onSluiten }: AfkeurenDialogProps
 
 interface FacurerenDialogProps {
   record: WerkDerdenRecord;
-  onBevestigen: (margeType: 'pct' | 'bedrag', margeWaarde: number, btwPct: number, opmerking: string) => Promise<void>;
+  intern?: WerkDerdenIntern;
+  onBevestigen: (margeType: WerkDerdenMargeType, margeWaarde: number, btwPct: number, opmerking: string) => Promise<void>;
   onSluiten: () => void;
 }
 
-function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogProps) {
+function FacurerenDialog({ record, intern, onBevestigen, onSluiten }: FacurerenDialogProps) {
   const inkoopTotaal = record.inkoop_bedrag ?? record.regels.reduce((s, r) => s + r.bedrag, 0);
-  const [margeType, setMargeType] = useState<'pct' | 'bedrag'>(record.marge_type ?? 'pct');
+  // Vooraf afgesproken prijs (intern, partner ziet dit niet) is leidend als default.
+  const heeftVooraf = intern?.marge_type != null && intern.marge_waarde != null;
+  const [margeType, setMargeType] = useState<WerkDerdenMargeType>(intern?.marge_type ?? 'pct');
   const [margeWaarde, setMargeWaarde] = useState<string>(
-    record.marge_waarde != null ? String(record.marge_waarde) : '',
+    intern?.marge_waarde != null ? String(intern.marge_waarde) : '',
   );
-  const [btwPct, setBtwPct] = useState(record.btw_pct ?? 21);
+  const [btwPct, setBtwPct] = useState(intern?.btw_pct ?? record.btw_pct ?? 21);
   const [opmerking, setOpmerking] = useState('');
   const [bezig, setBezig] = useState(false);
 
@@ -205,9 +370,11 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
   const verkoopBerekend =
     isNaN(margeNum) || margeNum < 0
       ? null
-      : margeType === 'pct'
-        ? inkoopTotaal * (1 + margeNum / 100)
-        : inkoopTotaal + margeNum;
+      : margeType === 'verkoop'
+        ? margeNum
+        : margeType === 'pct'
+          ? inkoopTotaal * (1 + margeNum / 100)
+          : inkoopTotaal + margeNum;
   const margePositief = verkoopBerekend != null && verkoopBerekend >= inkoopTotaal;
 
   const voertuig = record.kenteken ?? record.meldcode ?? '—';
@@ -245,20 +412,31 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
           )}
         </div>
 
+        {heeftVooraf && (
+          <div className={`${styles.margeInfo} ${styles.margePos}`} style={{ marginBottom: 12 }}>
+            ✓ Vooraf afgesproken prijs ingevuld (partner ziet dit niet) — je kunt het hieronder nog aanpassen.
+          </div>
+        )}
+
         <div className={styles.dialogVeld}>
-          <label className={styles.dialogLabel}>Marge type</label>
+          <label className={styles.dialogLabel}>Prijs bepalen</label>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => setMargeType('verkoop')} style={toggleStyle(margeType === 'verkoop')}>
+              Verkoopprijs (€)
+            </button>
             <button type="button" onClick={() => setMargeType('pct')} style={toggleStyle(margeType === 'pct')}>
-              Percentage (%)
+              Marge (%)
             </button>
             <button type="button" onClick={() => setMargeType('bedrag')} style={toggleStyle(margeType === 'bedrag')}>
-              Vaste marge (€)
+              Marge (€)
             </button>
           </div>
         </div>
 
         <div className={styles.dialogVeld}>
-          <label className={styles.dialogLabel}>Marge {margeType === 'pct' ? '(%)' : '(€)'}</label>
+          <label className={styles.dialogLabel}>
+            {margeType === 'verkoop' ? 'Vaste verkoopprijs (excl. BTW)' : `Marge ${margeType === 'pct' ? '(%)' : '(€)'}`}
+          </label>
           <div className={styles.bedragWrapper}>
             <span className={styles.euroPrefix}>{margeType === 'pct' ? '%' : '€'}</span>
             <input
@@ -266,7 +444,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
               type="number"
               min="0"
               step={margeType === 'pct' ? '0.1' : '1'}
-              placeholder={margeType === 'pct' ? '15' : '250'}
+              placeholder={margeType === 'pct' ? '15' : margeType === 'verkoop' ? '1500' : '250'}
               value={margeWaarde}
               onChange={e => setMargeWaarde(e.target.value)}
               autoFocus
@@ -326,6 +504,7 @@ function FacurerenDialog({ record, onBevestigen, onSluiten }: FacurerenDialogPro
 export default function WerkDerdenOverzicht() {
   const { records, loading, addRecord, updateRecord, deleteRecord, setGoedgekeurd, setAfgekeurd, setAfgerond, setKlaarGemeld, bijlageUrl } =
     useWerkDerden();
+  const { intern, saveIntern, removeIntern } = useWerkDerdenIntern();
   const { user } = useAuth();
   const stamper = medewerkerNaam(
     (user?.user_metadata?.full_name as string | undefined) ??
@@ -343,6 +522,7 @@ export default function WerkDerdenOverzicht() {
   const [goedkeurenRec, setGoedkeurenRec] = useState<WerkDerdenRecord | null>(null);
   const [afkeurenRec, setAfkeurenRec] = useState<WerkDerdenRecord | null>(null);
   const [factureerRec, setFactureerRec] = useState<WerkDerdenRecord | null>(null);
+  const [prijsRec, setPrijsRec] = useState<WerkDerdenRecord | null>(null);
 
   function toonMelding(tekst: string, ok: boolean) {
     setMelding({ tekst, ok });
@@ -433,7 +613,7 @@ export default function WerkDerdenOverzicht() {
 
   async function handleFactureren(
     rec: WerkDerdenRecord,
-    margeType: 'pct' | 'bedrag',
+    margeType: WerkDerdenMargeType,
     margeWaarde: number,
     btwPct: number,
     opmerking: string,
@@ -485,22 +665,26 @@ export default function WerkDerdenOverzicht() {
 
   async function exportXlsx() {
     const xlsx = await import('xlsx');
-    const rows = records.map(rec => ({
-      Datum: rec.created_at ? new Date(rec.created_at).toLocaleDateString('nl-NL') : '',
-      Partner: rec.partner,
-      Kenteken: rec.kenteken ?? rec.meldcode ?? '',
-      'Merk/Model': [rec.merk, rec.model].filter(Boolean).join(' '),
-      Klant: rec.klant ?? '',
-      Omschrijving: rec.regels.map(r => `${r.omschrijving} (${euroFmt(r.bedrag)})`).join('; '),
-      'Inkoop excl.BTW': rec.inkoop_bedrag ?? '',
-      'Marge type': rec.marge_type ?? '',
-      'Marge waarde': rec.marge_waarde ?? '',
-      'Verkoop excl.BTW': rec.verkoop_bedrag ?? '',
-      'BTW %': rec.btw_pct ?? 21,
-      Status: rec.status,
-      'Gefactureerd op': rec.gefactureerd_op ? new Date(rec.gefactureerd_op).toLocaleDateString('nl-NL') : '',
-      'Twinfield ID': rec.twinfield_invoice_id ?? '',
-    }));
+    const rows = records.map(rec => {
+      const it = intern[rec.id];
+      const inkoop = rec.inkoop_bedrag ?? rec.regels.reduce((s, r) => s + r.bedrag, 0);
+      return {
+        Datum: rec.created_at ? new Date(rec.created_at).toLocaleDateString('nl-NL') : '',
+        Partner: rec.partner,
+        Kenteken: rec.kenteken ?? rec.meldcode ?? '',
+        'Merk/Model': [rec.merk, rec.model].filter(Boolean).join(' '),
+        Klant: rec.klant ?? '',
+        Omschrijving: rec.regels.map(r => `${r.omschrijving} (${euroFmt(r.bedrag)})`).join('; '),
+        'Inkoop excl.BTW': rec.inkoop_bedrag ?? '',
+        'Marge type': it?.marge_type ?? '',
+        'Marge waarde': it?.marge_waarde ?? '',
+        'Verkoop excl.BTW': internVerkoop(inkoop, it) ?? '',
+        'BTW %': it?.btw_pct ?? rec.btw_pct ?? 21,
+        Status: rec.status,
+        'Gefactureerd op': rec.gefactureerd_op ? new Date(rec.gefactureerd_op).toLocaleDateString('nl-NL') : '',
+        'Twinfield ID': rec.twinfield_invoice_id ?? '',
+      };
+    });
     const ws = xlsx.utils.json_to_sheet(rows);
     const wb = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wb, ws, 'Werk derden');
@@ -646,6 +830,18 @@ export default function WerkDerdenOverzicht() {
                     </td>
                     <td onClick={e => e.stopPropagation()}>
                       <div className={styles.actieKnoppen}>
+                        {/* Intern: vooraf verkoopprijs/marge vastleggen (PEPE-only). */}
+                        {(tab === 'open' || tab === 'goedgekeurd' || tab === 'klaar_gemeld') && rec.bestemming !== 'voertuigprijs' && (
+                          <button
+                            className={styles.bijlageKnop}
+                            style={intern[rec.id] ? { color: '#15803d', borderColor: 'rgba(34,197,94,0.5)', background: 'rgba(34,197,94,0.08)' } : {}}
+                            onClick={() => setPrijsRec(rec)}
+                            disabled={isBusy}
+                            title="Interne verkoopprijs vastleggen (partner ziet dit niet)"
+                          >
+                            {intern[rec.id] ? '💶 ✓' : '💶 Prijs'}
+                          </button>
+                        )}
                         {/* PEPE-opdracht wacht op de partner; PEPE keurt die niet zelf goed. */}
                         {tab === 'open' && isPepeOpdracht(rec) && (
                           <span style={{ fontSize: 12, fontWeight: 600, color: '#b45309', background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.35)', borderRadius: 6, padding: '4px 8px' }}>
@@ -756,10 +952,26 @@ export default function WerkDerdenOverzicht() {
       {factureerRec && (
         <FacurerenDialog
           record={factureerRec}
+          intern={intern[factureerRec.id]}
           onBevestigen={(margeType, margeWaarde, btwPct, opmerking) =>
             handleFactureren(factureerRec, margeType, margeWaarde, btwPct, opmerking)
           }
           onSluiten={() => setFactureerRec(null)}
+        />
+      )}
+      {prijsRec && (
+        <VerkoopprijsDialog
+          record={prijsRec}
+          prefill={intern[prijsRec.id]}
+          onOpslaan={async (data) => {
+            await saveIntern(prijsRec.id, data);
+            toonMelding('Interne prijs opgeslagen ✓', true);
+          }}
+          onLeegmaken={async () => {
+            await removeIntern(prijsRec.id);
+            toonMelding('Interne prijs verwijderd', true);
+          }}
+          onSluiten={() => setPrijsRec(null)}
         />
       )}
       {nieuwOpen && (

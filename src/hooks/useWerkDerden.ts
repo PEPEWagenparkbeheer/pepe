@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -7,6 +7,17 @@ import type { WerkDerdenRecord, WerkDerdenStatus, WerkRegel } from '@/types';
 import { isPepeOpdracht } from '@/lib/werk-derden/richting';
 
 const CACHE_KEY = 'pepe_wd_v1';
+
+// Kolomlijst voor partner-queries: marge_type / marge_waarde / verkoop_bedrag worden
+// weggelaten zodat de partner de intern afgesproken verkoopprijs NOOIT te zien krijgt,
+// ook niet in de browser JS-heap of via realtime events.
+const PARTNER_COLS = [
+  'id', 'created_at', 'partner', 'kenteken', 'meldcode', 'merk', 'model', 'klant',
+  'toegevoegd_door', 'regels', 'btw_pct', 'inkoop_bedrag', 'bijlage_storage_path',
+  'status', 'afkeur_reden', 'notitie', 'goedgekeurd_op', 'goedgekeurd_door',
+  'afgekeurd_op', 'afgekeurd_door', 'afgerond_op', 'afgerond_door', 'gefactureerd_op',
+  'hubspot_deal_id', 'twinfield_invoice_id', 'after_sales_id', 'bestemming', 'voorwaarden',
+].join(',');
 
 function euro(n: number): string {
   return n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' });
@@ -66,13 +77,17 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
   }
 
   useEffect(() => {
-    let query = supabase.from('werk_derden').select('*').order('created_at', { ascending: false });
-    if (wie && rol !== 'pepe') {
+    const isPartner = !!(wie && rol !== 'pepe');
+    let query = supabase
+      .from('werk_derden')
+      .select(isPartner ? PARTNER_COLS : '*')
+      .order('created_at', { ascending: false });
+    if (isPartner) {
       query = query.eq('partner', wie);
     }
 
     query.then(({ data, error }) => {
-      if (!error && data) update((data as Record<string, unknown>[]).map(deserialize));
+      if (!error && data) update((data as unknown as Record<string, unknown>[]).map(deserialize));
       setLoading(false);
     });
 
@@ -81,8 +96,16 @@ export function useWerkDerden(wie?: string, rol?: 'pepe') {
       .channel(channelId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'werk_derden' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          const rec = deserialize(payload.new as Record<string, unknown>);
-          if (wie && rol !== 'pepe' && rec.partner !== wie) return;
+          let raw = payload.new as Record<string, unknown>;
+          // Strip interne marge-velden zodat ze nooit in de JS-heap van de partner belanden
+          if (isPartner) {
+            raw = { ...raw };
+            delete (raw as { marge_type?: unknown }).marge_type;
+            delete (raw as { marge_waarde?: unknown }).marge_waarde;
+            delete (raw as { verkoop_bedrag?: unknown }).verkoop_bedrag;
+          }
+          const rec = deserialize(raw);
+          if (isPartner && rec.partner !== wie) return;
           update(
             ref.current.some((r) => r.id === rec.id)
               ? ref.current.map((r) => (r.id === rec.id ? rec : r))

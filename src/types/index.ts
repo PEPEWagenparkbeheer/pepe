@@ -455,6 +455,22 @@ export interface WerkDerdenRecord {
   voorwaarden?: string;              // aanpassingen door PEPE bij goedkeuren
 }
 
+// 'verkoop' = vast eindbedrag (excl. BTW); 'pct'/'bedrag' = marge bovenop inkoop
+export type WerkDerdenMargeType = 'pct' | 'bedrag' | 'verkoop';
+
+// Interne, vooraf afgesproken verkoopprijs/marge. Staat in een APARTE, PEPE-only
+// tabel (werk_derden_intern) — nooit op de werk_derden-rij, want die leest de
+// partner rechtstreeks. De partner ziet deze gegevens dus nooit.
+export interface WerkDerdenIntern {
+  werk_derden_id: string;
+  marge_type?: WerkDerdenMargeType;
+  marge_waarde?: number;
+  btw_pct?: number;
+  notitie?: string;
+  bijgewerkt_op?: string;
+  bijgewerkt_door?: string;
+}
+
 // ── Toestandsrapporten ────────────────────────────────────────
 
 export type RapportStatus = 'goed' | 'let_op' | 'slecht' | 'onbekend';

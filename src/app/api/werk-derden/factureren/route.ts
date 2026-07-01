@@ -1,4 +1,4 @@
-﻿// POST /api/werk-derden/factureren
+// POST /api/werk-derden/factureren
 // Body: { id, marge_type: 'pct'|'bedrag', marge_waarde: number, btw_pct?: number, opmerking?: string }
 // Vereiste status: 'klaar_gemeld'
 // 1. Haal de melding op uit Supabase
@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: 'id is vereist' }, { status: 400 });
   }
-  if (marge_type !== 'pct' && marge_type !== 'bedrag') {
-    return NextResponse.json({ error: 'marge_type moet "pct" of "bedrag" zijn' }, { status: 400 });
+  if (marge_type !== 'pct' && marge_type !== 'bedrag' && marge_type !== 'verkoop') {
+    return NextResponse.json({ error: 'marge_type moet "pct", "bedrag" of "verkoop" zijn' }, { status: 400 });
   }
   if (typeof marge_waarde !== 'number' || marge_waarde < 0) {
     return NextResponse.json({ error: 'marge_waarde moet een positief getal zijn' }, { status: 400 });
@@ -84,9 +84,11 @@ export async function POST(req: NextRequest) {
     (rec.regels as WerkRegel[]).reduce((s, r) => s + r.bedrag, 0);
 
   const verkoop_bedrag =
-    marge_type === 'pct'
-      ? inkoop * (1 + marge_waarde / 100)
-      : inkoop + marge_waarde;
+    marge_type === 'verkoop'
+      ? marge_waarde
+      : marge_type === 'pct'
+        ? inkoop * (1 + marge_waarde / 100)
+        : inkoop + marge_waarde;
 
   if (verkoop_bedrag <= 0) {
     return NextResponse.json({ error: 'Berekend verkoopbedrag is niet geldig' }, { status: 400 });
@@ -130,15 +132,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Concept-factuur aanmaken mislukt: ${factErr.message}` }, { status: 500 });
   }
 
-  // Werk-derden record afsluiten → 'gefactureerd'
+  // Marge/verkoop bewaren in de PEPE-only tabel — NIET op werk_derden, want de
+  // partner leest die rij rechtstreeks (row-level RLS verbergt geen kolommen).
+  const { error: internErr } = await admin
+    .from('werk_derden_intern')
+    .upsert(
+      {
+        werk_derden_id: id,
+        marge_type,
+        marge_waarde,
+        btw_pct,
+        bijgewerkt_op: new Date().toISOString(),
+        bijgewerkt_door: 'facturatie',
+      },
+      { onConflict: 'werk_derden_id' },
+    );
+
+  if (internErr) {
+    return NextResponse.json({ error: internErr.message }, { status: 500 });
+  }
+
+  // Werk-derden record afsluiten → 'gefactureerd' (geen marge/verkoop op deze rij).
   const { error: updateErr } = await admin
     .from('werk_derden')
     .update({
       status: 'gefactureerd',
-      marge_type,
-      marge_waarde,
-      btw_pct,
-      verkoop_bedrag,
       gefactureerd_op: new Date().toISOString(),
     })
     .eq('id', id);
