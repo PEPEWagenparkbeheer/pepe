@@ -3,7 +3,7 @@
 //   ?secret=..&raw=<base64>   → willekeurige read/browse-XML (read-only)
 import { NextRequest, NextResponse } from 'next/server';
 import { getValidAccessToken } from '@/lib/twinfield/auth';
-import { callProcessXml } from '@/lib/twinfield/soap';
+import { callProcessXml, finderSearch } from '@/lib/twinfield/soap';
 
 export const runtime = 'nodejs';
 const SECRETS = [process.env.CRON_SECRET, process.env.ARTIKEL_TEST_SECRET].filter(Boolean);
@@ -17,6 +17,11 @@ export async function GET(req: NextRequest) {
   const office = token.companyCode ?? '';
   const deb = url.searchParams.get('deb');
   const raw = url.searchParams.get('raw');
+  const finder = url.searchParams.get('finder');
+  if (finder) {
+    const items = await finderSearch('DEB', finder, 25);
+    return NextResponse.json({ resultaten: items });
+  }
   let xml = '';
   if (deb) {
     xml = `<read><type>dimensions</type><office>${office}</office><code>${deb}</code><dimtype>DEB</dimtype></read>`;
