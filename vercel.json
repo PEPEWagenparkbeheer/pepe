@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/transconnect/sync",
-      "schedule": "7 */2 * * *"
+      "schedule": "7 6 * * *"
     },
     {
       "path": "/api/transconnect/afhaal-reminder",
@@ -26,3 +26,4 @@
     }
   ]
 }
+
