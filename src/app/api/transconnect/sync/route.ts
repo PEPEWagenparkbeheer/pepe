@@ -3,27 +3,40 @@ import { createClient } from '@supabase/supabase-js';
 import { requirePepe } from '@/lib/apiAuth';
 import { getOrderStatus, mapTcOrderToPatch } from '@/lib/transconnect';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-// POST /api/transconnect/sync
-// Haalt voor alle importrecords met een TC order-ID de actuele status op en werkt ze bij.
-export async function POST(req: NextRequest) {
-  const gate = await requirePepe(req);
-  if (!gate.ok) return gate.response;
+const CRON_SECRET = process.env.CRON_SECRET ?? '';
+const BREIN_SYNC_SECRET = process.env.BREIN_SYNC_SECRET ?? '';
 
+function geautoriseerd(req: NextRequest): boolean {
+  const auth = req.headers.get('authorization');
+  if (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`) return true;
+  const secret = new URL(req.url).searchParams.get('secret');
+  return (
+    (!!CRON_SECRET && secret === CRON_SECRET) ||
+    (!!BREIN_SYNC_SECRET && secret === BREIN_SYNC_SECRET)
+  );
+}
+
+async function runSync() {
+  // Sync alle niet-gearchiveerde records met een TC order-ID.
+  // binnen=true records worden ook gesync om de definitieve TC-status op te halen;
+  // mapTcOrderToPatch overschrijft binnen nooit met false.
   const { data: records, error } = await supabase
     .from('after_sales')
     .select('id, transport_order_id, transportdatum')
     .eq('type', 'import')
     .eq('gearchiveerd', false)
-    .eq('binnen', false)
     .not('transport_order_id', 'is', null);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!records?.length) return NextResponse.json({ ok: true, updated: 0, skipped: 0 });
+  if (error) return { status: 500, body: { error: error.message } };
+  if (!records?.length) return { status: 200, body: { ok: true, updated: 0, skipped: 0 } };
 
   let updated = 0;
   let skipped = 0;
@@ -35,10 +48,7 @@ export async function POST(req: NextRequest) {
         const order = await getOrderStatus(rec.transport_order_id!);
         if (!order) { skipped++; return; }
 
-        // Gedeelde mapping met de webhook: transportdatum = geplande leverdatum,
-        // geplande_afhaaldatum = ophaaldatum (betaal-trigger), binnen bij aankomst.
         const patch = mapTcOrderToPatch(order as Record<string, unknown>);
-
         await supabase.from('after_sales').update(patch).eq('id', rec.id);
         updated++;
       } catch (e) {
@@ -48,5 +58,24 @@ export async function POST(req: NextRequest) {
     }),
   );
 
-  return NextResponse.json({ ok: true, updated, skipped, fouten });
+  return { status: 200, body: { ok: true, updated, skipped, fouten } };
+}
+
+// GET /api/transconnect/sync — Vercel Cron (meerdere keren per dag).
+// Auth via Authorization: Bearer <CRON_SECRET> of ?secret=<CRON_SECRET>.
+export async function GET(req: NextRequest) {
+  if (!geautoriseerd(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const { status, body } = await runSync();
+  return NextResponse.json(body, { status });
+}
+
+// POST /api/transconnect/sync — Handmatig via PEPE-sessie.
+export async function POST(req: NextRequest) {
+  const gate = await requirePepe(req);
+  if (!gate.ok) return gate.response;
+
+  const { status, body } = await runSync();
+  return NextResponse.json(body, { status });
 }

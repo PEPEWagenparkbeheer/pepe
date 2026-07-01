@@ -5,6 +5,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/transconnect/sync",
+      "schedule": "7 */2 * * *"
+    },
+    {
       "path": "/api/transconnect/afhaal-reminder",
       "schedule": "0 5 * * *"
     },
